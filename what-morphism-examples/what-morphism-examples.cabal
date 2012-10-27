@@ -1,0 +1,19 @@
+Name:          what-morphism-examples
+Version:       0.0.0.1
+Synopsis:      Examples for the what-morphism plugin
+License:       BSD3
+License-file:  LICENSE
+Author:        Jasper Van der Jeugt <m@jaspervdj.be>
+Maintainer:    Jasper Van der Jeugt <m@jaspervdj.be>
+Category:      Language
+Build-type:    Simple
+Cabal-version: >= 1.8
+
+Executable what-morphism-examples
+  Ghc-options:    -fplugin WhatMorphism
+  Hs-source-dirs: src
+  Main-is:        Main.hs
+
+  Build-depends:
+    base          >= 4   && < 5,
+    what-morphism >= 0.0 && < 0.1
