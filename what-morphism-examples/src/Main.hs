@@ -11,3 +11,12 @@ main = putStrLn "Hello world!"
 map' :: (a -> b) -> [a] -> [b]
 map' _ []       = []
 map' f (x : xs) = f x : map' f xs
+
+
+--------------------------------------------------------------------------------
+sum' :: [Int] -> Int
+sum' []       = 0
+sum' (x : xs) =
+    let f = (x +)
+        z = f (sum' xs)
+    in z
