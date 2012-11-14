@@ -20,3 +20,11 @@ sum' (x : xs) =
     let f = (x +)
         z = f (sum' xs)
     in z
+
+
+--------------------------------------------------------------------------------
+odds :: [Int] -> [Int]
+odds []         = []
+odds (x : xs)
+    | odd x     = x : odds xs
+    | otherwise = odds xs
