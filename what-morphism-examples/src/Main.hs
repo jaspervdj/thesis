@@ -1,4 +1,5 @@
 --------------------------------------------------------------------------------
+{-# LANGUAGE RankNTypes #-}
 module Main where
 
 
@@ -8,23 +9,20 @@ main = putStrLn "Hello world!"
 
 
 --------------------------------------------------------------------------------
-map' :: (a -> b) -> [a] -> [b]
-map' _ []       = []
-map' f (x : xs) = f x : map' f xs
+sum1 :: [Int] -> Int
+sum1 []       = 0
+sum1 (x : xs) = x + sum1 xs
 
 
 --------------------------------------------------------------------------------
-sum' :: [Int] -> Int
-sum' []       = 0
-sum' (x : xs) =
-    let f = (x +)
-        z = f (sum' xs)
-    in z
+map1 :: (a -> b) -> [a] -> [b]
+map1 _ []       = []
+map1 f (x : xs) = f x : map1 f xs
 
 
 --------------------------------------------------------------------------------
-odds :: [Int] -> [Int]
-odds []         = []
-odds (x : xs)
-    | odd x     = x : odds xs
-    | otherwise = odds xs
+filter1 :: (a -> Bool) -> [a] -> [a]
+filter1 _    []       = []
+filter1 pred (x : xs)
+    | pred x          = x : filter1 pred xs
+    | otherwise       = filter1 pred xs
