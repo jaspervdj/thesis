@@ -2,6 +2,7 @@
 
 require 'fileutils'
 require 'open3'
+require 'tempfile'
 
 TMP = 'tmp'
 ROOT = FileUtils.pwd
@@ -43,6 +44,10 @@ def compile(command, name)
   else
     print "exit code #{status.exitstatus} (#{elapsed}s)\n"
   end
+
+  log = `mktemp /tmp/whatmorpism-XXXXX`.chomp
+  File.open(log, 'w') { |f| f.write(output) }
+  puts "Log written to #{log}"
 end
 
 def compile_zip(name)
