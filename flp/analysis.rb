@@ -29,8 +29,8 @@ def results(output)
   puts "DataFold: #{data_folds}"
 end
 
-def analyse(name)
-  puts "analysing #{name}"
+def compile(name)
+  print "Compiling #{name}: "
   cmd = 'ghc --make -package what-morphism -fplugin=WhatMorphism Main.hs 2>&1'
 
   cmd_start = Time.now
@@ -40,10 +40,10 @@ def analyse(name)
 
   elapsed = (cmd_end - cmd_start).floor
   if status.success? then
-    puts "#{name} success (#{elapsed}s)"
+    print "success (#{elapsed}s)\n"
     results(output)
   else
-    puts "#{name} exit code #{status.exitstatus} (#{elapsed}s)"
+    print "exit code #{status.exitstatus} (#{elapsed}s)\n"
   end
 end
 
@@ -61,7 +61,7 @@ zip_files.each do |zip_file|
   `unzip "#{zip_file}"`
 
   # Analysis
-  analyse(zip_file)
+  compile(zip_file)
 
   # Remove tmp dir
   FileUtils.cd ROOT
