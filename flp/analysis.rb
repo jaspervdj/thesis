@@ -29,16 +29,14 @@ def results(output)
   puts "DataFold: #{data_folds}"
 end
 
-def compile(name)
+def compile(command, name)
   print "Compiling #{name}: "
-  cmd = 'ghc --make -package what-morphism -fplugin=WhatMorphism Main.hs 2>&1'
 
-  cmd_start = Time.now
-  output = `#{cmd}`
+  start = Time.now
+  output = `#{command}`
   status = $?
-  cmd_end = Time.now
 
-  elapsed = (cmd_end - cmd_start).floor
+  elapsed = (Time.now - start).floor
   if status.success? then
     print "success (#{elapsed}s)\n"
     results(output)
@@ -47,23 +45,53 @@ def compile(name)
   end
 end
 
-# Preventive cleanup
-FileUtils.rm_rf TMP
+def compile_zip(name)
+  # Preventive cleanup
+  FileUtils.rm_rf TMP
 
-zip_files = Dir.glob('*.zip').sort
-zip_files.each do |zip_file|
   # Move over zip file
   FileUtils.mkdir TMP
-  FileUtils.cp zip_file, TMP
+  FileUtils.cp name, TMP
 
   # Go to tmp dir and unzip
   FileUtils.cd TMP
-  `unzip "#{zip_file}"`
+  `unzip "#{name}"`
 
   # Analysis
-  compile(zip_file)
+  command = 'ghc --make -package what-morphism -fplugin=WhatMorphism Main.hs 2>&1'
+  compile(command, name)
 
   # Remove tmp dir
   FileUtils.cd ROOT
   FileUtils.rm_r TMP
+end
+
+def compile_cabal(name)
+  package = name.chomp('.tar.gz')
+  `tar -xzf #{name}`
+
+  FileUtils.cd package
+  cabal_file = Dir.glob('*.cabal').first
+
+  patched = File.read(cabal_file).gsub(/(library)(\s+)/i) do
+    "#{$1}#{$2}" +
+      "build-depends: what-morphism#{$2}" +
+      "ghc-options: -fplugin=WhatMorphism#{$2}"
+  end
+
+  File.open(cabal_file, 'w') { |f| f.write(patched) }
+
+  command = 'cabal configure && cabal build 2>&1'
+  compile(command, package)
+
+  FileUtils.cd ROOT
+  FileUtils.rm_r package
+end
+
+file = ARGV[0]
+
+if file.end_with? '.zip'
+  compile_zip(file)
+elsif file.end_with? '.tar.gz'
+  compile_cabal(file)
 end
