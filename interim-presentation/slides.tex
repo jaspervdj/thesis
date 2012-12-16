@@ -140,4 +140,71 @@
     \end{lstlisting}
 \end{frame}
 
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    head :: [a] -> a
+    head (x : _) = x
+    head []      =
+      error "empty list"
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    head :: [a] -> a
+    head = foldr const
+      (error "empty list")
+    \end{lstlisting}
+\end{frame}
+
+% Generalising foldr
+% ------------------
+
+\begin{frame}[fragile]{Generalising foldr}
+    \begin{lstlisting}
+    data [a]     foldr
+      = a : [a]    :: (a -> b -> b)
+      | []         -> b
+                   -> [a] -> b
+    \end{lstlisting}
+
+    \begin{lstlisting}
+    foldr (+) 0
+      (1 : 2 : 3 : []) =
+        1 + 2 + 3 + 0
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Generalising foldr}
+    \begin{lstlisting}
+    data Tree a
+      = Branch a (Tree a) (Tree a)
+      | Empty
+
+    foldTree
+      :: (a -> b -> b)
+      -> b
+      -> Tree a -> b
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Generalising foldr}
+    \texttt{foldFoo} can be automatically generated for any datatype
+    \texttt{Foo} \\
+    \vspaced
+    The \emph{universal property of foldr} tells us that all other
+    implementations are an isomorphism of this version
+\end{frame}
+
+\begin{frame}[fragile]{Generalising foldr}
+    A proof-of-concept TemplateHaskell implementation is available: \\
+    \vspaced
+    \begin{lstlisting}
+    {-# LANGUAGE
+      TemplateHaskell #-}
+
+    $(deriveFold ''Tree)
+    \end{lstlisting}
+\end{frame}
+
 \end{document}
