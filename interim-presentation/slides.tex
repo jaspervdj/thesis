@@ -1,0 +1,74 @@
+% slides.tex
+\documentclass[20pt]{beamer}
+\usepackage{listings}
+\usepackage[utf8]{inputenc}
+\usepackage{cancel}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{pdfpages}
+
+\usetheme{default}
+\usecolortheme{dove}
+\useoutertheme{default}
+
+% Slightly smaller title
+\setbeamerfont{frametitle}{size=\large}
+\setbeamerfont{verb}{size=\small}
+
+% Font
+\renewcommand{\ttdefault}{pcr}
+
+% lst settings
+\lstset{
+    basicstyle=\ttfamily\small,
+    gobble=4,
+    keywordstyle=\ttfamily\bfseries,
+    language=Haskell
+}
+
+\newcommand{\vspaced}{
+    \vspace{5mm}
+}
+
+\begin{document}
+
+\title{Automatic Detection of Recursion Patterns}
+\subtitle{Interim thesis presentation}
+\author{Jasper Van der Jeugt}
+\date{December 19, 2012}
+
+\begin{frame}[plain]
+    \titlepage
+\end{frame}
+
+% Introduction
+% ------------
+
+\begin{frame}[fragile]{TEMPLATE}
+    \begin{lstlisting}
+    upper :: String -> String
+    upper []       = []
+    upper (x : xs) =
+      toUpper x : upper xs
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{TEMPLATE}
+    \begin{lstlisting}
+    evens :: [Int] -> [Int]
+    evens []       = []
+    evens (x : xs)
+      | even x     = x : evens xs
+      | otherwise  = evens xs
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{TEMPLATE}
+    \begin{lstlisting}
+    sum :: [Int] -> Int
+    sum []       = 0
+    sum (x : xs) = x + sum xs
+    \end{lstlisting}
+\end{frame}
+
+\end{document}
