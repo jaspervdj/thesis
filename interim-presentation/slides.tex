@@ -41,10 +41,10 @@
     \titlepage
 \end{frame}
 
-% Introduction
-% ------------
+% The omnipresence of foldr
+% -------------------------
 
-\begin{frame}[fragile]{TEMPLATE}
+\begin{frame}[fragile]{The omnipresence of foldr}
     \begin{lstlisting}
     upper :: String -> String
     upper []       = []
@@ -53,7 +53,22 @@
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{TEMPLATE}
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    map :: (a -> b) -> [a] -> [b]
+    map _ []       = []
+    map f (x : xs) = f x : xs
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    upper :: String -> String
+    upper = map toUpper
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{The omnipresence of foldr}
     \begin{lstlisting}
     evens :: [Int] -> [Int]
     evens []       = []
@@ -63,11 +78,65 @@
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{TEMPLATE}
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    filter
+     :: (a -> Bool) -> [a] -> [a]
+    filter _ []   = []
+    filter p (x : xs)
+      | p x       =
+          x : filter p xs
+      | otherwise = filter p xs
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    evens :: [Int] -> [Int]
+    evens = filter even
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{The omnipresence of foldr}
     \begin{lstlisting}
     sum :: [Int] -> Int
     sum []       = 0
     sum (x : xs) = x + sum xs
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    foldr
+      :: (a -> b -> b)
+      -> b -> [a] -> b
+    foldr _ z []       = z
+    foldr f z (x : xs) =
+      f x (foldr f z xs)
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    sum :: [Int] -> Int
+    sum = foldr (+) 0
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{The omnipresence of foldr}
+    \begin{lstlisting}
+    map :: (a -> b) -> [a] -> [b]
+    map f = foldr ((:) . f) []
+    \end{lstlisting}
+
+    \begin{lstlisting}
+    filter
+      :: (a -> Bool) -> [a] -> [a]
+    filter p = foldr
+      (\x l -> if p x
+        then x : l
+        else l)
+      []
     \end{lstlisting}
 \end{frame}
 
