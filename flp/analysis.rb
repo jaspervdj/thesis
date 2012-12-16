@@ -9,25 +9,22 @@ ROOT = FileUtils.pwd
 
 def results(output)
   folds = {}
-  list_folds = 0
-  data_folds = 0
+  folds_count = Hash.new 0
 
   output.lines.each do |line|
     words = line.split
     if words[0] == 'RewriteResult:' and words.last != 'NoFold' then
       name = words[1]
       unless folds[name]  # ensure we only count each fold once
-        if words.last == 'ListFold' then
-          list_folds += 1
-        elsif words.last == 'DataFold' then
-          data_folds += 1
-        end
+        fold_type = words.last
+        folds_count[fold_type] += 1
       end
     end
   end
 
-  puts "ListFold: #{list_folds}"
-  puts "DataFold: #{data_folds}"
+  folds_count.each do |fold_type, count|
+    puts "#{fold_type}: #{count}"
+  end
 end
 
 def compile(command, name)
