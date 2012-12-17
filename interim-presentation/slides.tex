@@ -44,6 +44,15 @@
 % The omnipresence of foldr
 % -------------------------
 
+\begin{frame}{Overview}
+    \textbf{The omnipresence of foldr} \\
+    Generalising foldr \\
+    Towards a single fold \\
+    Detection of foldr \\
+    Detection: results \\
+    Future work \\
+\end{frame}
+
 \begin{frame}[fragile]{The omnipresence of foldr}
     \begin{lstlisting}
     upper :: String -> String
@@ -160,6 +169,15 @@
 % Generalising foldr
 % ------------------
 
+\begin{frame}{Overview}
+    The omnipresence of foldr \\
+    \textbf{Generalising foldr} \\
+    Towards a single fold \\
+    Detection of foldr \\
+    Detection: results \\
+    Future work \\
+\end{frame}
+
 \begin{frame}[fragile]{Generalising foldr}
     \begin{lstlisting}
     data [a]     foldr
@@ -205,6 +223,206 @@
 
     $(deriveFold ''Tree)
     \end{lstlisting}
+\end{frame}
+
+% Towards a single fold
+% ---------------------
+
+\begin{frame}{Overview}
+    The omnipresence of foldr \\
+    Generalising foldr \\
+    \textbf{Towards a single fold} \\
+    Detection of foldr \\
+    Detection: results \\
+    Future work \\
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    \begin{lstlisting}
+    data ListPF a t
+      = NilPF
+      | ConsPF a t
+
+    instance Functor (ListPF a)
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    \begin{lstlisting}
+    toPF :: [a] -> ListPF a [a]
+    toPF []       = NilPF
+    toPF (x : xs) = ConsPF x xs
+
+    fromPF :: ListPF a [a] -> [a]
+    fromPF NilPF         = []
+    fromPF (ConsPF x xs) = x : xs
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    \begin{lstlisting}
+    class Functor (PF t) =>
+        Fold t where
+      type PF t :: * -> *
+
+      toPF   :: t -> PF t t
+      fromPF :: PF t t -> t
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    \begin{lstlisting}
+    fold
+      :: Fold t
+      => (PF t a -> a) -> t -> a
+    fold f =
+      f . fmap (fold f) . toPF
+    \end{lstlisting}
+\end{frame}
+
+% Detection of foldr
+% ------------------
+
+\begin{frame}{Overview}
+    The omnipresence of foldr \\
+    Generalising foldr \\
+    Towards a single fold \\
+    \textbf{Detection of foldr} \\
+    Detection: results \\
+    Future work \\
+\end{frame}
+
+\begin{frame}{Detection of foldr}
+    Detect folds in Haskell code? \\
+    Or, detect folds in (GHC) core?
+\end{frame}
+
+\begin{frame}[fragile]{Detection of foldr}
+    \textbf{GHC core} \\
+    \vspaced
+    \begin{lstlisting}
+    data Expr b
+      = Var Id
+      | Lit Literal
+      | App (Expr b) (Arg b)
+      | Lam b (Expr b)
+      ...
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Detection of foldr}
+    \textbf{Advantages of GHC core} \\
+    \vspaced
+    Simpler expression type \\
+    Multiple passes \\
+    Type information \\
+\end{frame}
+
+\begin{frame}[fragile]{Detection of foldr}
+    \textbf{Disadvantages of GHC core} \\
+    \vspaced
+    Less useful for refactoring
+\end{frame}
+
+\begin{frame}[fragile]{Detection of foldr}
+    \begin{lstlisting}
+    sum :: [Int] -> Int
+    sum []       = 0
+    sum (x : xs) = x + sum xs
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Detection of foldr}
+    \begin{lstlisting}
+    sum :: [Int] -> Int
+    sum ls = case ls of
+      (:) x xs -> x + sum xs
+      []       -> 0
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Detection of foldr}
+    \begin{lstlisting}
+    sum :: [Int] -> Int
+    sum ls = case ls of
+      -- Two subterms, one recursive
+      (:) x xs ->
+        (\t1 t2 -> t1 + t2)
+        x
+        (sum xs)
+      -- No subterms
+      []       -> 0
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Detection of foldr}
+    \begin{lstlisting}
+    sum :: [Int] -> Int
+    sum ls = foldr
+      (\t1 t2 -> t1 + t2)
+      0
+      ls
+    \end{lstlisting}
+\end{frame}
+
+% Detection: results
+% ------------------
+
+\begin{frame}{Overview}
+    The omnipresence of foldr \\
+    Generalising foldr \\
+    Towards a single fold \\
+    Detection of foldr \\
+    \textbf{Detection: results} \\
+    Future work \\
+\end{frame}
+
+\begin{frame}{Detection: results}
+    \textbf{Categories:} \\
+    \vspaced
+    \textbf{Head fold:} fold without recursion \\
+    \textbf{List fold:} proper fold over a list \\
+    \textbf{Data fold:} proper fold over another datatype \\
+\end{frame}
+
+\begin{frame}[fragile]{Detection: results}
+    \begin{tabular}{l|rrr}
+                            & \textbf{Head} & \textbf{Data} & \textbf{List} \\
+        \hline
+        \textbf{hlint}      &           248 &            25 &            17 \\
+        \textbf{parsec}     &           150 &             0 &             6 \\
+        \textbf{containers} &           311 &            75 &             7 \\
+        \textbf{pandoc}     &          1012 &             1 &            35 \\
+        \textbf{cabal}      &          1701 &            30 &            43 \\
+    \end{tabular}
+\end{frame}
+
+% Future work
+% -----------
+
+\begin{frame}{Overview}
+    The omnipresence of foldr \\
+    Generalising foldr \\
+    Towards a single fold \\
+    Detection of foldr \\
+    Detection: results \\
+    \textbf{Future work} \\
+\end{frame}
+
+\begin{frame}{Future work}
+    Mutually recursive datatypes \& folds \\
+    Generic programming \\
+    Formal analysis \\
+    Optimizations \\
+\end{frame}
+
+% Questions?
+% ----------
+
+\begin{frame}{}
+    \begin{center}
+    \center\huge{Questions?}
+    \end{center}
 \end{frame}
 
 \end{document}
