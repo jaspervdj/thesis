@@ -211,7 +211,7 @@
     \texttt{Foo} \\
     \vspaced
     The \emph{universal property of foldr} tells us that all other
-    implementations are an isomorphism of this version
+    implementations are isomorph to this version
 \end{frame}
 
 \begin{frame}[fragile]{Generalising foldr}
@@ -385,7 +385,9 @@
     \textbf{Data fold:} proper fold over another datatype \\
 \end{frame}
 
-\begin{frame}[fragile]{Detection: results}
+\begin{frame}{Detection: results}
+    Some well-known projects \\
+    \vspaced
     \begin{tabular}{l|rrr}
                             & \textbf{Head} & \textbf{Data} & \textbf{List} \\
         \hline
@@ -394,6 +396,17 @@
         \textbf{containers} &           311 &            75 &             7 \\
         \textbf{pandoc}     &          1012 &             1 &            35 \\
         \textbf{cabal}      &          1701 &            30 &            43 \\
+    \end{tabular}
+\end{frame}
+
+\begin{frame}{Detection: results}
+    This years FLP projects (40) \\
+    \vspaced
+    \begin{tabular}{l|rrr}
+                         & \textbf{Head} & \textbf{Data} & \textbf{List} \\
+        \hline
+        \textbf{total}   &           214 &            81 &            10 \\
+        \textbf{average} &          5.35 &         2.025 &          0.25 \\
     \end{tabular}
 \end{frame}
 
