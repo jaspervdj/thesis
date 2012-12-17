@@ -18,6 +18,7 @@ def results(output)
       unless folds[name]  # ensure we only count each fold once
         fold_type = words.last
         folds_count[fold_type] += 1
+        folds[name] = true
       end
     end
   end
@@ -75,7 +76,7 @@ def compile_cabal(name)
   FileUtils.cd package
   cabal_file = Dir.glob('*.cabal').first
 
-  patched = File.read(cabal_file).gsub(/(library)(\s+)/i) do
+  patched = File.read(cabal_file).gsub(/^(library)(\s+)/i) do
     "#{$1}#{$2}" +
       "build-depends: what-morphism#{$2}" +
       "ghc-options: -fplugin=WhatMorphism#{$2}"
