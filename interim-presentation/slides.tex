@@ -41,19 +41,20 @@
     \titlepage
 \end{frame}
 
-% The omnipresence of foldr
-% -------------------------
+% Recursion patterns: what and why?
+% ---------------------------------
 
 \begin{frame}{Overview}
-    \textbf{The omnipresence of foldr} \\
+    \textbf{Recursion patterns: what and why?} \\
+    The omnipresence of foldr \\
     Generalising foldr \\
-    Towards a single fold \\
     Detection of foldr \\
     Detection: results \\
+    Towards a single fold \\
     Future work \\
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     upper :: String -> String
     upper []       = []
@@ -62,7 +63,7 @@
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     map :: (a -> b) -> [a] -> [b]
     map _ []       = []
@@ -70,14 +71,14 @@
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     upper :: String -> String
     upper = map toUpper
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     evens :: [Int] -> [Int]
     evens []       = []
@@ -87,7 +88,7 @@
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     filter
      :: (a -> Bool) -> [a] -> [a]
@@ -99,14 +100,14 @@
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     evens :: [Int] -> [Int]
     evens = filter even
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     sum :: [Int] -> Int
     sum []       = 0
@@ -114,7 +115,7 @@
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     foldr
       :: (a -> b -> b)
@@ -125,11 +126,32 @@
     \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{The omnipresence of foldr}
+\begin{frame}[fragile]{Recursion patterns: what and why?}
     \begin{lstlisting}
     sum :: [Int] -> Int
     sum = foldr (+) 0
     \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Recursion patterns: what and why?}
+    \textbf{Advantages} \\
+    Readability \\
+    Conciseness \\
+    Interesting properties \\
+    Optimizations \\
+\end{frame}
+
+% The omnipresence of foldr
+% -------------------------
+
+\begin{frame}{Overview}
+    Recursion patterns: what and why? \\
+    \textbf{The omnipresence of foldr} \\
+    Generalising foldr \\
+    Detection of foldr \\
+    Detection: results \\
+    Towards a single fold \\
+    Future work \\
 \end{frame}
 
 \begin{frame}[fragile]{The omnipresence of foldr}
@@ -170,11 +192,12 @@
 % ------------------
 
 \begin{frame}{Overview}
+    Recursion patterns: what and why? \\
     The omnipresence of foldr \\
     \textbf{Generalising foldr} \\
-    Towards a single fold \\
     Detection of foldr \\
     Detection: results \\
+    Towards a single fold \\
     Future work \\
 \end{frame}
 
@@ -194,13 +217,28 @@
 \end{frame}
 
 \begin{frame}[fragile]{Generalising foldr}
+    Every constructor is mapped to an operator in an \emph{algebra} \\
+    \vspaced
+    \begin{lstlisting}
+    foldr (+) 0
+    \end{lstlisting}
+    \vspaced
+    \begin{tabular}{c|c}
+        \textbf{Constructor} & \textbf{Operator} \\
+        \hline
+        \texttt{[]}          & \texttt{0}        \\
+        \texttt{:}           & \texttt{+}        \\
+    \end{tabular}
+\end{frame}
+
+\begin{frame}[fragile]{Generalising foldr}
     \begin{lstlisting}
     data Tree a
       = Branch a (Tree a) (Tree a)
       | Empty
 
     foldTree
-      :: (a -> b -> b)
+      :: (a -> b -> b -> b)
       -> b
       -> Tree a -> b
     \end{lstlisting}
@@ -225,70 +263,16 @@
     \end{lstlisting}
 \end{frame}
 
-% Towards a single fold
-% ---------------------
-
-\begin{frame}{Overview}
-    The omnipresence of foldr \\
-    Generalising foldr \\
-    \textbf{Towards a single fold} \\
-    Detection of foldr \\
-    Detection: results \\
-    Future work \\
-\end{frame}
-
-\begin{frame}[fragile]{Towards a single fold}
-    \begin{lstlisting}
-    data ListPF a t
-      = NilPF
-      | ConsPF a t
-
-    instance Functor (ListPF a)
-    \end{lstlisting}
-\end{frame}
-
-\begin{frame}[fragile]{Towards a single fold}
-    \begin{lstlisting}
-    toPF :: [a] -> ListPF a [a]
-    toPF []       = NilPF
-    toPF (x : xs) = ConsPF x xs
-
-    fromPF :: ListPF a [a] -> [a]
-    fromPF NilPF         = []
-    fromPF (ConsPF x xs) = x : xs
-    \end{lstlisting}
-\end{frame}
-
-\begin{frame}[fragile]{Towards a single fold}
-    \begin{lstlisting}
-    class Functor (PF t) =>
-        Fold t where
-      type PF t :: * -> *
-
-      toPF   :: t -> PF t t
-      fromPF :: PF t t -> t
-    \end{lstlisting}
-\end{frame}
-
-\begin{frame}[fragile]{Towards a single fold}
-    \begin{lstlisting}
-    fold
-      :: Fold t
-      => (PF t a -> a) -> t -> a
-    fold f =
-      f . fmap (fold f) . toPF
-    \end{lstlisting}
-\end{frame}
-
 % Detection of foldr
 % ------------------
 
 \begin{frame}{Overview}
+    Recursion patterns: what and why? \\
     The omnipresence of foldr \\
     Generalising foldr \\
-    Towards a single fold \\
     \textbf{Detection of foldr} \\
     Detection: results \\
+    Towards a single fold \\
     Future work \\
 \end{frame}
 
@@ -369,18 +353,19 @@
 % ------------------
 
 \begin{frame}{Overview}
+    Recursion patterns: what and why? \\
     The omnipresence of foldr \\
     Generalising foldr \\
-    Towards a single fold \\
     Detection of foldr \\
     \textbf{Detection: results} \\
+    Towards a single fold \\
     Future work \\
 \end{frame}
 
 \begin{frame}{Detection: results}
     \textbf{Categories:} \\
     \vspaced
-    \textbf{Head fold:} fold without recursion \\
+    \textbf{Degenerated fold:} fold without recursion (e.g. \texttt{head}) \\
     \textbf{List fold:} proper fold over a list \\
     \textbf{Data fold:} proper fold over another datatype \\
 \end{frame}
@@ -389,7 +374,7 @@
     Some well-known projects \\
     \vspaced
     \begin{tabular}{l|rrr}
-                            & \textbf{Head} & \textbf{Data} & \textbf{List} \\
+                            & \textbf{Deg.} & \textbf{Data} & \textbf{List} \\
         \hline
         \textbf{hlint}      &           248 &            25 &            17 \\
         \textbf{parsec}     &           150 &             0 &             6 \\
@@ -403,29 +388,117 @@
     This years FLP projects (40) \\
     \vspaced
     \begin{tabular}{l|rrr}
-                         & \textbf{Head} & \textbf{Data} & \textbf{List} \\
+                         & \textbf{Deg.} & \textbf{Data} & \textbf{List} \\
         \hline
         \textbf{total}   &           214 &            81 &            10 \\
         \textbf{average} &          5.35 &         2.025 &          0.25 \\
     \end{tabular}
 \end{frame}
 
+\begin{frame}[fragile]{Detection: results}
+    \textbf{hlint} only matches very specific cases \\
+    \vspaced
+    \begin{lstlisting}
+    sum :: [(Int, Int)] -> Int
+    sum []            = 0
+    sum ((x, y) : zs) =
+      x + y + sum zs
+    \end{lstlisting}
+\end{frame}
+
+% Towards a single fold
+% ---------------------
+
+\begin{frame}{Overview}
+    Recursion patterns: what and why? \\
+    The omnipresence of foldr \\
+    Generalising foldr \\
+    Detection of foldr \\
+    Detection: results \\
+    \textbf{Towards a single fold} \\
+    Future work \\
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    Rewrite detected folds using a higher-order fold function \\
+    \vspaced
+    Generate a fold function for each datatype using \emph{TemplateHaskell}? \\
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    Associate a \emph{Pattern functor} with each recursive datatype \\
+    \vspaced
+    Allows us to \emph{fmap} over recursive subterms \\
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    \begin{lstlisting}
+    data ListPF a t
+      = NilPF
+      | ConsPF a t
+
+    instance Functor (ListPF a)
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    \begin{lstlisting}
+    toPF :: [a] -> ListPF a [a]
+    toPF []       = NilPF
+    toPF (x : xs) = ConsPF x xs
+
+    fromPF :: ListPF a [a] -> [a]
+    fromPF NilPF         = []
+    fromPF (ConsPF x xs) = x : xs
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    \begin{lstlisting}
+    class Functor (PF t) =>
+        Fold t where
+      type PF t :: * -> *
+
+      toPF   :: t -> PF t t
+      fromPF :: PF t t -> t
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    Every constructor is mapped to an operator in an \emph{algebra} \\
+    \vspaced
+    \begin{lstlisting}
+    type Algebra t a = PF t a -> a
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Towards a single fold}
+    \begin{lstlisting}
+    fold
+      :: Fold t
+      => Algebra t a -> t -> a
+    fold f =
+      f . fmap (fold f) . toPF
+    \end{lstlisting}
+\end{frame}
+
 % Future work
 % -----------
 
 \begin{frame}{Overview}
+    Recursion patterns: what and why? \\
     The omnipresence of foldr \\
     Generalising foldr \\
-    Towards a single fold \\
     Detection of foldr \\
     Detection: results \\
+    Towards a single fold \\
     \textbf{Future work} \\
 \end{frame}
 
 \begin{frame}{Future work}
     Mutually recursive datatypes \& folds \\
     Generic programming \\
-    Formal analysis \\
+    Correctness proof \\
     Optimizations \\
 \end{frame}
 
