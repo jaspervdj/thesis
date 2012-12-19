@@ -141,6 +141,11 @@
     Optimizations \\
 \end{frame}
 
+\begin{frame}{Recursion patterns: what and why?}
+    \textbf{Disadvantages} \\
+    Not always obvious to identify a fold
+\end{frame}
+
 % The omnipresence of foldr
 % -------------------------
 
@@ -373,25 +378,25 @@
 \begin{frame}{Detection: results}
     Some well-known projects \\
     \vspaced
-    \begin{tabular}{l|rrr}
-                            & \textbf{Deg.} & \textbf{Data} & \textbf{List} \\
+    \begin{tabular}{l|rrr|r}
+        & \textbf{Deg.} & \textbf{Data} & \textbf{List} & hlint \\
         \hline
-        \textbf{hlint}      &           248 &            25 &            17 \\
-        \textbf{parsec}     &           150 &             0 &             6 \\
-        \textbf{containers} &           311 &            75 &             7 \\
-        \textbf{pandoc}     &          1012 &             1 &            35 \\
-        \textbf{cabal}      &          1701 &            30 &            43 \\
+        \textbf{hlint}      &  248 & 25 & 17 & 0 \\
+        \textbf{parsec}     &  150 &  0 &  6 & 0 \\
+        \textbf{containers} &  311 & 75 &  7 & 0 \\
+        \textbf{pandoc}     & 1012 &  1 & 35 & 0 \\
+        \textbf{cabal}      & 1701 & 30 & 43 & 1 \\
     \end{tabular}
 \end{frame}
 
 \begin{frame}{Detection: results}
     This years FLP projects (40) \\
     \vspaced
-    \begin{tabular}{l|rrr}
-                         & \textbf{Deg.} & \textbf{Data} & \textbf{List} \\
+    \begin{tabular}{l|rrr|r}
+        & \textbf{Deg.} & \textbf{Data} & \textbf{List} & hlint \\
         \hline
-        \textbf{total}   &           214 &            81 &            10 \\
-        \textbf{average} &          5.35 &         2.025 &          0.25 \\
+        \textbf{total}   &  214 &    81 &   10 &     1 \\
+        \textbf{average} & 5.35 & 2.025 & 0.25 & 0.025 \\
     \end{tabular}
 \end{frame}
 
