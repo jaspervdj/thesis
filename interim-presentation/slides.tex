@@ -139,6 +139,8 @@
     Conciseness \\
     Interesting properties \\
     Optimizations \\
+    \vspaced
+    \small{``Why Functional Programming Matters'', John Hughes, 1984}
 \end{frame}
 
 \begin{frame}{Recursion patterns: what and why?}
@@ -250,15 +252,17 @@
 \end{frame}
 
 \begin{frame}{Generalising foldr}
-    \texttt{foldFoo} can be automatically generated for any datatype
-    \texttt{Foo} \\
+    \emph{Universal property of foldr}: all other
+    implementations are isomorph to this version \\
     \vspaced
-    The \emph{universal property of foldr} tells us that all other
-    implementations are isomorph to this version
+    \small{``A tutorial on the universality and expressiveness of fold'',
+    Graham Hutton, 1999}
 \end{frame}
 
 \begin{frame}[fragile]{Generalising foldr}
-    A proof-of-concept TemplateHaskell implementation is available: \\
+    \texttt{foldFoo} can be automatically generated for any datatype
+    \texttt{Foo}. Proof-of-concept TemplateHaskell implementation is
+    available: \\
     \vspaced
     \begin{lstlisting}
     {-# LANGUAGE
