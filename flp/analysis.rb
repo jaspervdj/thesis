@@ -7,24 +7,29 @@ require 'tempfile'
 TMP = 'tmp'
 ROOT = FileUtils.pwd
 
+def valid_name(name)
+  !name.include?('$')
+end
+
 def results(output)
   folds = {}
-  folds_count = Hash.new 0
+  folds_per_type = Hash.new { |h, k| h[k] = [] }
 
   output.lines.each do |line|
     words = line.split
-    if words[0] == 'RewriteResult:' and words.last != 'NoFold' then
+    if words[0] == 'RewriteResult:' && words.last != 'NoFold' then
       name = words[1]
-      unless folds[name]  # ensure we only count each fold once
+      if valid_name(name) && !folds[name]
         fold_type = words.last
-        folds_count[fold_type] += 1
+        folds_per_type[fold_type] << name
         folds[name] = true
       end
     end
   end
 
-  folds_count.each do |fold_type, count|
-    puts "#{fold_type}: #{count}"
+  folds_per_type.each do |fold_type, names|
+    puts "#{fold_type}: #{names.length}"
+    puts "#{fold_type}: #{names.join(', ')}"
   end
 end
 
