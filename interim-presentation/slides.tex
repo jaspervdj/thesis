@@ -486,8 +486,8 @@
     fold
       :: Fold t
       => Algebra t a -> t -> a
-    fold f =
-      f . fmap (fold f) . toPF
+    fold alg =
+      alg . fmap (fold alg) . toPF
     \end{lstlisting}
 \end{frame}
 
