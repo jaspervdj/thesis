@@ -138,6 +138,8 @@ been stripped away.
 \item The GHC Core goes through multiple passes. This is very useful since we
 can rely on other passes to help us. For example, it might be impossible to
 recognize certain folds before a certain function is inlined.
+
+\item We have access to type information, which we can use in the analysis.
 \end{itemize}
 
 However, we must that there is a major drawback to analyzing GHC Core instead of
@@ -152,7 +154,23 @@ GHC API directly, especially when Cabal is used as well. % TODO: Cite.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Identifying folds}
 
+We want to analyze if $f$ is a fold. $f$ takes arguments $a_i ... a_n$.
 
+A fold works by unconstructing a single argument, so we examine the function
+body if we see an immediate top-level \texttt{Case} construct. If there is such
+a constructor, and the \texttt{Case} statement destroys an argument $a_i$, we
+can assume we are folding over this argument (given that $f$ is a fold --- which
+we still need to check).
+
+Let's look at an example: in \texttt{sum1}, the first and only argument is this
+$a_i$.
+
+\begin{code}
+sum1 :: [Int] -> Int
+sum1 a1 = case a1 of
+    []        -> 0
+    (x : xs)  -> x + sum1 xs
+\end{code}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
