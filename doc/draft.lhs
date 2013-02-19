@@ -2,6 +2,8 @@
 
 %include polycode.fmt
 
+\usepackage{amsmath}
+
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
 
@@ -31,6 +33,10 @@ import Data.Char (toUpper)
 \section{Introduction}
 
 % TODO: 2 paragraphs, 1 about own research/additions
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Motivation}
 
 In early programming languages, developers manipulated the control flow of their
 applications using the \texttt{goto} construct. This allowed \emph{arbitrary}
@@ -113,10 +119,6 @@ map f . map g = map (f . g)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Motivation}
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
 
 
@@ -164,17 +166,72 @@ A fold works by unconstructing a single argument, so we examine the function
 body if we see an immediate top-level \texttt{Case} construct. If there is such
 a constructor, and the \texttt{Case} statement destroys an argument $a_i$, we
 can assume we are folding over this argument (given that $f$ is a fold --- which
-we still need to check).
+we still need to check). Let this $a_i$ be $a_d$.
 
 Let's look at an example: in \texttt{sum1}, the first and only argument is this
-$a_i$.
+$a_d$.
 
-\begin{code}
+\begin{spec}
 sum1 :: [Int] -> Int
-sum1 a1 = case a1 of
+sum1 ad = case ad of
     []        -> 0
     (x : xs)  -> x + sum1 xs
-\end{code}
+\end{spec}
+
+Then, we analyze the alternatives in the \texttt{Case} statement. For each
+alternative, we have a constructor $c$, a number of subterms bound by the
+constructor $t_j$, and a body $b$.
+
+We make a distinction between recursive and non-recursive subterms. We can step
+through the subterms and rewrite the body $b$ as we go along.
+
+For a non-recursive subterm $t_j$,
+
+\begin{equation}
+b' = (\lambda x. b [^{t_j}_x) t_j
+\end{equation}
+
+For a recursive subterm $t_j$, we can write the recursive call $r$ by applying
+$f$ to the arguments
+
+\begin{equation*}
+\begin{cases}
+t_j & \text{if} ~ i = d \\
+a_i & \text{otherwise}  \\
+\end{cases}
+~ \forall i \in [1 ... n]
+\end{equation*}
+
+And in this case, the body is rewritten as:
+
+\begin{equation}
+b' = (\lambda x. b[^r_x) r
+\end{equation}
+
+After this rewriting stage, we have a new body $b'$ for each alternative of the
+\texttt{Case} construct. Each body is an anonymous function which takes subterms
+and recursive applications as arguments. In our example, we have:
+
+\begin{spec}
+sum1 :: [Int] -> Int
+sum1 ad = case ad of
+    []        -> 0
+    (x : xs)  -> (\t1 t2 -> t1 + t2) x (sum1 xs)
+\end{spec}
+
+We immediately see the bodies of these functions are exactly the arguments to
+the fold!
+
+\begin{spec}
+sum1 :: [Int] -> Int
+sum1 = foldr (\t1 t2 -> t1 + t2) 0
+\end{spec}
+
+% TODO: Check that stuff is in scope.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Application: fold-fold fusion}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
