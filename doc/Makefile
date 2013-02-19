@@ -1,9 +1,9 @@
-default: thesis.pdf
+default: draft.pdf
 
-thesis.tex: thesis.lhs
-	lhs2TeX -o thesis.tex thesis.lhs
+draft.tex: draft.lhs
+	lhs2TeX -o $@ $<
 
-thesis.pdf: thesis.tex
-	pdflatex thesis.tex
-	pdflatex thesis.tex
-	pdflatex thesis.tex
+draft.pdf: draft.tex
+	pdflatex $<
+	pdflatex $<
+	pdflatex $<
