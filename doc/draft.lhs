@@ -12,11 +12,14 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \maketitle
 
+\tableofcontents
+
 \ignore{
 \begin{code}
 import Data.Char (toUpper)
 \end{code}
 }
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Abstract}
@@ -111,6 +114,45 @@ map f . map g = map (f . g)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{GHC Core}
+
+There are two convenient representations of Haskell code which we can analyze.
+
+\begin{itemize}
+\item We can analyze the Haskell code directly. Numerous parsing libraries exist
+to make this task easier. % TODO: Cite.
+
+\item The Haskell code is translated through a different number of passes during
+compilation. One particulary interesting representation is GHC Core.
+\end{itemize}
+
+Analyzing GHC Core for folds gives us many advantages:
+
+\begin{itemize}
+\item GHC Core is much less complicated, because all syntactic features have
+been stripped away.
+
+\item The GHC Core goes through multiple passes. This is very useful since we
+can rely on other passes to help us. For example, it might be impossible to
+recognize certain folds before a certain function is inlined.
+\end{itemize}
+
+However, we must that there is a major drawback to analyzing GHC Core instead of
+Haskell code: it becomes much harder (and outside the scope of this project) to
+use the results for refactoring.
+
+In GHC 7.6, a new mechanism to manipulate and inspect GHC Core was introduced.
+We decided to use this system since it is much more accessible than using the
+GHC API directly, especially when Cabal is used as well. % TODO: Cite.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Identifying folds}
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
