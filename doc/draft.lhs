@@ -24,9 +24,13 @@ import Data.Char (toUpper)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Abstract}
 
+% TODO: 4-5 sentences: problem, motivation, solution
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
+
+% TODO: 2 paragraphs, 1 about own research/additions
 
 In early programming languages, developers manipulated the control flow of their
 applications using the \texttt{goto} construct. This allowed \emph{arbitrary}
