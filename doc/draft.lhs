@@ -18,8 +18,9 @@
 
 \ignore{
 \begin{code}
-import Prelude   hiding (head, sum)
-import Data.Char (toUpper)
+import Control.Arrow ((***))
+import Data.Char     (toUpper)
+import Prelude       hiding (head, sum)
 \end{code}
 }
 
@@ -132,6 +133,7 @@ map f . map g = map (f . g)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{GHC Core}
+\label{subsection:ghc-core}
 
 There are two convenient representations of Haskell code which we can analyze.
 
@@ -172,12 +174,12 @@ GHC API directly, especially when Cabal is used as well. % TODO: Cite.
 We want to analyze if $f$ is a fold. $f$ takes arguments $a_i ... a_n$.
 
 A fold works by unconstructing a single argument, so we examine the function
-body if we see an immediate top-level \texttt{Case} construct. If there is such
-a constructor, and the \texttt{Case} statement destroys an argument $a_i$, we
-can assume we are folding over this argument (given that $f$ is a fold --- which
-we still need to check). Let this $a_i$ be $a_d$.
+body if we see an immediate top-level |Case| construct. If there is such a
+constructor, and the |Case| statement destroys an argument $a_i$, we can assume
+we are folding over this argument (given that $f$ is a fold --- which we still
+need to check). Let this $a_i$ be $a_d$.
 
-Let's look at an example: in \texttt{sum}, the first and only argument is this
+Let's look at an example: in |sum|, the first and only argument is this
 $a_d$.
 
 \begin{spec}
@@ -187,9 +189,9 @@ sum ad = case ad of
     (x : xs)  -> x + sum xs
 \end{spec}
 
-Then, we analyze the alternatives in the \texttt{Case} statement. For each
-alternative, we have a constructor $c$, a number of subterms bound by the
-constructor $t_j$, and a body $b$.
+Then, we analyze the alternatives in the |Case| statement. For each alternative,
+we have a constructor $c$, a number of subterms bound by the constructor $t_j$,
+and a body $b$.
 
 We make a distinction between recursive and non-recursive subterms. We can step
 through the subterms and rewrite the body $b$ as we go along.
@@ -218,8 +220,8 @@ b' = (\lambda x. b[^r_x) r
 \end{equation}
 
 After this rewriting stage, we have a new body $b'$ for each alternative of the
-\texttt{Case} construct. Each body is an anonymous function which takes subterms
-and recursive applications as arguments. In our example, we have:
+|Case| construct. Each body is an anonymous function which takes subterms and
+recursive applications as arguments. In our example, we have:
 
 \begin{spec}
 sum :: [Int] -> Int
@@ -242,7 +244,7 @@ sum = foldr (\t1 t2 -> t1 + t2) 0
 \subsection{Degenerate folds}
 
 The algorithm described in \ref{subsection:identifying-folds} also classifies
-\emph{degenerate folds} as being folds. \texttt{head} is an example of such a
+\emph{degenerate folds} as being folds. |head| is an example of such a
 degenerate fold:
 
 \begin{code}
@@ -264,6 +266,64 @@ applications are made in any branch, we have a degenerate fold.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Application: fold-fold fusion}
+
+As we discussed in \ref{subsection:ghc-core}, the fact that we are working on
+the level of GHC Core makes it hard to use our rewrite results for refactoring.
+However, we can look at some interesting optimizations.
+
+\emph{Fold-fold fusion} is a technique which fuses two folds over the same data
+structure into a single fold. This allows us to loop over the structure only
+once instead of twice.
+
+\begin{code}
+mean :: [Int] -> Double
+mean xs = fromIntegral (sum xs) / fromIntegral (length xs)
+\end{code}
+
+If we know from previous analysis results that |sum| is a fold with arguments
+|((+), 0)| and |len| is a fold with arguments |(const (+ 1), 0)|, we can apply
+fold-fold fusion here:
+
+\begin{code}
+mean' :: [Int] -> Double
+mean' xs =
+    fromIntegral sum' / fromIntegral len'
+  where
+    (sum', len') = foldr (\x -> (+ x) *** (+ 1)) (0, 0) xs
+\end{code}
+
+We can repeatedly apply this optimization to fuse an arbitrary amount of $n$
+folds into a single fold with an $n$-tuple.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{When can we apply fold fusion?}
+
+We can apply fold fusion when we find two fold with different algebras over the
+same structure in the same \emph{branch}. Concretely, this means our detection
+algorithm works as follows:
+
+We first find an application of a function we previously idenfitied as fold. We
+store a reference to the data structure $x$ which is folded over.
+
+Then, we search the expression tree for other expressions in which we apply a
+function to $x$. Our search scope is limited: we can descend into |Let|, |App|
+and |Lam| constructs to search their subexpressions, but we cannot descent into
+the branches of a |Case| construct.
+
+If two folds appear in different branches of a |Case| construct, we will often
+not have an actual optimization. Let's look at a simple counterexample:
+
+\begin{code}
+value :: [Int] -> Int
+value xs
+    | length xs < 3  = 0
+    | otherwise      = sum xs
+\end{code}
+
+In this case, fold-fold fusion is definitely not an optimization if we choose
+the |length xs < 3| branch in most cases: in fact, we even save work by not
+creating a thunk for the |sum xs| result.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
