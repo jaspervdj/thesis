@@ -18,6 +18,7 @@
 
 \ignore{
 \begin{code}
+import Prelude   hiding (head, sum)
 import Data.Char (toUpper)
 \end{code}
 }
@@ -61,41 +62,41 @@ A similar argument can be made about \texttt{arbitrary recursion} in functional
 programming languages. Consider the functions:
 
 \begin{code}
-upper1 :: String -> String
-upper1 []        = []
-upper1 (x : xs)  = toUpper x : upper1 xs
+upper :: String -> String
+upper []        = []
+upper (x : xs)  = toUpper x : upper xs
 \end{code}
 
 \begin{code}
-evens1 :: [Int] -> [Int]
-evens1 []         = []
-evens1 (x : xs)
-    | even x      = x : evens1 xs
-    | otherwise   = evens1 xs
+evens :: [Int] -> [Int]
+evens []         = []
+evens (x : xs)
+    | even x      = x : evens xs
+    | otherwise   = evens xs
 \end{code}
 
 \begin{code}
-sum1 :: [Int] -> Int
-sum1 []        = 0
-sum1 (x : xs)  = x + sum1 xs
+sum :: [Int] -> Int
+sum []        = 0
+sum (x : xs)  = x + sum xs
 \end{code}
 
 These functions can all be rewritten using \emph{higher-order} functions. We
 obtain these versions:
 
 \begin{code}
-upper2 :: String -> String
-upper2 = map toUpper
+upper' :: String -> String
+upper' = map toUpper
 \end{code}
 
 \begin{code}
-evens2 :: [Int] -> [Int]
-evens2 = filter even
+evens' :: [Int] -> [Int]
+evens' = filter even
 \end{code}
 
 \begin{code}
-sum2 :: [Int] -> Int
-sum2 = foldr (+) 0
+sum' :: [Int] -> Int
+sum' = foldr (+) 0
 \end{code}
 
 The rewritten versions have a number of advantages.
@@ -166,6 +167,7 @@ GHC API directly, especially when Cabal is used as well. % TODO: Cite.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Identifying folds}
+\label{subsection:identifying-folds}
 
 We want to analyze if $f$ is a fold. $f$ takes arguments $a_i ... a_n$.
 
@@ -175,14 +177,14 @@ a constructor, and the \texttt{Case} statement destroys an argument $a_i$, we
 can assume we are folding over this argument (given that $f$ is a fold --- which
 we still need to check). Let this $a_i$ be $a_d$.
 
-Let's look at an example: in \texttt{sum1}, the first and only argument is this
+Let's look at an example: in \texttt{sum}, the first and only argument is this
 $a_d$.
 
 \begin{spec}
-sum1 :: [Int] -> Int
-sum1 ad = case ad of
+sum :: [Int] -> Int
+sum ad = case ad of
     []        -> 0
-    (x : xs)  -> x + sum1 xs
+    (x : xs)  -> x + sum xs
 \end{spec}
 
 Then, we analyze the alternatives in the \texttt{Case} statement. For each
@@ -198,16 +200,16 @@ For a non-recursive subterm $t_j$,
 b' = (\lambda x. b [^{t_j}_x) t_j
 \end{equation}
 
-For a recursive subterm $t_j$, we can write the recursive call $r$ by applying
-$f$ to the arguments
+For a recursive subterm $t_j$, we can write the recursive application $r$ by
+applying $f$ to the arguments
 
-\begin{equation*}
+\begin{equation}
 \begin{cases}
 t_j & \text{if} ~ i = d \\
 a_i & \text{otherwise}  \\
 \end{cases}
 ~ \forall i \in [1 ... n]
-\end{equation*}
+\end{equation}
 
 And in this case, the body is rewritten as:
 
@@ -220,21 +222,44 @@ After this rewriting stage, we have a new body $b'$ for each alternative of the
 and recursive applications as arguments. In our example, we have:
 
 \begin{spec}
-sum1 :: [Int] -> Int
-sum1 ad = case ad of
+sum :: [Int] -> Int
+sum ad = case ad of
     []        -> 0
-    (x : xs)  -> (\t1 t2 -> t1 + t2) x (sum1 xs)
+    (x : xs)  -> (\t1 t2 -> t1 + t2) x (sum xs)
 \end{spec}
 
 We immediately see the bodies of these functions are exactly the arguments to
 the fold!
 
 \begin{spec}
-sum1 :: [Int] -> Int
-sum1 = foldr (\t1 t2 -> t1 + t2) 0
+sum :: [Int] -> Int
+sum = foldr (\t1 t2 -> t1 + t2) 0
 \end{spec}
 
 % TODO: Check that stuff is in scope.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Degenerate folds}
+
+The algorithm described in \ref{subsection:identifying-folds} also classifies
+\emph{degenerate folds} as being folds. \texttt{head} is an example of such a
+degenerate fold:
+
+\begin{code}
+head :: [a] -> a
+head (x : _)  = x
+head []       = error "empty list"
+\end{code}
+
+Can be written as a fold:
+
+\begin{code}
+head' :: [a] -> a
+head' = foldr const (error "empty list")
+\end{code}
+
+Fortunately we can easily detect these degenerate folds: iff no recursive
+applications are made in any branch, we have a degenerate fold.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
