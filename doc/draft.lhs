@@ -28,6 +28,13 @@ import Data.Char (toUpper)
 
 % TODO: 4-5 sentences: problem, motivation, solution
 
+Rewriting explicitly recursive functions in terms of higher-order functions
+brings many advantages such as conciseness, improved readability, and it even
+allows for some optimizations. However, it is not always straightforward for a
+programmer to write functions in this style. We present an approach to
+automatically detect these higher-order functions, so the programmer can have
+his cake and eat it, too.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
