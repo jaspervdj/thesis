@@ -242,6 +242,7 @@ sum = foldr (\t1 t2 -> t1 + t2) 0
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Degenerate folds}
+\label{subsection:degenerate-folds}
 
 The algorithm described in \ref{subsection:identifying-folds} also classifies
 \emph{degenerate folds} as being folds. |head| is an example of such a
@@ -328,6 +329,48 @@ creating a thunk for the |sum xs| result.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Identifying folds}
+
+A first aspect we can evaluate is how well our detection of folds works.
+Unfortunately, manually identifying folds in projects takes too much time. This
+explains why it is especially hard to detect false negatives.
+
+Additionally, very little other related work is done. The \emph{hlint} tool is
+able to recognize a few folds, but its results appear rather poor compared
+compared to our tool (in this particular area).
+
+In Table \ref{tabular:project-results}, we can see the results of running our
+tool on some well-known Haskell projects. We classify folds into three
+categories:
+
+\begin{itemize}
+\item Degenerate folds, as described in \ref{subsection:degenerate-folds};
+\item List folds, folds over data structures of type |[a]|;
+\item Data folds, folds over any other data structure.
+\end{itemize}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{l||rrr||r}
+                    & Degenerate folds & List & Data& hlint \\
+\hline
+\textbf{hlint}      &  248             & 17   & 25  & 0     \\
+\textbf{parsec}     &  150             &  6   &  0  & 0     \\
+\textbf{containers} &  311             &  7   & 75  & 0     \\
+\textbf{pandoc}     & 1012             & 35   &  1  & 0     \\
+\textbf{cabal}      & 1701             & 43   & 30  & 1     \\
+\end{tabular}
+\label{tabular:project-results}
+\caption{Results of identifying folds in some well-known projects}
+\end{center}
+\end{table}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Optimization results}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
