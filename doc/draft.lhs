@@ -1,5 +1,7 @@
 \documentclass{article}
 
+% TODO: IEEE article format
+
 %include polycode.fmt
 
 \usepackage{amsmath}
@@ -28,39 +30,42 @@ import Prelude       hiding (head, sum)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Abstract}
 
-% TODO: 4-5 sentences: problem, motivation, solution
+% TODO: Examples: fold and map
 
 Rewriting explicitly recursive functions in terms of higher-order functions
-brings many advantages such as conciseness, improved readability, and it even
-allows for some optimizations. However, it is not always straightforward for a
+brings many advantages such as conciseness, improved readability, and it
+facilitates some optimizations. However, it is not always straightforward for a
 programmer to write functions in this style. We present an approach to
 automatically detect these higher-order functions, so the programmer can have
 his cake and eat it, too.
 
+% TODO: Explicit results, evaluation
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
 
 % TODO: 2 paragraphs, 1 about own research/additions
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Motivation}
+
+% TODO: Cite Dijkstra
 
 In early programming languages, developers manipulated the control flow of their
 applications using the \texttt{goto} construct. This allowed \emph{arbitrary}
 jumps through code, which brought with many disadvantages. In particular, it
 could be very hard to understand code written in this style.
 
-% TODO: Cite some stuff
-
 Later programming languages favored use of control stuctures such as
 \texttt{for} and \texttt{while} over \texttt{goto}. This made it easier for
 programmers and tools to analyze these structures, e.g. on pre- and
 postconditions.
 
-A similar argument can be made about \texttt{arbitrary recursion} in functional
+A similar argument can be made about \emph{arbitrary recursion} in functional
 programming languages. Consider the functions:
+
+% TODO: Less examples, definitions of map/fold, show that map/filter is also a
+% fold
 
 \begin{code}
 upper :: String -> String
@@ -107,8 +112,13 @@ The rewritten versions have a number of advantages.
 versions much quicker: he or she immediately understands how the recursion works
 by recognizing the higher-order function.
 
+% TODO: Cite something on concise code can be read faster (some Scala study?)
+
 \item The code becomes much more concise, which means there is less code to read
 (and debug).
+
+% TODO: Reword: When we prove properties for e.g. filter, we know that
+% applications of filter also have these properties.
 
 \item Some interesting and useful properties are immediately obvious: e.g.
 
@@ -137,13 +147,15 @@ map f . map g = map (f . g)
 
 There are two convenient representations of Haskell code which we can analyze.
 
-\begin{itemize}
-\item We can analyze the Haskell code directly. Numerous parsing libraries exist
-to make this task easier. % TODO: Cite.
+A first option is to analyze the Haskell code directly. Numerous parsing
+libraries exist to make this task easier.
 
-\item The Haskell code is translated through a different number of passes during
-compilation. One particulary interesting representation is GHC Core.
-\end{itemize}
+% TODO: Cite haskell-src-exts?
+
+During compilation, the Haskell code is translated throughout a different number
+of passes. One particulary interesting representation is GHC Core.
+
+% TODO: Cite paper on GHC Core
 
 Analyzing GHC Core for folds gives us many advantages:
 
@@ -152,24 +164,31 @@ Analyzing GHC Core for folds gives us many advantages:
 been stripped away.
 
 \item The GHC Core goes through multiple passes. This is very useful since we
-can rely on other passes to help us. For example, it might be impossible to
-recognize certain folds before a certain function is inlined.
+can rely on other passes to help our analysis. For example, it might be
+impossible to recognize certain folds before a certain function is inlined.
 
 \item We have access to type information, which we can use in the analysis.
 \end{itemize}
 
-However, we must that there is a major drawback to analyzing GHC Core instead of
-Haskell code: it becomes much harder (and outside the scope of this project) to
-use the results for refactoring.
+However, we must note that there is a major drawback to analyzing GHC Core
+instead of Haskell code: it becomes much harder (and outside the scope of this
+project) to use the results for refactoring.
 
 In GHC 7.6, a new mechanism to manipulate and inspect GHC Core was introduced.
 We decided to use this system since it is much more accessible than using the
-GHC API directly, especially when Cabal is used as well. % TODO: Cite.
+GHC API directly, especially when Cabal is used as well.
 
+% TODO: Cite new plugins API
+
+% TODO: Brief description of GHC Core, expression type
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Identifying folds}
 \label{subsection:identifying-folds}
+
+% TODO: Talk about case expressions instead of Case constructs
+
+% TODO: Try to describe our algorithm with a pattern/BNF + predicates
 
 We want to analyze if $f$ is a fold. $f$ takes arguments $a_i ... a_n$.
 
@@ -184,7 +203,7 @@ $a_d$.
 
 \begin{spec}
 sum :: [Int] -> Int
-sum ad = case ad of
+sum = \ad -> case ad of
     []        -> 0
     (x : xs)  -> x + sum xs
 \end{spec}
@@ -223,9 +242,11 @@ After this rewriting stage, we have a new body $b'$ for each alternative of the
 |Case| construct. Each body is an anonymous function which takes subterms and
 recursive applications as arguments. In our example, we have:
 
+% TODO: Use lhs2TeX %format to have t1 as t_1
+
 \begin{spec}
 sum :: [Int] -> Int
-sum ad = case ad of
+sum = \ad -> case ad of
     []        -> 0
     (x : xs)  -> (\t1 t2 -> t1 + t2) x (sum xs)
 \end{spec}
@@ -240,9 +261,14 @@ sum = foldr (\t1 t2 -> t1 + t2) 0
 
 % TODO: Check that stuff is in scope.
 
+% TODO: Try to explain the theorem: f is a fold <-> the args are well-scoped.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Degenerate folds}
 \label{subsection:degenerate-folds}
+
+% TODO: Explain why these are not interesting and say that we'll ignore them for
+% the rest of the document.
 
 The algorithm described in \ref{subsection:identifying-folds} also classifies
 \emph{degenerate folds} as being folds. |head| is an example of such a
@@ -285,6 +311,8 @@ If we know from previous analysis results that |sum| is a fold with arguments
 |((+), 0)| and |len| is a fold with arguments |(const (+ 1), 0)|, we can apply
 fold-fold fusion here:
 
+% TODO: Describe the more generic pattern. Include definition of (***).
+
 \begin{code}
 mean' :: [Int] -> Double
 mean' xs =
@@ -300,7 +328,14 @@ folds into a single fold with an $n$-tuple.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{When can we apply fold fusion?}
 
-We can apply fold fusion when we find two fold with different algebras over the
+% TODO: Can we describe this using the same pattern syntax?
+
+% TODO: We can actually always apply this because of laziness. However, it's not
+% always an optimization. We must be more precise in our description.
+
+% TODO: Don't talk about Let, Lam constructs, talk about expressions.
+
+We can apply fold fusion when we find two folds with different algebras over the
 same structure in the same \emph{branch}. Concretely, this means our detection
 algorithm works as follows:
 
@@ -337,6 +372,9 @@ creating a thunk for the |sum xs| result.
 A first aspect we can evaluate is how well our detection of folds works.
 Unfortunately, manually identifying folds in projects takes too much time. This
 explains why it is especially hard to detect false negatives.
+
+% TODO: Don't say that hlint does a poor job, just say that our tool is better.
+% Try to state that hlint finds a strict subset.
 
 Additionally, very little other related work is done. The \emph{hlint} tool is
 able to recognize a few folds, but its results appear rather poor compared
