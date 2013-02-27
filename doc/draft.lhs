@@ -204,16 +204,60 @@ pattern matching---the only kind of branching possible in GHC Core.
 
 % TODO: Try to describe our algorithm with a pattern/BNF + predicates
 
-We want to analyze if $f$ is a fold. $f$ takes arguments $a_i ... a_n$.
+The trick in $fold$ is that we create an anonymous function which will allow us
+to replace a specific argument with a subterm later.
 
-A fold works by unconstructing a single argument, so we examine the function
-body if we see an immediate top-level |Case| construct. If there is such a
-constructor, and the |Case| statement destroys an argument $a_i$, we can assume
-we are folding over this argument (given that $f$ is a fold --- which we still
-need to check). Let this $a_i$ be $a_d$.
+\begin{spec}
+<fold f>
+    ::= <fold' f f>
+\end{spec}
 
-Let's look at an example: in |sum|, the first and only argument is this
-$a_d$.
+\begin{spec}
+<fold' f f>
+    ::= Lam x <foldOver (\y -> App f y) x>
+      | Lam x <fold' (App f x) f>
+\end{spec}
+
+\begin{spec}
+<foldOver f x>
+    ::= Lam y <foldOver f x>
+      | Case x of <alts f x>
+\end{spec}
+
+\begin{spec}
+<alts f x>
+    ::= <alt f x>
+      | <alts f x>; <alt f x>
+\end{spec}
+
+\begin{spec}
+<alt f x>
+    ::= Constructor <subterms> <body>
+\end{spec}
+
+Since a fold applies an algebra to a datatype, we must have an operator from
+this algebra for each constructor. We can retrieve this operator be writing it
+as anonymous function based on |<body>|.
+
+Our function $rewrite$ works on these $<alt>$ constructs by turning the body
+into an anonymous function, step by step, by adding an argument for each
+subterm.
+
+If the subterm is recursive we expect a recursive call to $f$, otherwise we
+treat the subterm as-is.
+
+%format t1 = "t_1"
+%format subst (term) (v) (e) = "\mathopen{}" term "[^{" v "}_{" e "}\mathclose{}"
+
+\begin{spec}
+rewrite f []        body  = body
+rewrite f (t1 : ts) body
+    | isRecursive t1      = Lam x (subst ((rewrite f ts body)) ((f t1)) x)
+    | otherwise           = Lam x (subst ((rewrite f ts body)) t1 x)
+\end{spec}
+
+With the first argument to $Lam$, $x$, a fresh variable. Let's look at an
+example.
 
 \begin{spec}
 sum :: [Int] -> Int
@@ -222,56 +266,28 @@ sum = \ad -> case ad of
     (x : xs)  -> x + sum xs
 \end{spec}
 
-Then, we analyze the alternatives in the |Case| statement. For each alternative,
-we have a constructor $c$, a number of subterms bound by the constructor $t_j$,
-and a body $b$.
+If we rewrite the $:$ constructor in the $sum$ function, we get:
 
-We make a distinction between recursive and non-recursive subterms. We can step
-through the subterms and rewrite the body $b$ as we go along.
-
-For a non-recursive subterm $t_j$,
-
-\begin{equation}
-b' = (\lambda x. b [^{t_j}_x) t_j
-\end{equation}
-
-For a recursive subterm $t_j$, we can write the recursive application $r$ by
-applying $f$ to the arguments
-
-\begin{equation}
-\begin{cases}
-t_j & \text{if} ~ i = d \\
-a_i & \text{otherwise}  \\
-\end{cases}
-~ \forall i \in [1 ... n]
-\end{equation}
-
-And in this case, the body is rewritten as:
-
-\begin{equation}
-b' = (\lambda x. b[^r_x) r
-\end{equation}
-
-After this rewriting stage, we have a new body $b'$ for each alternative of the
-|Case| construct. Each body is an anonymous function which takes subterms and
-recursive applications as arguments. In our example, we have:
-
-% TODO: Use lhs2TeX %format to have t1 as t_1
+%format sub (x) = "\mathopen{}t_{" x "}\mathclose{}"
+%format beta = "\beta"
 
 \begin{spec}
-sum :: [Int] -> Int
-sum = \ad -> case ad of
-    []        -> 0
-    (x : xs)  -> (\t1 t2 -> t1 + t2) x (sum xs)
+rewrite (\t -> sum t) [sub x, sub xs] (sub x + sum (sub xs))
+    = <definition rewrite>
+        \x -> rewrite (\t -> sum t) [sub xs] (subst ((sub x + sum (sub xs))) (sub x) x)
+    = <substitution>
+        \x -> rewrite (\t -> sum t) [sub xs] (x + sum (sub xs))
+    = <definition rewrite>
+        \x y -> rewrite (\t -> sum t) [] (subst ((x + sum (sub xs))) ((\t -> sum t) (sub xs)) y)
+    = <beta reduction>
+        \x y -> rewrite (\t -> sum t) [] (subst ((x + sum (sub xs))) (sum (sub xs)) y)
+    = <substitution>
+        \x y -> rewrite (\t -> sum t) [] (x + y)
+    = <definition rewrite>
+        \x y -> x + y
 \end{spec}
 
-We immediately see the bodies of these functions are exactly the arguments to
-the fold!
-
-\begin{spec}
-sum :: [Int] -> Int
-sum = foldr (\t1 t2 -> t1 + t2) 0
-\end{spec}
+While this is a simple example, this also works in the more general case.
 
 % TODO: Check that stuff is in scope.
 
