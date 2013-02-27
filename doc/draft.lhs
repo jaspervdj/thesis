@@ -5,6 +5,7 @@
 %include polycode.fmt
 
 \usepackage{amsmath}
+\usepackage[numbers]{natbib}  % For URLs in bibliography
 
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
@@ -30,14 +31,12 @@ import Prelude       hiding (head, sum)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Abstract}
 
-% TODO: Examples: fold and map
-
-Rewriting explicitly recursive functions in terms of higher-order functions
-brings many advantages such as conciseness, improved readability, and it
-facilitates some optimizations. However, it is not always straightforward for a
-programmer to write functions in this style. We present an approach to
-automatically detect these higher-order functions, so the programmer can have
-his cake and eat it, too.
+Rewriting explicitly recursive functions in terms of higher-order functions such
+as |fold| and |map| brings many advantages such as conciseness, improved
+readability, and it facilitates some optimizations. However, it is not always
+straightforward for a programmer to write functions in this style. We present an
+approach to automatically detect these higher-order functions, so the programmer
+can have his cake and eat it, too.
 
 % TODO: Explicit results, evaluation
 
@@ -49,12 +48,10 @@ his cake and eat it, too.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Motivation}
 
-% TODO: Cite Dijkstra
-
 In early programming languages, developers manipulated the control flow of their
 applications using the \texttt{goto} construct. This allowed \emph{arbitrary}
-jumps through code, which brought with many disadvantages. In particular, it
-could be very hard to understand code written in this style.
+jumps through code, which brought with many disadvantages \cite{dijkstra1968}.
+In particular, it could be very hard to understand code written in this style.
 
 Later programming languages favored use of control stuctures such as
 \texttt{for} and \texttt{while} over \texttt{goto}. This made it easier for
@@ -127,15 +124,12 @@ length (filter f xs) <= length xs
 \end{spec}
 
 \item Last but not least, these properties allow for certain optimizations. Map
-fusion is a well-known example:
+fusion is a well-known example \cite{meijer1991}:
 
 \begin{spec}
 map f . map g = map (f . g)
 \end{spec}
 \end{itemize}
-
-% TODO: Cite
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
@@ -148,14 +142,11 @@ map f . map g = map (f . g)
 There are two convenient representations of Haskell code which we can analyze.
 
 A first option is to analyze the Haskell code directly. Numerous parsing
-libraries exist to make this task easier.
-
-% TODO: Cite haskell-src-exts?
+libraries exist to make this task easier \cite{haskell-src-exts}.
 
 During compilation, the Haskell code is translated throughout a different number
-of passes. One particulary interesting representation is GHC Core.
-
-% TODO: Cite paper on GHC Core
+of passes. One particulary interesting representation is GHC Core
+\cite{tolmach2009}.
 
 Analyzing GHC Core for folds gives us many advantages:
 
@@ -174,11 +165,10 @@ However, we must note that there is a major drawback to analyzing GHC Core
 instead of Haskell code: it becomes much harder (and outside the scope of this
 project) to use the results for refactoring.
 
-In GHC 7.6, a new mechanism to manipulate and inspect GHC Core was introduced.
-We decided to use this system since it is much more accessible than using the
-GHC API directly, especially when Cabal is used as well.
-
-% TODO: Cite new plugins API
+In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
+\cite{ghc-plugins}. We decided to use this system since it is much more
+accessible than using the GHC API directly, especially when Cabal is used as
+well.
 
 % TODO: Brief description of GHC Core, expression type
 
@@ -417,5 +407,9 @@ categories:
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
+
+% References
+\bibliographystyle{plainnat}
+\bibliography{references}
 
 \end{document}
