@@ -170,7 +170,31 @@ In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
 accessible than using the GHC API directly, especially when Cabal is used as
 well.
 
-% TODO: Brief description of GHC Core, expression type
+This plugins mechanism allows us to manipulate expressions directly. We show a
+simplified expresssion type here:
+
+\begin{code}
+data Expr
+    = Var Id
+    | Lit Literal
+    | App Expr Expr
+    | Lam Id Expr
+    | Let Bind Expr
+    | Case Expr Id [Alt]
+
+data Bind
+    = NonRec Id Expr
+    | Rec [(Id, Expr)]
+
+type Alt = (AltCon, [Id], Expr)
+\end{code}
+
+|Id| is the type used for different kinds of identifiers. The |Id|s used in this
+phase of compilation are guaranteed to be unique, which means we don't have to
+take scoping into account for many transformations. |Lit| is any kind of
+literal. |App| and |Lam| are well-known from the $\lambda$-calculus. |Let| is
+used to introduce new recursive or non-recursive binds, and |Case| is used for
+pattern matching---the only kind of branching possible in GHC Core.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Identifying folds}
