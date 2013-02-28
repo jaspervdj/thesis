@@ -23,7 +23,7 @@
 \begin{code}
 import Control.Arrow ((***))
 import Data.Char     (toUpper)
-import Prelude       hiding (head, sum)
+import Prelude       hiding (head, foldr, map, sum)
 \end{code}
 }
 
@@ -61,21 +61,10 @@ postconditions.
 A similar argument can be made about \emph{arbitrary recursion} in functional
 programming languages. Consider the functions:
 
-% TODO: Less examples, definitions of map/fold, show that map/filter is also a
-% fold
-
 \begin{code}
 upper :: String -> String
 upper []        = []
 upper (x : xs)  = toUpper x : upper xs
-\end{code}
-
-\begin{code}
-evens :: [Int] -> [Int]
-evens []         = []
-evens (x : xs)
-    | even x      = x : evens xs
-    | otherwise   = evens xs
 \end{code}
 
 \begin{code}
@@ -84,17 +73,26 @@ sum []        = 0
 sum (x : xs)  = x + sum xs
 \end{code}
 
-These functions can all be rewritten using \emph{higher-order} functions. We
-obtain these versions:
+These functions can be rewritten using the \emph{higher-order} functions |map|
+and |foldr|.
+
+\begin{code}
+map :: (a -> b) -> [a] -> [b]
+map f []        = []
+map f (x : xs)  = f x : map f xs
+\end{code}
+
+\begin{code}
+foldr :: (a -> b -> b) -> b -> [a] -> b
+foldr _ z []        = z
+foldr f z (x : xs)  = f x (foldr f z xs)
+\end{code}
+
+Which yields the more concise versions:
 
 \begin{code}
 upper' :: String -> String
 upper' = map toUpper
-\end{code}
-
-\begin{code}
-evens' :: [Int] -> [Int]
-evens' = filter even
 \end{code}
 
 \begin{code}
@@ -130,9 +128,50 @@ fusion is a well-known example \cite{meijer1991}:
 map f . map g = map (f . g)
 \end{spec}
 \end{itemize}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Generalized foldr}
+
+In this document, we focus on detecting |foldr| rather than |filter| or |map|,
+because this pattern is more general than |map|. This becomes clear if we see
+that |map| can be written in terms of |foldr|:
+
+\begin{code}
+map' :: (a -> b) -> [a] -> [b]
+map' f = foldr (\x xs -> f x : xs) []
+\end{code}
+
+However, that is not the only way in which |foldr| is more general. A |foldr| is
+a \emph{catamorphism} \cite{meijer1991} --- so it can be generalized to
+arbitrary algebraic data types instead of just lists.
+
+\begin{code}
+data Tree a
+    = Leaf a
+    | Branch (Tree a) (Tree a)
+\end{code}
+
+\begin{code}
+foldTree  ::  (a -> r)
+          ->  (r -> r -> r)
+          ->  Tree a
+          ->  r
+foldTree l _ (Leaf x)      = l x
+foldTree l b (Branch x y)  =
+    b (foldTree l b x) (foldTree l b y)
+\end{code}
+
+A general fold takes a number of functions as arguments, to be more precise,
+exactly one function per possible constructor in the datatype. If we consider
+the product of these functions as operators in an \emph{algebra}, applying a
+catamorphism is simply interpreting the data structure in terms of an algebra.
+
+This indicates the concept of a fold is a very general idea, which is an
+important motivation: our work will apply to any algebraic datatype rather than
+just lists.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -172,6 +211,14 @@ well.
 
 This plugins mechanism allows us to manipulate expressions directly. We show a
 simplified expresssion type here:
+
+\ignore{
+\begin{code}
+data Id = Id
+data Literal = Literal
+data AltCon = AltCon
+\end{code}
+}
 
 \begin{code}
 data Expr
@@ -297,9 +344,6 @@ While this is a simple example, this also works in the more general case.
 \subsection{Degenerate folds}
 \label{subsection:degenerate-folds}
 
-% TODO: Explain why these are not interesting and say that we'll ignore them for
-% the rest of the document.
-
 The algorithm described in \ref{subsection:identifying-folds} also classifies
 \emph{degenerate folds} as being folds. |head| is an example of such a
 degenerate fold:
@@ -319,6 +363,10 @@ head' = foldr const (error "empty list")
 
 Fortunately we can easily detect these degenerate folds: iff no recursive
 applications are made in any branch, we have a degenerate fold.
+
+These degenerate folds are of no interest to us, since our applications focus on
+optimizations regarding loop fusion. In degenerate folds, no such loop is
+present, and hence the optimization is futile.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
