@@ -21,7 +21,6 @@
 
 \ignore{
 \begin{code}
-import Control.Arrow ((***))
 import Data.Char     (toUpper)
 import Prelude       hiding (head, foldr, map, sum)
 \end{code}
@@ -247,8 +246,6 @@ pattern matching---the only kind of branching possible in GHC Core.
 \subsection{Identifying folds}
 \label{subsection:identifying-folds}
 
-% TODO: Talk about case expressions instead of Case constructs
-
 % TODO: Try to describe our algorithm with a pattern/BNF + predicates
 
 The trick in $fold$ is that we create an anonymous function which will allow us
@@ -399,34 +396,32 @@ mean' xs =
     (sum', len') = foldr (\x -> (+ x) *** (+ 1)) (0, 0) xs
 \end{code}
 
-We can repeatedly apply this optimization to fuse an arbitrary amount of $n$
-folds into a single fold with an $n$-tuple.
+We see that for lists, this optimization maps to the arrow operation |***|:
+
+\begin{code}
+(***) :: (a -> b) -> (c -> d) -> (a, c) -> (b, d)
+(***) f g (x, y) = (f x, g y)
+\end{code}
+
+%format Xc = "\mathopen{} X_c \mathclose{}"
+%format Yc = "\mathopen{} Y_c \mathclose{}"
+
+In the more general case, we have two folds over the same value. Say that we
+fold once with algebra |X| and once with algebra |Y|. Our final algebra is the
+product |(X, Y)|. Since each constructor |c| has an associated operator in |Xc|
+and |Yc|, we can create a combined operator |(Xc, Yc)| for each constructor.
+
+This shows that we can apply fold-fold fusion to arbitrary datatypes and not
+just lists. Additionally, we can repeatedly apply this optimization to fuse an
+arbitrary amount of $n$ folds into a single fold with an $n$-tuple.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{When can we apply fold fusion?}
 
-% TODO: Can we describe this using the same pattern syntax?
-
-% TODO: We can actually always apply this because of laziness. However, it's not
-% always an optimization. We must be more precise in our description.
-
-% TODO: Don't talk about Let, Lam constructs, talk about expressions.
-
-We can apply fold fusion when we find two folds with different algebras over the
-same structure in the same \emph{branch}. Concretely, this means our detection
-algorithm works as follows:
-
-We first find an application of a function we previously idenfitied as fold. We
-store a reference to the data structure $x$ which is folded over.
-
-Then, we search the expression tree for other expressions in which we apply a
-function to $x$. Our search scope is limited: we can descend into |Let|, |App|
-and |Lam| constructs to search their subexpressions, but we cannot descent into
-the branches of a |Case| construct.
-
-If two folds appear in different branches of a |Case| construct, we will often
-not have an actual optimization. Let's look at a simple counterexample:
+Strictly spoken, we can always apply fold fusion, because of Haskell's laziness.
+However, if two folds appear in different branches of a case expression, we will
+often not have an actual optimization. Let's look at a simple counterexample:
 
 \begin{code}
 value :: [Int] -> Int
@@ -435,9 +430,42 @@ value xs
     | otherwise      = sum xs
 \end{code}
 
-In this case, fold-fold fusion is definitely not an optimization if we choose
-the |length xs < 3| branch in most cases: in fact, we even save work by not
-creating a thunk for the |sum xs| result.
+Suppose that we choose the |length xs < 3| branch in most cases. The |length|
+and |sum| folds can be fused into a single fold, and the thunk created for the
+result of |sum xs| will never be evaluated. However, there is still some
+overhead associated with creating thunks, which is why fold-fold fusion is not
+in all cases an optimization.
+
+Hence, instead of always applying fold-fold fusion, we choose to only apply the
+transformation where two fusable folds appear in the same \emph{branch} of an
+expression.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Detecting fold fusion}
+
+% TODO: Can we describe this using the same pattern syntax?
+
+% TODO: We can actually always apply this because of laziness. However, it's not
+% always an optimization. We must be more precise in our description.
+
+% TODO: Don't talk about Let, Lam constructs, talk about expressions.
+
+\begin{spec}
+<fusable>
+    ::= Let <fusable> <fusable>
+    ::= Lam <fusable> <fusable>
+    ::= App fold <args>
+    ::= App <fusable> <fusable>
+\end{spec}
+
+This algorithm works as follows: we first find an application of a function we
+previously idenfitied as fold. We store a reference to the data structure $x$
+which is folded over.
+
+Then, we search the expression tree for other expressions in which we apply a
+function to $x$. However, our search scope is limited: we do not inspect the
+different branches if we encounter a |case| expression.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -451,12 +479,9 @@ A first aspect we can evaluate is how well our detection of folds works.
 Unfortunately, manually identifying folds in projects takes too much time. This
 explains why it is especially hard to detect false negatives.
 
-% TODO: Don't say that hlint does a poor job, just say that our tool is better.
-% Try to state that hlint finds a strict subset.
-
-Additionally, very little other related work is done. The \emph{hlint} tool is
-able to recognize a few folds, but its results appear rather poor compared
-compared to our tool (in this particular area).
+Additionally, very little other related work is done. The \emph{hlint}
+\cite{hlint} tool is able to recognize folds as well, but its focus lies on
+refactoring rather than optimizations.
 
 In Table \ref{tabular:project-results}, we can see the results of running our
 tool on some well-known Haskell projects. We classify folds into three
@@ -483,6 +508,14 @@ categories:
 \caption{Results of identifying folds in some well-known projects}
 \end{center}
 \end{table}
+
+We also tested our tool on the test cases included in the hlint source code, and
+we identified the same folds. However, in arbitrary code (See Table
+\ref{tabular:project-results}), our tool detects more possible folds than hlint.
+This suggests that we detect a strict superset of possible folds, even for
+lists. The fact that the number of possible folds in these projects found by
+hlint is so low indicates that the authors of the respective packages might have
+used hlint during development.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
