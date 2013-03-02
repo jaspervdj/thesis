@@ -1,6 +1,4 @@
-\documentclass{article}
-
-% TODO: IEEE article format
+\documentclass[preprint]{sigplanconf}
 
 %include polycode.fmt
 
@@ -10,14 +8,25 @@
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
 
+% Document metadata
+
+\conferenceinfo{WXYZ '05}{date, City.}
+\copyrightyear{2005}
+\copyrightdata{[to be supplied]}
+
+\titlebanner{banner above paper title}        % These are ignored unless
+\preprintfooter{short description of paper}   % 'preprint' option specified.
+
 \title{Automatic detection of recursion patterns}
+\subtitle{Subtitle Text, if any}
+
+\authorinfo{Name1}{Affiliation1}{Email1}
+\authorinfo{Name2\and Name3}{Affiliation2/3}{Email2/3}
 
 \begin{document}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \maketitle
-
-\tableofcontents
 
 \ignore{
 \begin{code}
@@ -28,21 +37,31 @@ import Prelude       hiding (head, foldr, map, sum)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Abstract}
-
+\begin{abstract}
 Rewriting explicitly recursive functions in terms of higher-order functions such
 as |fold| and |map| brings many advantages such as conciseness, improved
 readability, and it facilitates some optimizations. However, it is not always
 straightforward for a programmer to write functions in this style. We present an
 approach to automatically detect these higher-order functions, so the programmer
 can have his cake and eat it, too.
+\end{abstract}
 
 % TODO: Explicit results, evaluation
+
+\category{CR-number}{subcategory}{third-level}
+
+\terms
+term1, term2
+
+\keywords
+keyword1, keyword2
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
 
 % TODO: 2 paragraphs, 1 about own research/additions
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Motivation}
@@ -529,8 +548,19 @@ used hlint during development.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\appendix
+\section{Appendix Title}
+
+This is the text of the appendix, if you need one.
+
+\acks
+
+Acknowledgments, if needed.
+
 % References
-\bibliographystyle{plainnat}
+\bibliographystyle{abbrvnat}
 \bibliography{references}
 
 \end{document}
