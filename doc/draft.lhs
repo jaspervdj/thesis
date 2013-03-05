@@ -130,14 +130,15 @@ by recognizing the higher-order function.
 \item The code becomes much more concise, which means there is less code to read
 (and debug).
 
-% TODO: Reword: When we prove properties for e.g. filter, we know that
-% applications of filter also have these properties.
-
-\item Some interesting and useful properties are immediately obvious: e.g.
+\item Interesting properties exist about these higher-order functions, e.g.:
 
 \begin{spec}
 length (filter f xs) <= length xs
 \end{spec}
+
+We can prove these properties once for an arbitrary |f|. Working like this saves
+us a lot of work, since we then know applications of these higher-order
+functions also adhere to these properties.
 
 \item Last but not least, these properties allow for certain optimizations. Map
 fusion is a well-known example \cite{meijer1991}:
