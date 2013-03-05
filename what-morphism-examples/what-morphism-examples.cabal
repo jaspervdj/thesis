@@ -10,7 +10,7 @@ Build-type:    Simple
 Cabal-version: >= 1.8
 
 Executable what-morphism-examples
-  Ghc-options:    -fplugin WhatMorphism
+  Ghc-options:    -fplugin WhatMorphism -ddump-simpl
   Hs-source-dirs: src
   Main-is:        Main.hs
 
