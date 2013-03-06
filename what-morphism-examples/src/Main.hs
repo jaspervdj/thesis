@@ -29,7 +29,15 @@ map1 f (x : xs) = f x : map1 f xs
 
 --------------------------------------------------------------------------------
 filter1 :: (a -> Bool) -> [a] -> [a]
-filter1 _    []       = []
-filter1 pred (x : xs)
-    | pred x          = x : filter1 pred xs
-    | otherwise       = filter1 pred xs
+filter1 _ []       = []
+filter1 p (x : xs)
+    | p x          = x : filter1 p xs
+    | otherwise    = filter1 p xs
+
+
+--------------------------------------------------------------------------------
+mean :: [Double] -> Double
+mean xs =
+    let len  = foldr (const (+ 1)) 0 xs
+        sum' = foldr (+)           0 xs
+    in sum' / len
