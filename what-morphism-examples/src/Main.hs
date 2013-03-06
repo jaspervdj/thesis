@@ -41,3 +41,14 @@ mean xs =
     let len  = foldr (const (+ 1)) 0 xs
         sum' = foldr (+)           0 xs
     in sum' / len
+
+
+--------------------------------------------------------------------------------
+-- | This example shows why fold-fold fusion might not be so useful after all
+qux :: [Double] -> Double
+qux xs =
+    let len  = foldr (const (+ 1)) 0 xs
+        sum' = foldr (+)           0 xs
+    in case len of
+        3 -> 42
+        _ -> sum' / len
