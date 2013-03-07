@@ -154,18 +154,26 @@ map f . map g = map (f . g)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Generalized foldr}
 
-In this document, we focus on detecting |foldr| rather than |filter| or |map|,
-because this pattern is more general than |map|. This becomes clear if we see
-that |map| can be written in terms of |foldr|:
+Our work around the detection of recursion pattern revolves mostly around
+|foldr|. There are several reasons for this. First off, many other higher-order
+functions (such as |map|, |filter|, and |foldl|) can be written in terms of
+|foldr|.
 
 \begin{code}
 map' :: (a -> b) -> [a] -> [b]
 map' f = foldr (\x xs -> f x : xs) []
 \end{code}
 
-However, that is not the only way in which |foldr| is more general. A |foldr| is
-a \emph{catamorphism} \cite{meijer1991} --- so it can be generalized to
-arbitrary algebraic data types instead of just lists.
+If we work this way, we can first detect instances of |foldr| and then
+optionally classify them as being instances of other higher-order functions such
+as |map|.
+
+Another advantage of focussing on |foldr| is that we can apply our work to more
+than just recursion over lists. An application of |foldr| is a
+\emph{catamorphism} \cite{meijer1991} --- and we can have those for arbitrary
+algebraic data types instead of just lists.
+
+Consider a fold over a tree:
 
 \begin{code}
 data Tree a
@@ -183,10 +191,17 @@ foldTree l b (Branch x y)  =
     b (foldTree l b x) (foldTree l b y)
 \end{code}
 
+\begin{code}
+sumTree :: Tree Int -> Int
+sumTree = foldTree id (+)
+\end{code}
+
 A general fold takes a number of functions as arguments, to be more precise,
-exactly one function per possible constructor in the datatype. If we consider
-the product of these functions as operators in an \emph{algebra}, applying a
+exactly one function for every constructor of the datatype. If we consider the
+product of these functions as operators in an \emph{algebra}, applying a
 catamorphism is simply interpreting the data structure in terms of an algebra.
+
+% TODO: Talk about subterms.
 
 This indicates the concept of a fold is a very general idea, which is an
 important motivation: our work will apply to any algebraic datatype rather than
