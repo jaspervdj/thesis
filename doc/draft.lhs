@@ -441,9 +441,9 @@ expression:
 
 Which is the correct |foldr|-based definition of |sum|.
 
-
-Other, static arguments may also be given as arguments to the fold: we need to
-introduce an additional rule for this.
+A few additional rules need to be added to recognize more folds. For example,
+static arguments may also be given as arguments to the fold. This corresponds to
+the rule:
 
 \begin{center}
 \infer{|\x -> e| \leadsto_{fx} |\x -> e'|}{|e| \leadsto_f |e'|}
