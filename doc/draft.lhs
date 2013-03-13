@@ -147,6 +147,8 @@ fusion is a well-known example \cite{meijer1991}:
 map f . map g = map (f . g)
 \end{spec}
 \end{itemize}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
 
@@ -209,7 +211,7 @@ just lists.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{GHC Core}
+\subsection{The GHC Core language}
 \label{subsection:ghc-core}
 
 There are two convenient representations of Haskell code which we can analyze.
@@ -237,6 +239,23 @@ impossible to recognize certain folds before a certain function is inlined.
 However, we must note that there is a major drawback to analyzing GHC Core
 instead of Haskell code: it becomes much harder (and outside the scope of this
 project) to use the results for refactoring.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Expressions in GHC Core}
+
+\begin{spec}
+expr  ::=  variable
+      |    literal
+      |    expr expr
+      |    \variable -> expr
+      |    let variable = expr in expr
+      |    case expr of [(constructor, [variable], expr)]
+\end{spec}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{The GHC Plugins system}
 
 In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
 \cite{ghc-plugins}. We decided to use this system since it is much more
