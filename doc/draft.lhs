@@ -348,13 +348,30 @@ We identify folds which adhere to a certain set of rules. First, we show in
 detail how these rules work for folds over lists, and then we indicate how they
 are extended to work for arbitrary algebraic datatypes.
 
+Our rules are based on rewrites. Suppose $x \leadsto y$ stands for ``$x$ can be
+rewritten as $y$''. With a set of rules, we can express rewriting explicit
+recursion as implicit recursion using |foldr|.
+
+Our first rule deals with bindings. If we can rewrite the body of a function |f|
+as a fold, we can rewrite the binding this way.
+
 \begin{center}
 \infer{|f = e| \leadsto |f = e'|}{|e| \leadsto_f |e'|}
 \end{center}
 
-\begin{center}
-\infer{|\x -> e| \leadsto_{fx} |\x -> e'|}{|e| \leadsto_f |e'|}
-\end{center}
+The next rule expresses the simplest form in which a fold can appear. An
+argument |x| is \emph{destroyed}, and we have an expression for every
+constructor (|[]| and |:|).
+
+The expression corresponding to the |[]| constructor becomes the second argument
+to |foldr|.
+
+For the |:| constructor, we have an expression |e2| which can use the subterms
+|y|, |ys| bound by the |case| expression. In the rewritten version using
+|foldr|, |y| and |ys| are not in scope. Hence, |e2| needs to be converted to an
+anonymous function taking two parameters instead. Additionally, the explicit
+recursion needs to be eliminated. |e2''| is the corresponding, rewritten
+expression.
 
 \begin{center}
 \infer{
@@ -374,105 +391,64 @@ are extended to work for arbitrary algebraic datatypes.
 }{
 \begin{minipage}{0.4\columnwidth}
 \begin{spec}
-x   `notElem` free e1
-x   `notElem` free e2
-ys  `notElem` free e2''
-\end{spec}
-\end{minipage}
-&
-\begin{minipage}{0.4\columnwidth}
-\begin{spec}
 e1'   = e1
 e2'   = \z -> subst e2 y z
 e2''  = \zs -> subst e2' (f ys) zs
 \end{spec}
 \end{minipage}
+&
+\begin{minipage}{0.4\columnwidth}
+\begin{spec}
+x   `notElem` free e1
+x   `notElem` free e2
+ys  `notElem` free e2''
+\end{spec}
+\end{minipage}
 }
 \end{center}
 
-\begin{spec}
-<fold f>
-    ::= <fold' f f>
-\end{spec}
+Let's look at a concrete example: if we have the expression:
 
 \begin{spec}
-<fold' f f>
-    ::= Lam x <foldOver (\y -> App f y) x>
-      | Lam x <fold' (App f x) f>
-\end{spec}
-
-\begin{spec}
-<foldOver f x>
-    ::= Lam y <foldOver f x>
-      | Case x of <alts f x>
-\end{spec}
-
-\begin{spec}
-<alts f x>
-    ::= <alt f x>
-      | <alts f x>; <alt f x>
-\end{spec}
-
-\begin{spec}
-<alt f x>
-    ::= Constructor <subterms> <body>
-\end{spec}
-
-The trick in $fold$ is that we create an anonymous function which will allow us
-to replace a specific argument with a subterm later.
-
-Since a fold applies an algebra to a datatype, we must have an operator from
-this algebra for each constructor. We can retrieve this operator be writing it
-as anonymous function based on |<body>|.
-
-Our function $rewrite$ works on these $<alt>$ constructs by turning the body
-into an anonymous function, step by step, by adding an argument for each
-subterm.
-
-If the subterm is recursive we expect a recursive call to $f$, otherwise we
-treat the subterm as-is.
-
-%format t1 = "t_1"
-
-\begin{spec}
-rewrite f []        body  = body
-rewrite f (t1 : ts) body
-    | isRecursive t1      = Lam x (subst ((rewrite f ts body)) ((f t1)) x)
-    | otherwise           = Lam x (subst ((rewrite f ts body)) t1 x)
-\end{spec}
-
-With the first argument to $Lam$, $x$, a fresh variable. Let's look at an
-example.
-
-\begin{spec}
-sum :: [Int] -> Int
-sum = \ad -> case ad of
+sum = \ls -> case ls of
     []        -> 0
     (x : xs)  -> x + sum xs
 \end{spec}
 
-If we rewrite the $:$ constructor in the $sum$ function, we get:
-
-%format sub (x) = "\mathopen{}t_{" x "}\mathclose{}"
-%format beta = "\beta"
+The first rule says we can rewrite the body using $\leadsto_{sum}$. We get the
+expression:
 
 \begin{spec}
-rewrite (\t -> sum t) [sub x, sub xs] (sub x + sum (sub xs))
-    = <definition rewrite>
-        \x -> rewrite (\t -> sum t) [sub xs] (subst ((sub x + sum (sub xs))) (sub x) x)
-    = <substitution>
-        \x -> rewrite (\t -> sum t) [sub xs] (x + sum (sub xs))
-    = <definition rewrite>
-        \x y -> rewrite (\t -> sum t) [] (subst ((x + sum (sub xs))) ((\t -> sum t) (sub xs)) y)
-    = <beta reduction>
-        \x y -> rewrite (\t -> sum t) [] (subst ((x + sum (sub xs))) (sum (sub xs)) y)
-    = <substitution>
-        \x y -> rewrite (\t -> sum t) [] (x + y)
-    = <definition rewrite>
-        \x y -> x + y
+\ls -> case ls of
+    []        -> 0
+    (x : xs)  -> x + sum xs
 \end{spec}
 
-While this is a simple example, this also works in the more general case.
+so we have:
+
+\begin{spec}
+e1'   = 0
+e2'   = \z -> subst ((x + sum xs)) x z
+e2''  = \zs -> subst e2' (sum xs) zs
+\end{spec}
+
+After applying substitution, we get our final result for the rewritten
+expression:
+
+\begin{spec}
+\x -> foldr (\z -> \zs -> z + zs) 0 x
+\end{spec}
+
+Which is the correct |foldr|-based definition of |sum|.
+
+
+Other, static arguments may also be given as arguments to the fold: we need to
+introduce an additional rule for this.
+
+\begin{center}
+\infer{|\x -> e| \leadsto_{fx} |\x -> e'|}{|e| \leadsto_f |e'|}
+\end{center}
+
 
 % TODO: Check that stuff is in scope.
 
