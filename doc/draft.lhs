@@ -8,6 +8,12 @@
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
 
+% General formatting directives/macros
+%format subst (term) (v) (e) = "\mathopen{}" term "[^{" v "}_{" e "}\mathclose{}"
+
+% For typesetting infer rules, found in proof.sty in this directory
+\usepackage{proof}
+
 % Document metadata
 
 \conferenceinfo{WXYZ '05}{date, City.}
@@ -302,8 +308,51 @@ pattern matching---the only kind of branching possible in GHC Core.
 
 % TODO: Try to describe our algorithm with a pattern/BNF + predicates
 
-The trick in $fold$ is that we create an anonymous function which will allow us
-to replace a specific argument with a subterm later.
+We identify folds which adhere to a certain set of rules. First, we show in
+detail how these rules work for folds over lists, and then we indicate how they
+are extended to work for arbitrary algebraic datatypes.
+
+\begin{center}
+\infer{|f = e| \leadsto |f = e'|}{|e| \leadsto_f |e'|}
+\end{center}
+
+\begin{center}
+\infer{|\x -> e| \leadsto_{fx} |\x -> e'|}{|e| \leadsto_f |e'|}
+\end{center}
+
+\begin{center}
+\infer{
+\begin{minipage}{0.4\columnwidth}
+\begin{spec}
+\x -> case x of
+    []        -> e1
+    (y : ys)  -> e2
+\end{spec}
+\end{minipage}
+\leadsto_f
+\begin{minipage}{0.4\columnwidth}
+\begin{spec}
+\x -> foldr e2'' e1' x
+\end{spec}
+\end{minipage}
+}{
+\begin{minipage}{0.4\columnwidth}
+\begin{spec}
+x   `notElem` free e1
+x   `notElem` free e2
+ys  `notElem` free e2''
+\end{spec}
+\end{minipage}
+&
+\begin{minipage}{0.4\columnwidth}
+\begin{spec}
+e1'   = e1
+e2'   = \z -> subst e2 y z
+e2''  = \zs -> subst e2' (f ys) zs
+\end{spec}
+\end{minipage}
+}
+\end{center}
 
 \begin{spec}
 <fold f>
@@ -333,6 +382,9 @@ to replace a specific argument with a subterm later.
     ::= Constructor <subterms> <body>
 \end{spec}
 
+The trick in $fold$ is that we create an anonymous function which will allow us
+to replace a specific argument with a subterm later.
+
 Since a fold applies an algebra to a datatype, we must have an operator from
 this algebra for each constructor. We can retrieve this operator be writing it
 as anonymous function based on |<body>|.
@@ -345,7 +397,6 @@ If the subterm is recursive we expect a recursive call to $f$, otherwise we
 treat the subterm as-is.
 
 %format t1 = "t_1"
-%format subst (term) (v) (e) = "\mathopen{}" term "[^{" v "}_{" e "}\mathclose{}"
 
 \begin{spec}
 rewrite f []        body  = body
