@@ -8,6 +8,9 @@
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
 
+% For typesetting infer rules, found in proof.sty in this directory
+\usepackage{proof}
+
 % Document metadata
 
 \conferenceinfo{WXYZ '05}{date, City.}
