@@ -31,6 +31,7 @@
 
 \begin{document}
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \maketitle
 
@@ -250,14 +251,49 @@ project) to use the results for refactoring.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Expressions in GHC Core}
 
+The GHC Core language is not much more than a typed $\lambda$-calculus extended
+with a |let| and |case| construct.
+
+\begin{spec}
+program ::= [bind]
+\end{spec}
+
+\begin{spec}
+bind  ::=  variable = expr
+\end{spec}
+
 \begin{spec}
 expr  ::=  variable
       |    literal
       |    expr expr
       |    \variable -> expr
-      |    let variable = expr in expr
+      |    let [bind] in expr
       |    case expr of [(constructor, [variable], expr)]
 \end{spec}
+
+|let| allows binding expressions to variables, so they only need to be evaluated
+once.
+
+|case| is the only branching constuct allowed and is used to evaluate and
+inspect the constructor of a value.
+
+In Table \ref{tabular:haskell-core}, we demonstrate how some common Haskell
+expressions are translated into GHC Core.
+
+\begin{table}
+\begin{center}
+\begin{tabular}{l||l}
+|e1 + e2|              & |(+ e1) e2|                           \\
+|if c then e1 else e2| & |case c of True -> e1; False -> e2;|  \\
+|f x y = e|            & |f = \x -> \y -> e|                   \\
+|e1 where x = e2|      & |let x = e2 in e1|                    \\
+|head (x : _) = x|     & |head = \l -> case l of (x : _) -> x| \\
+\end{tabular}
+\label{tabular:haskell-core}
+\caption{Haskell expressions on the left, and the corresponding GHC Core
+expressions on the right}
+\end{center}
+\end{table}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
