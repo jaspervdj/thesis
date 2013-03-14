@@ -11,6 +11,12 @@
 % General formatting directives/macros
 %format subst (term) (v) (e) = "\mathopen{}" term "[^{" v "}_{" e "}\mathclose{}"
 %format ^ = "^"
+%format c1 = "c_1"
+%format c2 = "c_2"
+%format e1 = "e_1"
+%format e2 = "e_2"
+%format e'1 = "e^{\prime}_1"
+%format e'2 = "e^{\prime}_2"
 
 % For typesetting infer rules, found in proof.sty in this directory
 \usepackage{proof}
@@ -659,6 +665,91 @@ And foldr/build fusion allows optimizing this to:
 \end{spec}
 
 which immediately gives us a result without ever constucting a list.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Identifying build}
+
+While foldr/build fusion is implemented in GHC, the |build| function is not
+exported from the |Data.List| module, because it's rank-2 type is not
+implementable in Haskell 98.
+
+This means the developer is prevented from using |build| in its programs.
+Additionally, even if the |build| function was available everywhere, an
+inexperienced developer might not think of using this function.
+
+This means there is a need to detect instances |build| automatically and rewrite
+them automatically, as we already do for instances of folds.
+
+A rule for rewriting binds is straightforward:
+
+\begin{center}
+\infer{|f = e| \leadsto |f = build $ \cons nil -> e'|}{
+|e| \leadsto_f |e'|
+}
+\end{center}
+
+The |[]| constructor is simply replaced by the abstraction |nil|:
+
+\begin{center}
+\infer{|[]| \leadsto_f |nil|}{}
+\end{center}
+
+The rule for the |:| constructor is slightly more complicated, because of the
+fact that we have to recursively apply our rules to the recursive subterm:
+
+\begin{center}
+\infer{|(x : e)| \leadsto_f |cons x e'|}{|e| \leadsto |e'|}
+\end{center}
+
+Recursive calls to |f| do not need to be rewritten, since they will also use the
+abstract |cons| and |nil|:
+
+\begin{center}
+\infer{|f| \leadsto_f |f|}{}
+\end{center}
+
+However, note that calls to arbitrary functions are not allowed, since these
+functions might construct literal lists without relying on the |cons| and |nil|
+functions.
+
+If the expression branches, we must make sure each alternative uses |cons| and
+|nil| instead of |:| and |[]|:
+
+\begin{center}
+\infer{
+\begin{minipage}{0.4\columnwidth}
+\begin{spec}
+\x -> case x of
+    c1 -> e1
+    c2 -> e2
+    ...
+\end{spec}
+\end{minipage}
+\leadsto
+\begin{minipage}{0.4\columnwidth}
+\begin{spec}
+\x -> case x of
+    c1 -> e'1
+    c2 -> e'2
+    ...
+\end{spec}
+\end{minipage}
+}{
+\forall i. e_i \leadsto e'_i
+}
+\end{center}
+
+Some simple additional rules complete the detection:
+
+\begin{center}
+\infer{|e1 e2| \leadsto |e'1 e2|}{|e1| \leadsto |e'1|}
+\end{center}
+
+\begin{center}
+\infer{|\x -> e| \leadsto |\x -> e'|}{|e| \leadsto |e'|}
+\end{center}
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
