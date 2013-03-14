@@ -10,6 +10,7 @@
 
 % General formatting directives/macros
 %format subst (term) (v) (e) = "\mathopen{}" term "[^{" v "}_{" e "}\mathclose{}"
+%format ^ = "^"
 
 % For typesetting infer rules, found in proof.sty in this directory
 \usepackage{proof}
@@ -37,6 +38,7 @@
 
 \ignore{
 \begin{code}
+{-# LANGUAGE Rank2Types #-}
 import Data.Char     (toUpper)
 import Prelude       hiding (head, foldr, map, sum)
 \end{code}
@@ -338,6 +340,7 @@ literal. |App| and |Lam| are well-known from the $\lambda$-calculus. |Let| is
 used to introduce new recursive or non-recursive binds, and |Case| is used for
 pattern matching---the only kind of branching possible in GHC Core.
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Identifying folds}
 \label{subsection:identifying-folds}
@@ -583,6 +586,79 @@ which is folded over.
 Then, we search the expression tree for other expressions in which we apply a
 function to $x$. However, our search scope is limited: we do not inspect the
 different branches if we encounter a |case| expression.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Application: foldr/build fusion}
+
+Haskell best practices encourage building complicated functions by composing
+smaller functions, rather than writing them in a monolithic way.
+
+This means a definition like:
+
+\begin{code}
+sumOfSquaredOdds :: [Int] -> Int
+sumOfSquaredOdds = sum . map (^ 2) . filter odd
+\end{code}
+
+is prefered to:
+
+\begin{code}
+sumOfSquaredOdds' :: [Int] -> Int
+sumOfSquaredOdds' []       = 0
+sumOfSquaredOdds' (x : xs)
+    | odd x                = x ^ 2 + sumOfSquaredOdds' xs
+    | otherwise            = sumOfSquaredOdds' xs
+\end{code}
+
+However, the former would run slower when no optimizations are used: two
+\emph{intermediate} lists are created: one as a result of |filter odd|, and
+another as result of |map (^ 2)|.
+
+With foldr/build fusion, however, it is possible to optimize the former version
+so no intermediate lists are created.
+
+The key idea is that |foldr| works by replacing constructors with functions. If
+we can replace these constructors by functions at compile-time rather than at
+runtime, we remove the intermediate lists.
+
+We introduce the |build| function in order to abstract over constructors first.
+
+%{
+%format forall (x) = "\mathopen{}\forall" x "\mathclose{}"
+%format . = "."
+\begin{code}
+build :: (forall b. (a -> b -> b) -> b -> b) -> [a]
+build g = g (:) []
+\end{code}
+%}
+
+Then, the fusion rule is given by:
+
+\begin{spec}
+foldr cons nil (build g) = g cons nil
+\end{spec}
+
+Let's look at what happens when we apply this to a simple example:
+
+\begin{spec}
+foldr (+) 0 [1, 2, 3]
+\end{spec}
+
+Becomes, when literal lists are implemented using |build|:
+
+\begin{spec}
+foldr (+) 0 $ build $ \cons nil ->
+    cons 1 (cons 2 (cons 3 nil))
+\end{spec}
+
+And foldr/build fusion allows optimizing this to:
+
+\begin{spec}
+(+) 1 ((+) 2 ((+) 3 0))
+\end{spec}
+
+which immediately gives us a result without ever constucting a list.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
