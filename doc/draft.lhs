@@ -9,7 +9,7 @@
 \long\def\ignore#1{}
 
 % General formatting directives/macros
-%format subst (term) (v) (e) = "\mathopen{}" term "[^{" v "}_{" e "}\mathclose{}"
+%format subst (term) (v) (e) = [v "\mapsto" e] term
 %format ^ = "^"
 %format c1 = "c_1"
 %format c2 = "c_2"
@@ -267,16 +267,16 @@ program ::= [bind]
 \end{spec}
 
 \begin{spec}
-bind  ::=  variable = expr
+bind ::= x = e
 \end{spec}
 
 \begin{spec}
-expr  ::=  variable
-      |    literal
-      |    expr expr
-      |    \variable -> expr
-      |    let [bind] in expr
-      |    case expr of [(constructor, [variable], expr)]
+e  ::=  x
+   |    literal
+   |    e e
+   |    \x -> e
+   |    let [bind] in e
+   |    case e of [(constructor, [x], e)]
 \end{spec}
 
 |let| allows binding expressions to variables, so they only need to be evaluated
@@ -379,7 +379,7 @@ For the |:| constructor, we have an expression |e2| which can use the subterms
 |y|, |ys| bound by the |case| expression. In the rewritten version using
 |foldr|, |y| and |ys| are not in scope. Hence, |e2| needs to be converted to an
 anonymous function taking two parameters instead. Additionally, the explicit
-recursion needs to be eliminated. |e2''| is the corresponding, rewritten
+recursion needs to be eliminated. |e2'| is the corresponding, rewritten
 expression.
 
 \begin{center}
@@ -394,23 +394,22 @@ expression.
 \leadsto_f
 \begin{minipage}{0.4\columnwidth}
 \begin{spec}
-\x -> foldr e2'' e1' x
+\x -> foldr e2' e1 x
 \end{spec}
 \end{minipage}
 }{
-\begin{minipage}{0.4\columnwidth}
+\begin{minipage}{0.6\columnwidth}
 \begin{spec}
-e1'   = e1
-e2'   = \z -> subst e2 y z
-e2''  = \zs -> subst e2' (f ys) zs
+z, zs <- fresh
+e2' = \z -> subst (subst e2 (f ys) zs) y z
 \end{spec}
 \end{minipage}
 &
-\begin{minipage}{0.4\columnwidth}
+\begin{minipage}{0.3\columnwidth}
 \begin{spec}
-x   `notElem` free e1
-x   `notElem` free e2
-ys  `notElem` free e2''
+x   `notElem` fv(e1)
+x   `notElem` fv(e2')
+ys  `notElem` fv(e2')
 \end{spec}
 \end{minipage}
 }
@@ -424,28 +423,10 @@ sum = \ls -> case ls of
     (x : xs)  -> x + sum xs
 \end{spec}
 
-The first rule says we can rewrite the body using $\leadsto_{sum}$. We get the
-expression:
+We can apply our rules step-by-step to obtain the our result:
 
 \begin{spec}
-\ls -> case ls of
-    []        -> 0
-    (x : xs)  -> x + sum xs
-\end{spec}
-
-so we have:
-
-\begin{spec}
-e1'   = 0
-e2'   = \z -> subst ((x + sum xs)) x z
-e2''  = \zs -> subst e2' (sum xs) zs
-\end{spec}
-
-After applying substitution, we get our final result for the rewritten
-expression:
-
-\begin{spec}
-\x -> foldr (\z -> \zs -> z + zs) 0 x
+sum = \ls -> foldr (\z -> \zs -> z + zs) 0 ls
 \end{spec}
 
 Which is the correct |foldr|-based definition of |sum|.
@@ -455,9 +436,10 @@ static arguments may also be given as arguments to the fold. This corresponds to
 the rule:
 
 \begin{center}
-\infer{|\x -> e| \leadsto_{fx} |\x -> e'|}{|e| \leadsto_f |e'|}
+\infer{|\x -> e| \leadsto_{f} |\x -> e'|}{|e| \leadsto_{fx} |e'|}
 \end{center}
 
+% TODO: Examples for this last rule, alternative rule for arguments
 
 % TODO: Check that stuff is in scope.
 
