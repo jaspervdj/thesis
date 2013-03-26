@@ -634,26 +634,37 @@ Then, the fusion rule is given by:
 foldr cons nil (build g) = g cons nil
 \end{spec}
 
-Let's look at what happens when we apply this to a simple example:
+Let's look at what happens when we apply this to our example:
 
 \begin{spec}
-foldr (+) 0 [1, 2, 3]
+sumOfSquaredOdds :: [Int] -> Int
+sumOfSquaredOdds = sum . map (^ 2) . filter odd
+    = <def .> \xs ->
+        sum (map (^ 2) (filter odd xs))
+    = <def filter> \xs ->
+        sum (map (^ 2) (build (\c n ->
+            foldr (\x l -> if odd x then c x l else l) n xs)))
+    = <def map> \xs ->
+        sum (build (\c' n' ->
+            foldr (\x l -> c' (x ^ 2) l) n'
+                build (\c n ->
+                    foldr (\x l ->
+                        if odd x then c x l else l) n xs)))
+    = <foldr/build fusion> \xs ->
+        sum (build (\c' n' ->
+            foldr (\x l ->
+                if odd x then c' (x ^ 2) l else l) n' xs))
+    = <def sum> \xs ->
+        foldr (+) 0 (build (\c' n' ->
+            foldr (\x l ->
+                if odd x then c' (x ^ 2) l else l) n' xs))
+    = <foldr/build fusion> \xs ->
+        foldr (\x l ->
+            if odd x then (x ^ 2) + l else l) 0 xs))
 \end{spec}
 
-Becomes, when literal lists are implemented using |build|:
-
-\begin{spec}
-foldr (+) 0 $ build $ \cons nil ->
-    cons 1 (cons 2 (cons 3 nil))
-\end{spec}
-
-And foldr/build fusion allows optimizing this to:
-
-\begin{spec}
-(+) 1 ((+) 2 ((+) 3 0))
-\end{spec}
-
-which immediately gives us a result without ever constucting a list.
+Our |sumOfSquaredOdds| function has been reduced to a single fold, so no
+temporary lists need to be allocated!
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
