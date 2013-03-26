@@ -439,6 +439,13 @@ the rule:
 \infer{|\x -> e| \leadsto_{f} |\x -> e'|}{|e| \leadsto_{fx} |e'|}
 \end{center}
 
+for arguments to the left of the destructed variable, and:
+
+\begin{center}
+\infer{|\x -> \y -> e| \leadsto_{f} |\x -> y -> e'|}
+{|\x -> e| \leadsto_{|\x -> f x y|} |\x -> e'|}
+\end{center}
+
 % TODO: Examples for this last rule, alternative rule for arguments
 
 % TODO: Check that stuff is in scope.
