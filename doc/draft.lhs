@@ -351,7 +351,63 @@ pattern matching---the only kind of branching possible in GHC Core.
 \subsection{Identifying folds}
 \label{subsection:identifying-folds}
 
-% TODO: Try to describe our algorithm with a pattern/BNF + predicates
+\begin{table}
+\begin{center}
+\fbox{
+    \begin{tabular}{cc}
+        % Bindings
+        \multicolumn{2}{c}{
+            \infer{|f = e| \leadsto |f = e'|}{|e| \leadsto_f |e'|}
+        }
+        \vspace{0.1in}
+        \\
+        % Left-side arguments
+        \infer{|\x -> e| \leadsto_{f} |\x -> e'|}{|e| \leadsto_{fx} |e'|}
+        &
+        % Right-side arguments
+        \infer{|\x -> \y -> e| \leadsto_{f} |\x -> y -> e'|}
+        {|\x -> e| \leadsto_{|\x -> f x y|} |\x -> e'|}
+        \vspace{0.1in}
+        \\
+        % Case
+        \multicolumn{2}{c}{
+            \infer{
+                \begin{minipage}{0.4\columnwidth}
+                \begin{spec}
+                \x -> case x of
+                    []        -> e1
+                    (y : ys)  -> e2
+                \end{spec}
+                \end{minipage}
+                \leadsto_f
+                \begin{minipage}{0.4\columnwidth}
+                \begin{spec}
+                \x -> foldr e'2 e1 x
+                \end{spec}
+                \end{minipage}
+            }{
+                \begin{minipage}{0.6\columnwidth}
+                \begin{spec}
+                z, zs <- fresh
+                e'2 = \z -> subst (subst e2 (f ys) zs) y z
+                \end{spec}
+                \end{minipage}
+                \begin{minipage}{0.3\columnwidth}
+                \begin{spec}
+                x   `notElem` fv(e1)
+                x   `notElem` fv(e'2)
+                ys  `notElem` fv(e'2)
+                \end{spec}
+                \end{minipage}
+            }
+        }
+    \end{tabular}
+}
+\label{tabular:fold-rules}
+\vspace{0.1in} \\
+Deduction rules for identifying folds
+\end{center}
+\end{table}
 
 We identify folds which adhere to a certain set of rules. First, we show in
 detail how these rules work for folds over lists, and then we indicate how they
@@ -361,12 +417,9 @@ Our rules are based on rewrites. Suppose $x \leadsto y$ stands for ``$x$ can be
 rewritten as $y$''. With a set of rules, we can express rewriting explicit
 recursion as implicit recursion using |foldr|.
 
+
 Our first rule deals with bindings. If we can rewrite the body of a function |f|
 as a fold, we can rewrite the binding this way.
-
-\begin{center}
-\infer{|f = e| \leadsto |f = e'|}{|e| \leadsto_f |e'|}
-\end{center}
 
 The next rule expresses the simplest form in which a fold can appear. An
 argument |x| is \emph{destroyed}, and we have an expression for every
@@ -381,39 +434,6 @@ For the |:| constructor, we have an expression |e2| which can use the subterms
 anonymous function taking two parameters instead. Additionally, the explicit
 recursion needs to be eliminated. |e2'| is the corresponding, rewritten
 expression.
-
-\begin{center}
-\infer{
-\begin{minipage}{0.4\columnwidth}
-\begin{spec}
-\x -> case x of
-    []        -> e1
-    (y : ys)  -> e2
-\end{spec}
-\end{minipage}
-\leadsto_f
-\begin{minipage}{0.4\columnwidth}
-\begin{spec}
-\x -> foldr e2' e1 x
-\end{spec}
-\end{minipage}
-}{
-\begin{minipage}{0.6\columnwidth}
-\begin{spec}
-z, zs <- fresh
-e2' = \z -> subst (subst e2 (f ys) zs) y z
-\end{spec}
-\end{minipage}
-&
-\begin{minipage}{0.3\columnwidth}
-\begin{spec}
-x   `notElem` fv(e1)
-x   `notElem` fv(e2')
-ys  `notElem` fv(e2')
-\end{spec}
-\end{minipage}
-}
-\end{center}
 
 Let's look at a concrete example: if we have the expression:
 
@@ -434,17 +454,6 @@ Which is the correct |foldr|-based definition of |sum|.
 A few additional rules need to be added to recognize more folds. For example,
 static arguments may also be given as arguments to the fold. This corresponds to
 the rule:
-
-\begin{center}
-\infer{|\x -> e| \leadsto_{f} |\x -> e'|}{|e| \leadsto_{fx} |e'|}
-\end{center}
-
-for arguments to the left of the destructed variable, and:
-
-\begin{center}
-\infer{|\x -> \y -> e| \leadsto_{f} |\x -> y -> e'|}
-{|\x -> e| \leadsto_{|\x -> f x y|} |\x -> e'|}
-\end{center}
 
 % TODO: Examples for this last rule, alternative rule for arguments
 
