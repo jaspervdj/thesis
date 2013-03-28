@@ -1,4 +1,4 @@
-\documentclass[preprint]{sigplanconf}
+\documentclass[preprint, 10pt]{sigplanconf}
 
 %include polycode.fmt
 
@@ -354,19 +354,19 @@ pattern matching---the only kind of branching possible in GHC Core.
 \begin{table}
 \begin{center}
 \fbox{
-    \begin{tabular}{cc}
+    \begin{tabular}{rr}
         % Bindings
-        \multicolumn{2}{c}{
-            \infer{|f = e| \leadsto |f = e'|}{|e| \leadsto_f |e'|}
-        }
-        \vspace{0.1in}
-        \\
+        \infer{|f = e| \leadsto |f = e'|}{|e| \leadsto_f |e'|}
+        &
         % Left-side arguments
         \infer{|\x -> e| \leadsto_{f} |\x -> e'|}{|e| \leadsto_{fx} |e'|}
-        &
-        % Right-side arguments
-        \infer{|\x -> \y -> e| \leadsto_{f} |\x -> y -> e'|}
-        {|\x -> e| \leadsto_{|\x -> f x y|} |\x -> e'|}
+        \vspace{0.1in}
+        \\
+        \multicolumn{2}{c}{
+            % Right-side arguments
+            \infer{|\x -> \y -> e| \leadsto_{f} |\x -> y -> e'|}
+            {|\x -> e| \leadsto_{|\x -> f x y|} |\x -> e'|}
+        }
         \vspace{0.1in}
         \\
         % Case
@@ -389,7 +389,8 @@ pattern matching---the only kind of branching possible in GHC Core.
                 \begin{minipage}{0.6\columnwidth}
                 \begin{spec}
                 z, zs <- fresh
-                e'2 = \z -> subst (subst e2 (f ys) zs) y z
+                e'2 = \z ->
+                    subst (subst e2 (f ys) zs) y z
                 \end{spec}
                 \end{minipage}
                 \begin{minipage}{0.3\columnwidth}
@@ -417,23 +418,45 @@ Our rules are based on rewrites. Suppose $x \leadsto y$ stands for ``$x$ can be
 rewritten as $y$''. With a set of rules, we can express rewriting explicit
 recursion as implicit recursion using |foldr|.
 
+The full set of rules can be found on page \pageref{tabular:fold-rules}.
+% TODO How do we refer to this?
 
-Our first rule deals with bindings. If we can rewrite the body of a function |f|
-as a fold, we can rewrite the binding this way.
+We have a rule for bindings of the form |f = e|. If can rewrite the body of a
+function |f| as a fold, we can rewrite the binding this way. This rule applies
+to top-level bindings as well as local bindings (i.e. in |let| expressions).
 
-The next rule expresses the simplest form in which a fold can appear. An
-argument |x| is \emph{destroyed}, and we have an expression for every
-constructor (|[]| and |:|).
+Instances of folds may have an arbitrary number of arguments. As an example, we
+can consider the function:
 
-The expression corresponding to the |[]| constructor becomes the second argument
-to |foldr|.
+\begin{code}
+mapAppend :: (a -> b) -> [a] -> b -> [b]
+mapAppend f [] z        = [z]
+mapAppend f (x : xs) z  = f x : mapAppend f xs z
+\end{code}
+
+In this example, we fold over a list, and we have two additional arguments |f|
+and |z|. It is important that these additional arguments do not change in
+recursive applications.
+
+Two separate deduction rules are given in order to deal with additional
+arguments to the left and additional to the right of the argument over which we
+fold.
+
+At last, we have a more complicated deduction rule which forms the core for our
+fold recognition. As stated before, our recognition works for arbitrary
+algebraic datatypes. However, we give a simplified rule which is specific to
+lists.
+
+An argument |x| is \emph{destroyed}, and we have an expression for every
+constructor (|[]| and |:|). The expression corresponding to the |[]| constructor
+becomes the second argument to |foldr|.
 
 For the |:| constructor, we have an expression |e2| which can use the subterms
 |y|, |ys| bound by the |case| expression. In the rewritten version using
-|foldr|, |y| and |ys| are not in scope. Hence, |e2| needs to be converted to an
-anonymous function taking two parameters instead. Additionally, the explicit
-recursion needs to be eliminated. |e2'| is the corresponding, rewritten
-expression.
+|foldr|, however, |y| and |ys| are not in scope. Hence, |e2| needs to be
+converted to an anonymous function taking two parameters instead. Additionally,
+the explicit recursion needs to be eliminated. |e'2| is the corresponding,
+rewritten expression.
 
 Let's look at a concrete example: if we have the expression:
 
@@ -448,12 +471,6 @@ We can apply our rules step-by-step to obtain the our result:
 \begin{spec}
 sum = \ls -> foldr (\z -> \zs -> z + zs) 0 ls
 \end{spec}
-
-Which is the correct |foldr|-based definition of |sum|.
-
-A few additional rules need to be added to recognize more folds. For example,
-static arguments may also be given as arguments to the fold. This corresponds to
-the rule:
 
 % TODO: Examples for this last rule, alternative rule for arguments
 
