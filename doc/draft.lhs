@@ -11,10 +11,14 @@
 % General formatting directives/macros
 %format subst (term) (v) (e) = [v "\mapsto" e] term
 %format ^ = "^"
+%format a1 = "a_1"
+%format a2 = "a_2"
 %format c1 = "c_1"
 %format c2 = "c_2"
 %format e1 = "e_1"
 %format e2 = "e_2"
+%format a'1 = "a^{\prime}_1"
+%format a'2 = "a^{\prime}_2"
 %format e'1 = "e^{\prime}_1"
 %format e'2 = "e^{\prime}_2"
 
@@ -626,10 +630,10 @@ is prefered to:
 
 \begin{code}
 sumOfSquaredOdds' :: [Int] -> Int
-sumOfSquaredOdds' []       = 0
+sumOfSquaredOdds' [] = 0
 sumOfSquaredOdds' (x : xs)
-    | odd x                = x ^ 2 + sumOfSquaredOdds' xs
-    | otherwise            = sumOfSquaredOdds' xs
+    | odd x      = x ^ 2 + sumOfSquaredOdds' xs
+    | otherwise  = sumOfSquaredOdds' xs
 \end{code}
 
 However, the former would run slower when no optimizations are used: two
@@ -669,7 +673,8 @@ sumOfSquaredOdds = sum . map (^ 2) . filter odd
         sum (map (^ 2) (filter odd xs))
     = <def filter> \xs ->
         sum (map (^ 2) (build (\c n ->
-            foldr (\x l -> if odd x then c x l else l) n xs)))
+            foldr (\x l ->
+                if odd x then c x l else l) n xs)))
     = <def map> \xs ->
         sum (build (\c' n' ->
             foldr (\x l -> c' (x ^ 2) l) n'
@@ -696,6 +701,89 @@ temporary lists need to be allocated!
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Identifying build}
 
+\begin{table}
+\begin{center}
+\fbox{
+    \begin{tabular}{cc}
+        \multicolumn{2}{c}{
+            \infer{
+                |f a1 a2 ... = e|
+                \rightharpoonup
+                \begin{minipage}{0.5\columnwidth}
+                \begin{spec}
+                f a'1 a'2 ... = build $
+                    \cons nil ->
+                        let g a1 a2 ... = e'
+                        in g a'1 a'2 ...
+                \end{spec}
+                \end{minipage}
+            }{
+                |cons, nil, g <- fresh|
+                &
+                |e| \rightharpoonup_{f, g, cons, nil} |e'|
+            }
+        }
+        \\
+        \infer{
+            |f a1 a2 ...| \rightharpoonup_{f, g, cons, nil} |g a1 a2 ...|
+        }{}
+        &
+        \infer{
+            |[]| \rightharpoonup_{f, g, cons, nil} |nil|
+        }{}
+        \vspace{0.1in}
+        \\
+        \multicolumn{2}{c}{
+            \infer{
+                |(x : e)| \rightharpoonup_{f, g, cons, nil} |cons x e'|
+            }{
+                |e| \rightharpoonup_{f, g, cons, nil} |e'|
+            }
+        }
+        \vspace{0.1in}
+        \\
+        \multicolumn{2}{c}{
+            \infer{
+                |let b = x in e| \rightharpoonup_{f, g, cons, nil}
+                |let b = x in e'|
+            }{
+                |e| \rightharpoonup_{f, g, cons, nil} |e'|
+            }
+        }
+        \vspace{0.1in}
+        \\
+        \multicolumn{2}{c}{
+            \infer{
+                \begin{minipage}{0.3\columnwidth}
+                \begin{spec}
+                \x -> case x of
+                    c1 -> e1
+                    c2 -> e2
+                    ...
+                \end{spec}
+                \end{minipage}
+                \rightharpoonup_{f, g, c, n}
+                \begin{minipage}{0.3\columnwidth}
+                \begin{spec}
+                \x -> case x of
+                    c1 -> e'1
+                    c2 -> e'2
+                    ...
+                \end{spec}
+                \end{minipage}
+            }{
+                \forall i. e_i \rightharpoonup_{f, g, c, n} e'_i
+            }
+        }
+        \\
+    \end{tabular}
+}
+\label{tabular:build-rules}
+\vspace{0.1in} \\
+Deduction rules for identifying builds
+\end{center}
+\end{table}
+
 While foldr/build fusion is implemented in GHC, the |build| function is not
 exported from the |Data.List| module, because it's rank-2 type is not
 implementable in Haskell 98.
@@ -705,77 +793,8 @@ Additionally, even if the |build| function was available everywhere, an
 inexperienced developer might not think of using this function.
 
 This means there is a need to detect instances |build| automatically and rewrite
-them automatically, as we already do for instances of folds.
-
-A rule for rewriting binds is straightforward:
-
-\begin{center}
-\infer{|f = e| \leadsto |f = build $ \cons nil -> e'|}{
-|e| \leadsto_f |e'|
-}
-\end{center}
-
-The |[]| constructor is simply replaced by the abstraction |nil|:
-
-\begin{center}
-\infer{|[]| \leadsto_f |nil|}{}
-\end{center}
-
-The rule for the |:| constructor is slightly more complicated, because of the
-fact that we have to recursively apply our rules to the recursive subterm:
-
-\begin{center}
-\infer{|(x : e)| \leadsto_f |cons x e'|}{|e| \leadsto |e'|}
-\end{center}
-
-Recursive calls to |f| do not need to be rewritten, since they will also use the
-abstract |cons| and |nil|:
-
-\begin{center}
-\infer{|f| \leadsto_f |f|}{}
-\end{center}
-
-However, note that calls to arbitrary functions are not allowed, since these
-functions might construct literal lists without relying on the |cons| and |nil|
-functions.
-
-If the expression branches, we must make sure each alternative uses |cons| and
-|nil| instead of |:| and |[]|:
-
-\begin{center}
-\infer{
-\begin{minipage}{0.4\columnwidth}
-\begin{spec}
-\x -> case x of
-    c1 -> e1
-    c2 -> e2
-    ...
-\end{spec}
-\end{minipage}
-\leadsto
-\begin{minipage}{0.4\columnwidth}
-\begin{spec}
-\x -> case x of
-    c1 -> e'1
-    c2 -> e'2
-    ...
-\end{spec}
-\end{minipage}
-}{
-\forall i. e_i \leadsto e'_i
-}
-\end{center}
-
-Some simple additional rules complete the detection:
-
-\begin{center}
-\infer{|e1 e2| \leadsto |e'1 e2|}{|e1| \leadsto |e'1|}
-\end{center}
-
-\begin{center}
-\infer{|\x -> e| \leadsto |\x -> e'|}{|e| \leadsto |e'|}
-\end{center}
-
+them automatically, as we already do for instances of folds. We use a similar
+set of deduction rules for this.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
