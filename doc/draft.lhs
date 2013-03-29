@@ -10,7 +10,7 @@
 
 % General formatting directives/macros
 %format subst (term) (v) (e) = [v "\mapsto" e] term
-%format ^ = "^"
+%format ^ = "\mathbin{\char`\^}"
 %format a1 = "a_1"
 %format a2 = "a_2"
 %format c1 = "c_1"
@@ -43,8 +43,6 @@
 \authorinfo{Name2\and Name3}{Affiliation2/3}{Email2/3}
 
 \begin{document}
-
-\tableofcontents
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \maketitle
@@ -667,26 +665,27 @@ Then, the fusion rule is given by:
 foldr cons nil (build g) = g cons nil
 \end{spec}
 
-Let's look at what happens when we apply this to our example:
+Let's look at what happens when we apply this to our example. It is important to
+notice that this transformation is applied \emph{at compilation time}.
 
 \begin{spec}
     sumOfSquaredOdds
 
-== {- def |sumOfSquaredOdds| -}
+== {- inline |sumOfSquaredOdds| -}
 
     sum . map (^ 2) . filter odd
 
-== {- def |.| -}
+== {- inline |.| -}
 
     \xs -> sum (map (^ 2) (filter odd xs))
 
-== {- def |filter| -}
+== {- inline |filter| -}
 
     \xs -> sum (map (^ 2) (build (\c n ->
         foldr (\x l ->
             if odd x then c x l else l) n xs)))
 
-== {- def |map| -}
+== {- inline |map| -}
 
     \xs -> sum (build (\c' n' ->
         foldr (\x l -> c' (x ^ 2) l) n'
@@ -700,7 +699,7 @@ Let's look at what happens when we apply this to our example:
         foldr (\x l ->
             if odd x then c' (x ^ 2) l else l) n' xs))
 
-== {- def |sum| -}
+== {- inline |sum| -}
 
     \xs -> foldr (+) 0 (build (\c' n' ->
         foldr (\x l ->
@@ -813,6 +812,53 @@ inexperienced developer might not think of using this function.
 This means there is a need to detect instances |build| automatically and rewrite
 them automatically, as we already do for instances of folds. We use a similar
 set of deduction rules for this.
+
+Note that we use the simplified syntax |f a1 a2 ... = e| for |f = \a1 -> \a2 ->
+... -> e|. This simplifies the set of rules, making them easier to understand.
+
+We have a main deduction rule which replaces the body of a binding by a call to
+|build|. A local function |g| is created, which is the worker of the function.
+
+This is not strictly necessary for non-recursive functions, but having a single
+rule is an implementation advantage.
+
+We examine the body of the expression. We're allowed to look through |let| and
+|case| expressions. If we find an application (|e arg|), we can rewrite |e| by
+replacing:
+
+\begin{itemize}
+\item Recursive applications of |f| by |g|
+\item |[]| by |nil|
+\item |(:)| by |cons|
+\end{itemize}
+
+In the last case, we also need to check the second subterm of |(:)|, as another
+constructor might appear there. For example, this is the case for:
+
+\begin{code}
+twice :: [a] -> [a]
+twice []        = []
+twice (x : xs)  = x : x : twice xs
+\end{code}
+
+We are very conservative, since correctness is of uttermost importance. Hence,
+we don't allow arbitrary functions such as:
+
+\ignore{
+\begin{code}
+foo = twice'
+\end{code}
+}
+
+\begin{code}
+twice' :: [a] -> [a]
+twice' []        = []
+twice' (x : xs)  = x : x : foo xs
+\end{code}
+
+Because |foo| might be referring literally to the [] and (:) constructors, and
+since |foo| is possibly defined in another module, we have no way to know or
+rewrite this.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
