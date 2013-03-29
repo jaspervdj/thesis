@@ -170,11 +170,7 @@ map f . map g = map (f . g)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Implementation}
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Generalized foldr}
+\section{Generalized foldr}
 
 Our work around the detection of recursion pattern revolves mostly around
 |foldr|. There are several reasons for this. First off, many other higher-order
@@ -231,8 +227,8 @@ just lists.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{The GHC Core language}
-\label{subsection:ghc-core}
+\section{The GHC Core language}
+\label{section:ghc-core}
 
 There are two convenient representations of Haskell code which we can analyze.
 
@@ -262,7 +258,7 @@ project) to use the results for refactoring.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Expressions in GHC Core}
+\subsection{Expressions in GHC Core}
 
 The GHC Core language is not much more than a typed $\lambda$-calculus extended
 with a |let| and |case| construct.
@@ -310,7 +306,8 @@ expressions on the right}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{The GHC Plugins system}
+\subsection{The GHC Plugins system}
+\label{subsection:ghc-plugins}
 
 In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
 \cite{ghc-plugins}. We decided to use this system since it is much more
@@ -353,7 +350,7 @@ pattern matching---the only kind of branching possible in GHC Core.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Identifying folds}
+\section{Identifying folds}
 \label{subsection:identifying-folds}
 
 \begin{table}
@@ -483,6 +480,16 @@ sum = \ls -> foldr (\z -> \zs -> z + zs) 0 ls
 
 % TODO: Try to explain the theorem: f is a fold <-> the args are well-scoped.
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Implementation}
+
+The deduction rules, as stated in this paper, are convenient and readable.
+However, they are obviously not directly executable. We implemented this
+rewriting in plain Haskell using the GHC Plugins (see subsection
+\ref{subsection:ghc-plugins}).
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Degenerate folds}
 \label{subsection:degenerate-folds}
@@ -515,7 +522,7 @@ present, and hence the optimization is futile.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Application: fold-fold fusion}
 
-As we discussed in \ref{subsection:ghc-core}, the fact that we are working on
+As we discussed in \ref{section:ghc-core}, the fact that we are working on
 the level of GHC Core makes it hard to use our rewrite results for refactoring.
 However, we can look at some interesting optimizations.
 
@@ -615,7 +622,7 @@ different branches if we encounter a |case| expression.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Application: foldr/build fusion}
+\section{foldr/build fusion}
 
 Haskell best practices encourage building complicated functions by composing
 smaller functions, rather than writing them in a monolithic way.
@@ -716,7 +723,7 @@ temporary lists need to be allocated!
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Identifying build}
+\section{Identifying build}
 
 \begin{table}
 \begin{center}
@@ -859,6 +866,32 @@ twice' (x : xs)  = x : x : foo xs
 Because |foo| might be referring literally to the [] and (:) constructors, and
 since |foo| is possibly defined in another module, we have no way to know or
 rewrite this.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Degenerate builds}
+\label{subsection:degenerate-builds}
+
+The attentive reader might have noticed that using only the deductions, we can
+rewrite \emph{any} binding as a build. Consider the example:
+
+\begin{code}
+magicNumber :: Int
+magicNumber = 4 * 2 + 6 ^ 12
+\end{code}
+
+Which our reduction rules would rewrite as:
+
+\begin{spec}
+magicNumber :: Int
+magicNumber = build $ \cons nil ->
+    let g = 4 * 2 + 6 ^ 12
+    in g
+\end{spec}
+
+Which causes a compile-time type error. In order to prevent this, we take two
+additional measures: we only attempt build rewrites for compatible datatypes,
+and secondly, we check that we used the |cons|/|nil| expressions at least once.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
