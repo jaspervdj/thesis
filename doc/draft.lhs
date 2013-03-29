@@ -21,6 +21,8 @@
 %format a'2 = "a^{\prime}_2"
 %format e'1 = "e^{\prime}_1"
 %format e'2 = "e^{\prime}_2"
+\def\commentbegin{\quad\{\ }
+\def\commentend{\}}
 
 % For typesetting infer rules, found in proof.sty in this directory
 \usepackage{proof}
@@ -42,6 +44,7 @@
 
 \begin{document}
 
+\tableofcontents
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \maketitle
@@ -667,31 +670,46 @@ foldr cons nil (build g) = g cons nil
 Let's look at what happens when we apply this to our example:
 
 \begin{spec}
-sumOfSquaredOdds :: [Int] -> Int
-sumOfSquaredOdds = sum . map (^ 2) . filter odd
-    = <def .> \xs ->
-        sum (map (^ 2) (filter odd xs))
-    = <def filter> \xs ->
-        sum (map (^ 2) (build (\c n ->
-            foldr (\x l ->
-                if odd x then c x l else l) n xs)))
-    = <def map> \xs ->
-        sum (build (\c' n' ->
-            foldr (\x l -> c' (x ^ 2) l) n'
-                build (\c n ->
-                    foldr (\x l ->
-                        if odd x then c x l else l) n xs)))
-    = <foldr/build fusion> \xs ->
-        sum (build (\c' n' ->
-            foldr (\x l ->
-                if odd x then c' (x ^ 2) l else l) n' xs))
-    = <def sum> \xs ->
-        foldr (+) 0 (build (\c' n' ->
-            foldr (\x l ->
-                if odd x then c' (x ^ 2) l else l) n' xs))
-    = <foldr/build fusion> \xs ->
+    sumOfSquaredOdds
+
+== {- def |sumOfSquaredOdds| -}
+
+    sum . map (^ 2) . filter odd
+
+== {- def |.| -}
+
+    \xs -> sum (map (^ 2) (filter odd xs))
+
+== {- def |filter| -}
+
+    \xs -> sum (map (^ 2) (build (\c n ->
         foldr (\x l ->
-            if odd x then (x ^ 2) + l else l) 0 xs))
+            if odd x then c x l else l) n xs)))
+
+== {- def |map| -}
+
+    \xs -> sum (build (\c' n' ->
+        foldr (\x l -> c' (x ^ 2) l) n'
+            build (\c n ->
+                foldr (\x l ->
+                    if odd x then c x l else l) n xs)))
+
+== {- foldr/build fusion -}
+
+    \xs -> sum (build (\c' n' ->
+        foldr (\x l ->
+            if odd x then c' (x ^ 2) l else l) n' xs))
+
+== {- def |sum| -}
+
+    \xs -> foldr (+) 0 (build (\c' n' ->
+        foldr (\x l ->
+            if odd x then c' (x ^ 2) l else l) n' xs))
+
+== {- foldr/build fusion -}
+
+    \xs -> foldr (\x l ->
+        if odd x then (x ^ 2) + l else l) 0 xs))
 \end{spec}
 
 Our |sumOfSquaredOdds| function has been reduced to a single fold, so no
