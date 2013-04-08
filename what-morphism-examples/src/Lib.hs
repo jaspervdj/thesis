@@ -1,6 +1,10 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE Rank2Types      #-}
 {-# LANGUAGE TemplateHaskell #-}
+module Lib where
+
+
+--------------------------------------------------------------------------------
 import           WhatMorphism.Annotations
 import           WhatMorphism.TemplateHaskell
 
@@ -22,17 +26,6 @@ $(deriveBuild ''List "buildList")
 
 
 --------------------------------------------------------------------------------
-foldListTest :: Int
-foldListTest = foldList (+) 0 buildListTest
-
-
---------------------------------------------------------------------------------
-buildListTest :: List Int
-buildListTest = buildList $ \cons nil ->
-    cons 4 $ cons 3 $ cons 2 $ cons 1 nil
-
-
---------------------------------------------------------------------------------
 data Tree a
     = Leaf a
     | Node (Tree a) (Tree a)
@@ -42,18 +35,3 @@ data Tree a
 --------------------------------------------------------------------------------
 $(deriveFold ''Tree "foldTreeHerp")
 $(deriveBuild ''Tree "buildTree")
-
-
---------------------------------------------------------------------------------
-foldTreeTest :: Int
-foldTreeTest = foldTreeHerp id (+) buildTreeTest
-
-
---------------------------------------------------------------------------------
-buildTreeTest :: Tree Int
-buildTreeTest = buildTree $ \leaf node ->
-    node
-        (leaf 2)
-        (node
-            (leaf 7)
-            (leaf 8))
