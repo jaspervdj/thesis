@@ -1,6 +1,7 @@
 --------------------------------------------------------------------------------
-{-# LANGUAGE Rank2Types      #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE Rank2Types          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 import           WhatMorphism.Annotations
 import           WhatMorphism.TemplateHaskell
 
@@ -22,6 +23,12 @@ testList = buildList $ \c n ->
 listSum :: List Int -> Int
 listSum Empty       = 0
 listSum (Cons x xs) = x + listSum xs
+
+
+--------------------------------------------------------------------------------
+listSumWith :: List Int -> Int -> Int
+listSumWith Empty       c = c
+listSumWith (Cons x xs) c = x + listSumWith xs c
 
 
 --------------------------------------------------------------------------------
@@ -62,10 +69,22 @@ treeMap f (Node l r) = Node (treeMap f l) (treeMap f r)
 
 
 --------------------------------------------------------------------------------
+treeMapB :: forall a b. (a -> b) -> Tree a -> Tree b
+treeMapB f' tree' = buildTree $ \(leaf :: b -> c) (node :: c -> c -> c) ->
+    let g :: (a -> b) -> Tree a -> c
+        g f (Leaf x)   = leaf (f x)
+        g f (Node l r) = node (g f l) (g f r)
+    in g f' tree'
+{-# NOINLINE treeMapB #-}
+
+
+--------------------------------------------------------------------------------
 main :: IO ()
 main = do
     print $ listSum testList
+    print $ listSumWith testList 5
     print $ listMap (+ 1) testList
     print $ listFilter odd testList
     print $ treeSum testTree
     print $ treeMap (+ 1) testTree
+    print $ treeMapB (+ 1) testTree
