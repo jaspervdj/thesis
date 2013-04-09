@@ -33,5 +33,9 @@ data Tree a
 
 
 --------------------------------------------------------------------------------
-$(deriveFold ''Tree "foldTreeHerp")
+$(deriveFold ''Tree "foldTree")
 $(deriveBuild ''Tree "buildTree")
+{-# ANN type Tree (RegisterFoldBuild "foldTree" "buildTree") #-}
+{-# RULES "foldTree/buildTree"
+    forall (g :: forall b. (a -> b) -> (b -> b -> b) -> b) l n.
+    foldTree l n (buildTree g) = g l n #-}
