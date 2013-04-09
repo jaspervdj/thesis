@@ -19,7 +19,7 @@ data List a
 --------------------------------------------------------------------------------
 $(deriveFold ''List "foldList")
 $(deriveBuild ''List "buildList")
-{-# ANN type List (RegisterFoldBuild 'foldList 'buildList) #-}
+{-# ANN type List (RegisterFoldBuild "foldList" "buildList") #-}
 {-# RULES "foldList/buildList"
     forall (g :: forall b. (a -> b -> b) -> b -> b) c n.
     foldList c n (buildList g) = g c n #-}
