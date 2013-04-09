@@ -66,8 +66,6 @@ main :: IO ()
 main = do
     print $ listSum testList
     print $ listMap (+ 1) testList
-    {-
     print $ listFilter odd testList
     print $ treeSum testTree
     print $ treeMap (+ 1) testTree
-    -}
