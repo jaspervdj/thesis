@@ -70,11 +70,11 @@ treeMap f (Node l r) = Node (treeMap f l) (treeMap f r)
 
 --------------------------------------------------------------------------------
 treeMapB :: forall a b. (a -> b) -> Tree a -> Tree b
-treeMapB f' tree' = buildTree $ \(leaf :: b -> c) (node :: c -> c -> c) ->
+treeMapB f' tree' = buildTree (\(leaf :: b -> c) (node :: c -> c -> c) ->
     let g :: (a -> b) -> Tree a -> c
         g f (Leaf x)   = leaf (f x)
         g f (Node l r) = node (g f l) (g f r)
-    in g f' tree'
+    in g f' tree')
 {-# NOINLINE treeMapB #-}
 
 
