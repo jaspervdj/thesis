@@ -20,9 +20,18 @@ testList = buildList $ \c n ->
 
 
 --------------------------------------------------------------------------------
+listUpTo :: Int -> Int -> List Int
+listUpTo k n
+    | k >= n    = Cons k Empty
+    | otherwise = Cons k (listUpTo (k + 1) n)
+{-# INLINE [2] listUpTo #-}
+
+
+--------------------------------------------------------------------------------
 listSum :: List Int -> Int
 listSum Empty       = 0
 listSum (Cons x xs) = x + listSum xs
+{-# INLINE [2] listSum #-}
 
 
 --------------------------------------------------------------------------------
@@ -79,12 +88,11 @@ treeMapB f' tree' = buildTree (\(leaf :: b -> c) (node :: c -> c -> c) ->
 
 
 --------------------------------------------------------------------------------
+result :: Int
+result = listSum (1 `listUpTo` 10)
+{-# NOINLINE result #-}
+
+
+--------------------------------------------------------------------------------
 main :: IO ()
-main = do
-    print $ listSum testList
-    print $ listSumWith testList 5
-    print $ listMap (+ 1) testList
-    print $ listFilter odd testList
-    print $ treeSum testTree
-    print $ treeMap (+ 1) testTree
-    print $ treeMapB (+ 1) testTree
+main = print result
