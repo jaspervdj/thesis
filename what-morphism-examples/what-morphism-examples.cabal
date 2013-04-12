@@ -11,7 +11,7 @@ Cabal-version: >= 1.8
 
 Executable what-morphism-examples
   Ghc-options:    -fplugin WhatMorphism -dverbose-core2core -O2
-                  -ddump-rule-firings
+                  -ddump-rule-firings -fsimpl-tick-factor=1000
   Hs-source-dirs: src
   Main-is:        Main.hs
 
