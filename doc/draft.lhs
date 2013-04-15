@@ -1,4 +1,4 @@
-\documentclass[preprint, 10pt]{sigplanconf}
+\documentclass[preprint, 9pt]{sigplanconf}
 
 %include polycode.fmt
 
@@ -36,7 +36,7 @@
 \titlebanner{banner above paper title}        % These are ignored unless
 \preprintfooter{short description of paper}   % 'preprint' option specified.
 
-\title{Automatic detection of recursion patterns}
+\title{Bringing Functions into the Fold}
 \subtitle{Subtitle Text, if any}
 
 \authorinfo{Name1}{Affiliation1}{Email1}
@@ -86,18 +86,20 @@ keyword1, keyword2
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Motivation}
 
-In early programming languages, developers manipulated the control flow of their
-applications using the \texttt{goto} construct. This allowed \emph{arbitrary}
-jumps through code, which brought with many disadvantages \cite{dijkstra1968}.
-In particular, it could be very hard to understand code written in this style.
+In machine code, the control flow of a program is controlled using \emph{jumps}.
+This convention was continued in early programming languages, and developers
+manipulated the control flow of their applications using the \texttt{goto}
+construct. This allowed \emph{arbitrary} jumps through code, which brought with
+many disadvantages \cite{dijkstra1968}.  In particular, it could be very hard to
+understand code written in this style.
 
 Later programming languages favored use of control stuctures such as
 \texttt{for} and \texttt{while} over \texttt{goto}. This made it easier for
-programmers and tools to analyze these structures, e.g. on pre- and
+programmers and tools to reason about these structures, e.g. using pre- and
 postconditions.
 
 A similar argument can be made about \emph{arbitrary recursion} in functional
-programming languages. Consider the functions:
+programming languages. Consider the simple functions:
 
 \begin{code}
 upper :: String -> String
@@ -110,6 +112,10 @@ sum :: [Int] -> Int
 sum []        = 0
 sum (x : xs)  = x + sum xs
 \end{code}
+
+The concept of \emph{arbitrary recursion} becomes clear immediately: the
+developer needs to read and understand the entire function before he has a basic
+understanding of the control flow.
 
 These functions can be rewritten using the \emph{higher-order} functions |map|
 and |foldr|.
@@ -140,33 +146,37 @@ sum' = foldr (+) 0
 
 The rewritten versions have a number of advantages.
 
-\begin{itemize}
-\item An experienced programmer will be able to read and understand the latter
-versions much quicker: he or she immediately understands how the recursion works
-by recognizing the higher-order function.
+An experienced programmer, familiar with the various higher-order
+functions will be able to read and understand the latter versions much quicker:
+he or she immediately understands how the recursion works by recognizing the
+higher-order function.
 
 % TODO: Cite something on concise code can be read faster (some Scala study?)
 
-\item The code becomes much more concise, which means there is less code to read
-(and debug).
+The code becomes much more concise, which means there is less code to read
+(and debug). Research has shown that the number of bugs is proportional to the
+number of lines of code \cite{gaffney1984}.
 
-\item Interesting properties exist about these higher-order functions, e.g.:
+Furthermore, some interesting properties exist about these higher-order
+functions, e.g.:
 
 \begin{spec}
 length (filter f xs) <= length xs
 \end{spec}
 
-We can prove these properties once for an arbitrary |f|. Working like this saves
-us a lot of work, since we then know applications of these higher-order
+We only need to prove these properties once for an arbitrary |f|. This approach
+saves us a lot of work, since we then know applications of these higher-order
 functions also adhere to these properties.
 
-\item Last but not least, these properties allow for certain optimizations. Map
+Last but not least, these properties also allow for certain optimizations. Map
 fusion is a well-known example \cite{meijer1991}:
 
 \begin{spec}
 map f . map g = map (f . g)
 \end{spec}
-\end{itemize}
+
+This optimization merges two maps over a list, so that no temporary list needs
+to be created.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -182,6 +192,9 @@ map' :: (a -> b) -> [a] -> [b]
 map' f = foldr (\x xs -> f x : xs) []
 \end{code}
 
+This means that every function which can be written as an application of |map|
+can also be written as an application of |foldr|.
+
 If we work this way, we can first detect instances of |foldr| and then
 optionally classify them as being instances of other higher-order functions such
 as |map|.
@@ -191,7 +204,7 @@ than just recursion over lists. An application of |foldr| is a
 \emph{catamorphism} \cite{meijer1991} --- and we can have those for arbitrary
 algebraic data types instead of just lists.
 
-Consider a fold over a tree:
+A simple example is a fold over a tree:
 
 \begin{code}
 data Tree a
@@ -239,22 +252,37 @@ During compilation, the Haskell code is translated throughout a different number
 of passes. One particulary interesting representation is GHC Core
 \cite{tolmach2009}.
 
-Analyzing GHC Core for folds gives us many advantages:
+Analyzing GHC Core for folds gives us many advantages: GHC Core is a much less
+complicated language than Haskell, because all syntactic features have been
+stripped away. As an illustration, the |Expr| type used by |haskell-src-exts|
+has 46 different constructors, while the |Expr| type used by GHC Core only has
+10!
 
-\begin{itemize}
-\item GHC Core is much less complicated, because all syntactic features have
-been stripped away.
+Additionally, the GHC Core goes through multiple passes. This is very useful
+since we can rely on other passes to help our analysis.
 
-\item The GHC Core goes through multiple passes. This is very useful since we
-can rely on other passes to help our analysis. For example, it might be
-impossible to recognize certain folds before a certain function is inlined.
+For example, we won't be able to recognize the |foldr| pattern in |jibble|
+before the compiler inlines |wiggle|:
 
-\item We have access to type information, which we can use in the analysis.
-\end{itemize}
+\begin{code}
+jibble :: [Int] -> Int
+jibble []        = 1
+jibble (x : xs)  = wiggle x xs
+
+wiggle :: Int -> [Int] -> Int
+wiggle x xs = x * jibble xs + 1
+\end{code}
+
+Finally, GHC Core is fully typed. This means we have access to type information
+everywhere, which we can use in the analysis.
 
 However, we must note that there is a major drawback to analyzing GHC Core
 instead of Haskell code: it becomes much harder (and outside the scope of this
 project) to use the results for refactoring.
+
+In order to do refactoring, we would need an \emph{annotated} expression type so
+the Core expressions can be traced back to the original Haskell code. When we
+rewrite the Core expressions, the Haskell code must be updated accordingly.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
