@@ -86,17 +86,34 @@ keyword1, keyword2
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Motivation}
 
-In machine code, the control flow of a program is controlled using \emph{jumps}.
-This convention was continued in early programming languages, and developers
+In the early days of computing, assembly code was used for writing programs. In
+assembly, the control flow of a program is controlled using \emph{jumps}. This
+convention was continued in early programming languages, and developers
 manipulated the control flow of their applications using the \texttt{goto}
 construct. This allowed \emph{arbitrary} jumps through code, which brought with
-many disadvantages \cite{dijkstra1968}.  In particular, it could be very hard to
-understand code written in this style.
+it many disadvantages \cite{dijkstra1968}. In particular, it could be very hard
+to understand code written in this style.
 
-Later programming languages favored use of control stuctures such as
+Later programming languages favoured use of control stuctures such as
 \texttt{for} and \texttt{while} over \texttt{goto}. This made it easier for
-programmers and tools to reason about these structures, e.g. using pre- and
-postconditions.
+programmers and tools to reason about these structures.
+
+For example, loop invariants can be used to reason about \texttt{while} loops:
+
+\begin{center}
+\mbox{
+    \infer{
+        \left\{ I \right\} \text{while} (C) ~ \text{body}
+        \left\{ \lnot C \wedge I \right\}
+    }{
+        \left\{C \wedge I\right\} \text{body} \left\{ I \right\}
+    }
+}
+\end{center}
+
+Additionally, \texttt{goto}-based code can be much harder to understand: the
+developer needs to understand the function in it's entirety before arriving at a
+basic understanding of the control flow.
 
 A similar argument can be made about \emph{arbitrary recursion} in functional
 programming languages. Consider the simple functions:
@@ -113,12 +130,14 @@ sum []        = 0
 sum (x : xs)  = x + sum xs
 \end{code}
 
-The concept of \emph{arbitrary recursion} becomes clear immediately: the
-developer needs to read and understand the entire function before he has a basic
-understanding of the control flow.
+These functions illustrate the concept of \emph{arbitrary recursion}. Explicit
+recursion is used in both functions to iterate over a list. This is not
+considered idiomatic Haskell code.
 
-These functions can be rewritten using the \emph{higher-order} functions |map|
-and |foldr|.
+Instead, the patterns visited in the upper and sum function -- and as we will
+show further on, indeed in many recursive functions -- allow using higher-order
+functions to rewrite them in a more concise version. In this case, we can use
+|map| and |foldr|, which are defined as follows:
 
 \begin{code}
 map :: (a -> b) -> [a] -> [b]
@@ -132,7 +151,7 @@ foldr _ z []        = z
 foldr f z (x : xs)  = f x (foldr f z xs)
 \end{code}
 
-Which yields the more concise versions:
+\noindent This in turn yields the following version of the example functions:
 
 \begin{code}
 upper' :: String -> String
@@ -144,39 +163,58 @@ sum' :: [Int] -> Int
 sum' = foldr (+) 0
 \end{code}
 
-The rewritten versions have a number of advantages.
+\noindent Let us briefly list the advantages these alternative versions exhibit.
 
-An experienced programmer, familiar with the various higher-order
-functions will be able to read and understand the latter versions much quicker:
-he or she immediately understands how the recursion works by recognizing the
-higher-order function.
+\begin{itemize}
+
+\item First, it comes immediately clear to any functional programmer who has
+grasped the concepts of |map| and |foldr|, how these functions operate on their
+argument(s).
+
+And once the higher-order function is understood in terms of performance,
+control flow, and other aspects, it is usually trivial to understand functions
+written in terms of this higher-order function. As such, the code can be grokked
+more swiftly and without suprises.
 
 % TODO: Cite something on concise code can be read faster (some Scala study?)
 
-The code becomes much more concise, which means there is less code to read
-(and debug). Research has shown that the number of bugs is proportional to the
-number of lines of code \cite{gaffney1984}.
+\item Second, the code becomes much more concise. This results in less
+boilerplate, less code to read (and to debug). Since the number of bugs is
+usually proportional to the number of code lines \cite{gaffney1984}, this
+suggests there should be fewer bugs.
 
-Furthermore, some interesting properties exist about these higher-order
-functions, e.g.:
+\item Third, well-known higher-order functions exhibit certain well-known
+properties that allow then to be reasoned about. For example, for any |f| and
+|xs|:
 
 \begin{spec}
-length (filter f xs) <= length xs
+length (map f xs) == length xs
 \end{spec}
 
-We only need to prove these properties once for an arbitrary |f|. This approach
-saves us a lot of work, since we then know applications of these higher-order
-functions also adhere to these properties.
+As such, these properties need only be proven once for an arbitrary |f|. This
+approach saves quite some effort when reasoning about the program we are writing
+(or debugging).
 
-Last but not least, these properties also allow for certain optimizations. Map
-fusion is a well-known example \cite{meijer1991}:
+In our example, we can immediately deduce that |upper'| does not change the
+length of its argument, because it is implemented in terms of |map|.
+
+\item Finally, a number of well-known properties also allow for certain
+optimizations. Map fusion is a well-known example \cite{meijer1991}:
 
 \begin{spec}
 map f . map g = map (f . g)
 \end{spec}
 
 This optimization merges two maps over a list, so that no temporary list needs
-to be created.
+to be created, and we only need to loop over a list once instead of twice.
+
+\end{itemize}
+
+Hence, it should be clear that manually rewriting functions using higher-order
+functions offers some nice advantages. In what follows, we will aim for
+automating this manual labour, further simplifying the programmer's task. In
+order to do so, we need some manner in which to detect recursion patterns in a
+(sufficiently) general way.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
