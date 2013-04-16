@@ -304,35 +304,46 @@ $(deriveFold Tree "foldTree")
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Core Expressions}
+\section{Core Expressions}
 
-For simplicity we only use a subset of Haskell called Core. This Core language
+For simplicity, we only use a subset of Haskell called Core. This Core language
 is not much more than $\lambda$-calculus extended with a |let| and |case|
-construct.
+construct. However, while it is a subset, it is important to note every Haskell
+expression can be translated into a semantically equal Core expression.
 
 %{
 %format (many (x)) = "\overline{" x "}"
 \begin{spec}
-program ::= many bind
+program ::= many b
 
-bind ::= x = e
+b ::= x = e
 
 p ::= K (many (x))
 
 e  ::=  x
-   |    literal
    |    e e
    |    \x -> e
-   |    let many bind in e
+   |    literal
+   |    let many b in e
    |    case e of many (p -> e)
 \end{spec}
 %}
 
-|let| allows binding expressions to variables, so they only need to be evaluated
-once.
+A program consists of different top-level bindings, in which expressions are
+bound to variables.
 
-|case| is the only branching constuct allowed and is used to evaluate and
-inspect the constructor of a value.
+An expression in $\lambda$-calculus can be a variable, an application or a
+lambda term. Core extends this expression type with literals, |let| and |case|
+expressions.
+
+|let| allows binding expressions to variables, so they only need to be evaluated
+once. This way, the programmer has more control over the evaluation order,
+something which is not defined for $\lambda$-calculus.
+
+|case| is the only branching construct allowed and is used to evaluate and
+inspect the constructor. For every branch, an expression is bound to a pattern.
+This pattern consists of a constructor and can optionally bind a number of
+subterms to variables.
 
 In Table \ref{tabular:haskell-core}, we demonstrate how some common Haskell
 expressions are translated into Core.
