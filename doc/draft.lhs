@@ -49,7 +49,8 @@
 
 \ignore{
 \begin{code}
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE Rank2Types      #-}
 import Data.Char     (toUpper)
 import Prelude       hiding (head, foldr, map, sum)
 \end{code}
@@ -220,10 +221,14 @@ order to do so, we need some manner in which to detect recursion patterns in a
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Generalized foldr}
 
-Our work around the detection of recursion pattern revolves mostly around
-|foldr|. There are several reasons for this. First off, many other higher-order
-functions (such as |map|, |filter|, and |foldl|) can be written in terms of
-|foldr|.
+As we mentioned in the introduction, one of our goals is to automatically detect
+instances of well-known recursion patterns.  Our work around the detection of
+recursion pattern revolves mostly around |foldr|. There are several reasons for
+this.
+
+First, |foldr| is an \emph{elementary} higher-order function. Many other
+higher-order functions (such as |map|, |filter|, and |foldl|) can actually be
+redefined in terms of |foldr|.
 
 \begin{code}
 map' :: (a -> b) -> [a] -> [b]
@@ -233,22 +238,30 @@ map' f = foldr (\x xs -> f x : xs) []
 This means that every function which can be written as an application of |map|
 can also be written as an application of |foldr|.
 
-If we work this way, we can first detect instances of |foldr| and then
-optionally classify them as being instances of other higher-order functions such
-as |map|.
+This allows us to work in a bottom-up fashion, first detecting a |foldr|-like
+pattern before classifying the pattern as an instance of a more specific
+higher-order function such as |map|.
 
-Another advantage of focussing on |foldr| is that we can apply our work to more
-than just recursion over lists. An application of |foldr| is a
-\emph{catamorphism} \cite{meijer1991} --- and we can have those for arbitrary
-algebraic data types instead of just lists.
+Second, focussing on |foldr| means that we are not limited to Haskell lists -- a
+basic datatype on which recursion is commonly used.  Applying |foldr| yields a
+\emph{catamorphism} \cite{meijer1991}; this is applicable to arbitrary algebraic
+data types instead of just Haskell lists.
 
-A simple example is a fold over a tree:
+Consider the following example:
 
 \begin{code}
 data Tree a
     = Leaf a
     | Branch (Tree a) (Tree a)
 \end{code}
+
+\begin{code}
+sumTree :: Tree Int -> Int
+sumTree (Leaf x)      = x
+sumTree (Branch l r)  = sumTree l + sumTree r
+\end{code}
+
+\noindent This allows us to illustrate a fold over a |Tree|:
 
 \begin{code}
 foldTree  ::  (a -> r)
@@ -261,20 +274,33 @@ foldTree l b (Branch x y)  =
 \end{code}
 
 \begin{code}
-sumTree :: Tree Int -> Int
-sumTree = foldTree id (+)
+sumTree' :: Tree Int -> Int
+sumTree' = foldTree id (+)
 \end{code}
 
-A general fold takes a number of functions as arguments, to be more precise,
-exactly one function for every constructor of the datatype. If we consider the
-product of these functions as operators in an \emph{algebra}, applying a
-catamorphism is simply interpreting the data structure in terms of an algebra.
+In general, a fold takes a number of functions as arguments. To be more precise,
+there will be exactly one function for every constructor of the algebraic
+datatype the fold operates over.
 
-% TODO: Talk about subterms.
+Furthermore, it has been shown that while you can write different variations of
+|foldTree| (e.g. by swapping argument order), all these variations are
+isomorphic: there really is only one way to reduce an algebraic datatype to one
+value, and that is the fold for this datatype \cite{hutton1999}.
 
-This indicates the concept of a fold is a very general idea, which is an
-important motivation: our work will apply to any algebraic datatype rather than
-just lists.
+% TODO: Talk about subterms?
+
+This indicates that, given the definition of an algebraic datatype, we can
+derive a fold for this datatype. This is not just a theoretical idea, in our
+work: we implemented a Template Haskell \cite{sheard2002} routine to make this
+derivation. For example, the |foldTree| function can be automatically generated
+by using:
+
+%{
+%format Tree = "`Tree"
+\begin{spec}
+$(deriveFold Tree "foldTree")
+\end{spec}
+%}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
