@@ -304,73 +304,29 @@ $(deriveFold Tree "foldTree")
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{The GHC Core language}
-\label{section:ghc-core}
+\subsection{Core Expressions}
 
-There are two convenient representations of Haskell code which we can analyze.
+For simplicity we only use a subset of Haskell called Core. This Core language
+is not much more than $\lambda$-calculus extended with a |let| and |case|
+construct.
 
-A first option is to analyze the Haskell code directly. Numerous parsing
-libraries exist to make this task easier \cite{haskell-src-exts}.
-
-During compilation, the Haskell code is translated throughout a different number
-of passes. One particulary interesting representation is GHC Core
-\cite{tolmach2009}.
-
-Analyzing GHC Core for folds gives us many advantages: GHC Core is a much less
-complicated language than Haskell, because all syntactic features have been
-stripped away. As an illustration, the |Expr| type used by |haskell-src-exts|
-has 46 different constructors, while the |Expr| type used by GHC Core only has
-10!
-
-Additionally, the GHC Core goes through multiple passes. This is very useful
-since we can rely on other passes to help our analysis.
-
-For example, we won't be able to recognize the |foldr| pattern in |jibble|
-before the compiler inlines |wiggle|:
-
-\begin{code}
-jibble :: [Int] -> Int
-jibble []        = 1
-jibble (x : xs)  = wiggle x xs
-
-wiggle :: Int -> [Int] -> Int
-wiggle x xs = x * jibble xs + 1
-\end{code}
-
-Finally, GHC Core is fully typed. This means we have access to type information
-everywhere, which we can use in the analysis.
-
-However, we must note that there is a major drawback to analyzing GHC Core
-instead of Haskell code: it becomes much harder (and outside the scope of this
-project) to use the results for refactoring.
-
-In order to do refactoring, we would need an \emph{annotated} expression type so
-the Core expressions can be traced back to the original Haskell code. When we
-rewrite the Core expressions, the Haskell code must be updated accordingly.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Expressions in GHC Core}
-
-The GHC Core language is not much more than a typed $\lambda$-calculus extended
-with a |let| and |case| construct.
-
+%{
+%format (many (x)) = "\overline{" x "}"
 \begin{spec}
-program ::= [bind]
-\end{spec}
+program ::= many bind
 
-\begin{spec}
 bind ::= x = e
-\end{spec}
 
-\begin{spec}
+p ::= K (many (x))
+
 e  ::=  x
    |    literal
    |    e e
    |    \x -> e
-   |    let [bind] in e
-   |    case e of [(constructor, [x], e)]
+   |    let many bind in e
+   |    case e of many (p -> e)
 \end{spec}
+%}
 
 |let| allows binding expressions to variables, so they only need to be evaluated
 once.
@@ -379,7 +335,7 @@ once.
 inspect the constructor of a value.
 
 In Table \ref{tabular:haskell-core}, we demonstrate how some common Haskell
-expressions are translated into GHC Core.
+expressions are translated into Core.
 
 \begin{table}
 \begin{center}
@@ -391,54 +347,13 @@ expressions are translated into GHC Core.
 |head (x : _) = x|     & |head = \l -> case l of (x : _) -> x| \\
 \end{tabular}
 \label{tabular:haskell-core}
-\caption{Haskell expressions on the left, and the corresponding GHC Core
+\caption{Haskell expressions on the left, and the corresponding Core
 expressions on the right}
 \end{center}
 \end{table}
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{The GHC Plugins system}
-\label{subsection:ghc-plugins}
-
-In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
-\cite{ghc-plugins}. We decided to use this system since it is much more
-accessible than using the GHC API directly, especially when Cabal is used as
-well.
-
-This plugins mechanism allows us to manipulate expressions directly. We show a
-simplified expresssion type here:
-
-\ignore{
-\begin{code}
-data Id = Id
-data Literal = Literal
-data AltCon = AltCon
-\end{code}
-}
-
-\begin{code}
-data Expr
-    = Var Id
-    | Lit Literal
-    | App Expr Expr
-    | Lam Id Expr
-    | Let Bind Expr
-    | Case Expr Id [Alt]
-
-data Bind
-    = NonRec Id Expr
-    | Rec [(Id, Expr)]
-
-type Alt = (AltCon, [Id], Expr)
-\end{code}
-
-|Id| is the type used for different kinds of identifiers. The |Id|s used in this
-phase of compilation are guaranteed to be unique, which means we don't have to
-take scoping into account for many transformations. |Lit| is any kind of
-literal. |App| and |Lam| are well-known from the $\lambda$-calculus. |Let| is
-used to introduce new recursive or non-recursive binds, and |Case| is used for
-pattern matching---the only kind of branching possible in GHC Core.
+In our actual implementation, we use the GHC Core language. We will come back to
+this in more detail later, in subsection \ref{subsection:ghc-core}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -574,15 +489,6 @@ sum = \ls -> foldr (\z -> \zs -> z + zs) 0 ls
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Implementation}
-
-The deduction rules, as stated in this paper, are convenient and readable.
-However, they are obviously not directly executable. We implemented this
-rewriting in plain Haskell using the GHC Plugins (see subsection
-\ref{subsection:ghc-plugins}).
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Degenerate folds}
 \label{subsection:degenerate-folds}
 
@@ -609,108 +515,6 @@ applications are made in any branch, we have a degenerate fold.
 These degenerate folds are of no interest to us, since our applications focus on
 optimizations regarding loop fusion. In degenerate folds, no such loop is
 present, and hence the optimization is futile.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Application: fold-fold fusion}
-
-As we discussed in \ref{section:ghc-core}, the fact that we are working on
-the level of GHC Core makes it hard to use our rewrite results for refactoring.
-However, we can look at some interesting optimizations.
-
-\emph{Fold-fold fusion} is a technique which fuses two folds over the same data
-structure into a single fold. This allows us to loop over the structure only
-once instead of twice.
-
-\begin{code}
-mean :: [Int] -> Double
-mean xs = fromIntegral (sum xs) / fromIntegral (length xs)
-\end{code}
-
-If we know from previous analysis results that |sum| is a fold with arguments
-|((+), 0)| and |len| is a fold with arguments |(const (+ 1), 0)|, we can apply
-fold-fold fusion here:
-
-% TODO: Describe the more generic pattern. Include definition of (***).
-
-\begin{code}
-mean' :: [Int] -> Double
-mean' xs =
-    fromIntegral sum' / fromIntegral len'
-  where
-    (sum', len') = foldr (\x -> (+ x) *** (+ 1)) (0, 0) xs
-\end{code}
-
-We see that for lists, this optimization maps to the arrow operation |***|:
-
-\begin{code}
-(***) :: (a -> b) -> (c -> d) -> (a, c) -> (b, d)
-(***) f g (x, y) = (f x, g y)
-\end{code}
-
-%format Xc = "\mathopen{} X_c \mathclose{}"
-%format Yc = "\mathopen{} Y_c \mathclose{}"
-
-In the more general case, we have two folds over the same value. Say that we
-fold once with algebra |X| and once with algebra |Y|. Our final algebra is the
-product |(X, Y)|. Since each constructor |c| has an associated operator in |Xc|
-and |Yc|, we can create a combined operator |(Xc, Yc)| for each constructor.
-
-This shows that we can apply fold-fold fusion to arbitrary datatypes and not
-just lists. Additionally, we can repeatedly apply this optimization to fuse an
-arbitrary amount of $n$ folds into a single fold with an $n$-tuple.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{When can we apply fold fusion?}
-
-Strictly spoken, we can always apply fold fusion, because of Haskell's laziness.
-However, if two folds appear in different branches of a case expression, we will
-often not have an actual optimization. Let's look at a simple counterexample:
-
-\begin{code}
-value :: [Int] -> Int
-value xs
-    | length xs < 3  = 0
-    | otherwise      = sum xs
-\end{code}
-
-Suppose that we choose the |length xs < 3| branch in most cases. The |length|
-and |sum| folds can be fused into a single fold, and the thunk created for the
-result of |sum xs| will never be evaluated. However, there is still some
-overhead associated with creating thunks, which is why fold-fold fusion is not
-in all cases an optimization.
-
-Hence, instead of always applying fold-fold fusion, we choose to only apply the
-transformation where two fusable folds appear in the same \emph{branch} of an
-expression.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Detecting fold fusion}
-
-% TODO: Can we describe this using the same pattern syntax?
-
-% TODO: We can actually always apply this because of laziness. However, it's not
-% always an optimization. We must be more precise in our description.
-
-% TODO: Don't talk about Let, Lam constructs, talk about expressions.
-
-\begin{spec}
-<fusable>
-    ::= Let <fusable> <fusable>
-    ::= Lam <fusable> <fusable>
-    ::= App fold <args>
-    ::= App <fusable> <fusable>
-\end{spec}
-
-This algorithm works as follows: we first find an application of a function we
-previously idenfitied as fold. We store a reference to the data structure $x$
-which is folded over.
-
-Then, we search the expression tree for other expressions in which we apply a
-function to $x$. However, our search scope is limited: we do not inspect the
-different branches if we encounter a |case| expression.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -961,29 +765,97 @@ rewrite this.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Degenerate builds}
-\label{subsection:degenerate-builds}
+\section{Implementation and evaluation}
 
-The attentive reader might have noticed that using only the deductions, we can
-rewrite \emph{any} binding as a build. Consider the example:
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{The GHC Core language}
+\label{subsection:ghc-core}
+
+There are two convenient representations of Haskell code which we can analyze.
+
+A first option is to analyze the Haskell code directly. Numerous parsing
+libraries exist to make this task easier \cite{haskell-src-exts}.
+
+During compilation, the Haskell code is translated throughout a different number
+of passes. One particulary interesting representation is GHC Core
+\cite{tolmach2009}.
+
+Analyzing GHC Core for folds gives us many advantages: GHC Core is a much less
+complicated language than Haskell, because all syntactic features have been
+stripped away. As an illustration, the |Expr| type used by |haskell-src-exts|
+has 46 different constructors, while the |Expr| type used by GHC Core only has
+10!
+
+Additionally, the GHC Core goes through multiple passes. This is very useful
+since we can rely on other passes to help our analysis.
+
+For example, we won't be able to recognize the |foldr| pattern in |jibble|
+before the compiler inlines |wiggle|:
 
 \begin{code}
-magicNumber :: Int
-magicNumber = 4 * 2 + 6 ^ 12
+jibble :: [Int] -> Int
+jibble []        = 1
+jibble (x : xs)  = wiggle x xs
+
+wiggle :: Int -> [Int] -> Int
+wiggle x xs = x * jibble xs + 1
 \end{code}
 
-Which our reduction rules would rewrite as:
+Finally, GHC Core is fully typed. This means we have access to type information
+everywhere, which we can use in the analysis.
 
-\begin{spec}
-magicNumber :: Int
-magicNumber = build $ \cons nil ->
-    let g = 4 * 2 + 6 ^ 12
-    in g
-\end{spec}
+However, we must note that there is a major drawback to analyzing GHC Core
+instead of Haskell code: it becomes much harder (and outside the scope of this
+project) to use the results for refactoring.
 
-Which causes a compile-time type error. In order to prevent this, we take two
-additional measures: we only attempt build rewrites for compatible datatypes,
-and secondly, we check that we used the |cons|/|nil| expressions at least once.
+In order to do refactoring, we would need an \emph{annotated} expression type so
+the Core expressions can be traced back to the original Haskell code. When we
+rewrite the Core expressions, the Haskell code must be updated accordingly.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{The GHC Plugins system}
+\label{subsection:ghc-plugins}
+
+In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
+\cite{ghc-plugins}. We decided to use this system since it is much more
+accessible than using the GHC API directly, especially when Cabal is used as
+well.
+
+This plugins mechanism allows us to manipulate expressions directly. We show a
+simplified expresssion type here:
+
+\ignore{
+\begin{code}
+data Id = Id
+data Literal = Literal
+data AltCon = AltCon
+\end{code}
+}
+
+\begin{code}
+data Expr
+    = Var Id
+    | Lit Literal
+    | App Expr Expr
+    | Lam Id Expr
+    | Let Bind Expr
+    | Case Expr Id [Alt]
+
+data Bind
+    = NonRec Id Expr
+    | Rec [(Id, Expr)]
+
+type Alt = (AltCon, [Id], Expr)
+\end{code}
+
+|Id| is the type used for different kinds of identifiers. The |Id|s used in this
+phase of compilation are guaranteed to be unique, which means we don't have to
+take scoping into account for many transformations. |Lit| is any kind of
+literal. |App| and |Lam| are well-known from the $\lambda$-calculus. |Let| is
+used to introduce new recursive or non-recursive binds, and |Case| is used for
+pattern matching---the only kind of branching possible in GHC Core.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
