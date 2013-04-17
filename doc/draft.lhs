@@ -839,8 +839,8 @@ add :: Int -> Int -> Int
 add x y = x + y
 \end{code}
 
-Since no fold function will be associated to the |Int| datatype, we can skip
-analysing this function.
+Since no fold function will be associated to the |Int| datatype, we can
+immediately skip analysing this function.
 
 \end{itemize}
 
@@ -857,12 +857,16 @@ updated accordingly. This falls outside of the scope of this work.
 \label{subsection:ghc-plugins}
 
 In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
-\cite{ghc-plugins}. We decided to use this system since it is much more
-accessible than using the GHC API directly, especially when Cabal is used as
-well.
+\cite{ghc-plugins}. After careful consideration, we adopted this approach
+because it turned out to be much more accessible compared to directly using the
+GHC API.
 
-This plugins mechanism allows us to manipulate expressions directly. We show a
-simplified expresssion type here:
+To be more precise, most Haskell libraries and applications today use the Cabal
+build system \cite{cabal}. If we want to examine such a package for folds, it is
+simply a matter of patching the Cabal file to include our plugin.
+
+Using this mechanism, our plugin can manipulate expressions, in the form of an
+algebraic datatype, directly. We show a simplified expresssion type here:
 
 \ignore{
 \begin{code}
@@ -889,11 +893,12 @@ type Alt = (AltCon, [Id], Expr)
 \end{code}
 
 |Id| is the type used for different kinds of identifiers. The |Id|s used in this
-phase of compilation are guaranteed to be unique, which means we don't have to
-take scoping into account for many transformations. |Lit| is any kind of
-literal. |App| and |Lam| are well-known from the $\lambda$-calculus. |Let| is
+phase of the compilation are guaranteed to be unique. This means we don not have
+to take scoping into account for many transformations. |Lit| is any kind of
+literal. |App| and |Lam| are well-known from the $\lambda$-calculus and
+represent function application and lambda abstraction respectively. |Let| is
 used to introduce new recursive or non-recursive binds, and |Case| is used for
-pattern matching---the only kind of branching possible in GHC Core.
+pattern matching -- the only kind of branching possible in GHC Core.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
