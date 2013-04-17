@@ -305,11 +305,13 @@ $(deriveFold Tree "foldTree")
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Core Expressions}
+\label{section:core-expressions}
 
 For simplicity, we only use a subset of Haskell called Core. This Core language
-is not much more than $\lambda$-calculus extended with a |let| and |case|
-construct. However, while it is a subset, it is important to note every Haskell
-expression can be translated into a semantically equal Core expression.
+is not much more than System F extended with a |let| and |case| construct
+\cite{sulzmann2007}. However, while it is a subset, it is important to note
+every Haskell expression can be translated into a semantically equal Core
+expression.
 
 %{
 %format (many (x)) = "\overline{" x "}"
@@ -783,26 +785,36 @@ rewrite this.
 \subsection{The GHC Core language}
 \label{subsection:ghc-core}
 
-There are two convenient representations of Haskell code which we can analyze.
+We already gave a brief, high-level explanation of the Core language in section
+\ref{section:core-expressions}. In the next few sections, we explain how we
+obtain and manipulate this language in practice.
 
-A first option is to analyze the Haskell code directly. Numerous parsing
-libraries exist to make this task easier \cite{haskell-src-exts}.
+GHC \cite{ghc} is the de-facto compiler for Haskell, altough some alternatives
+exist. We selected GHC as target for our implementation because of this reason.
 
-During compilation, the Haskell code is translated throughout a different number
-of passes. One particulary interesting representation is GHC Core
-\cite{tolmach2009}.
+By choosing GHC, we have two convenient representations of Haskell code at our
+disposal for analsis.
 
-Analyzing GHC Core for folds gives us many advantages: GHC Core is a much less
-complicated language than Haskell, because all syntactic features have been
-stripped away. As an illustration, the |Expr| type used by |haskell-src-exts|
-has 46 different constructors, while the |Expr| type used by GHC Core only has
-10!
+The most straightforward representation is the Haskell source code itself.
+There are numerous parsing libraries to make this task easier
+\cite{haskell-src-exts}.
 
-Additionally, the GHC Core goes through multiple passes. This is very useful
-since we can rely on other passes to help our analysis.
+However, during compilation, the Haskell code is transformed to the GHC Core
+\cite{tolmach2009} language in a number of passes.
 
-For example, we won't be able to recognize the |foldr| pattern in |jibble|
-before the compiler inlines |wiggle|:
+The latter is particulary interesting for our purposes. It offers the following
+advantages over regular Haskell source code:
+
+\begin{itemize}
+
+\item First, GHC Core is a much less complicated language than Haskell, because
+all syntactic features have been stripped away. As an illustration, the |Expr|
+type used by \emph{haskell-src-exts} has 46 different constructors, while the
+|Expr| type used by GHC Core only has 10!
+
+\item Second, the GHC Core goes through multiple passes. Many of the passes
+simplify the expressions in the source code, which in turns facilitates our
+analysis. Consider the following example.
 
 \begin{code}
 jibble :: [Int] -> Int
@@ -813,16 +825,31 @@ wiggle :: Int -> [Int] -> Int
 wiggle x xs = x * jibble xs + 1
 \end{code}
 
-Finally, GHC Core is fully typed. This means we have access to type information
-everywhere, which we can use in the analysis.
+Here, it is quite infeasible to recognise a foldr pattern prior to the inlining
+of wiggle. However, once wiggle is inlined, it becomes quite clear that this is
+a perfect match for our detector.
+
+\item Finally, GHC Core is fully typed. This means we have access to type
+information everywhere, which we can use in the analysis. While this is not
+essential to our detector, it allows greater performance. Consider the simple
+function add:
+
+\begin{code}
+add :: Int -> Int -> Int
+add x y = x + y
+\end{code}
+
+Since no fold function will be associated to the |Int| datatype, we can skip
+analysing this function.
+
+\end{itemize}
 
 However, we must note that there is a major drawback to analyzing GHC Core
-instead of Haskell code: it becomes much harder (and outside the scope of this
-project) to use the results for refactoring.
-
-In order to do refactoring, we would need an \emph{annotated} expression type so
-the Core expressions can be traced back to the original Haskell code. When we
-rewrite the Core expressions, the Haskell code must be updated accordingly.
+instead of Haskell code: it becomes much harder to use the results for
+refactoring: in order to do refactoring, we would need an \emph{annotated}
+expression type so the Core expressions can be traced back to the original
+Haskell code. When we rewrite the Core expressions, the Haskell code must be
+updated accordingly. This falls outside of the scope of this work.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
