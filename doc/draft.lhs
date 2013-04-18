@@ -4,6 +4,8 @@
 
 \usepackage{amsmath}
 \usepackage[numbers]{natbib}  % For URLs in bibliography
+\usepackage{subcaption}
+\usepackage{caption}
 
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
@@ -359,9 +361,9 @@ expressions are translated into Core.
 |e1 where x = e2|      & |let x = e2 in e1|                    \\
 |head (x : _) = x|     & |head = \l -> case l of (x : _) -> x| \\
 \end{tabular}
-\label{tabular:haskell-core}
 \caption{Haskell expressions on the left, and the corresponding Core
 expressions on the right}
+\label{tabular:haskell-core}
 \end{center}
 \end{table}
 
@@ -373,9 +375,10 @@ this in more detail later, in subsection \ref{subsection:ghc-core}.
 \section{Identifying folds}
 \label{subsection:identifying-folds}
 
-\begin{table}
+\begin{figure}[t]
 \begin{center}
-\fbox{
+    \begin{subfigure}{\columnwidth}
+    \fbox{
     \begin{tabular}{rr}
         % Bindings
         \infer{|f = e| \leadsto |f = e'|}{|e| \leadsto_f |e'|}
@@ -425,30 +428,33 @@ this in more detail later, in subsection \ref{subsection:ghc-core}.
             }
         }
     \end{tabular}
-}
-\label{tabular:fold-rules}
-\vspace{0.1in} \\
-Deduction rules for identifying folds
+    }
+    \end{subfigure}
+    \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
+    \caption{Rewrite rules for introducing fold}
+    \label{figure:fold-rules}
 \end{center}
-\end{table}
+\end{figure}
 
-We identify folds which adhere to a certain set of rules. First, we show in
-detail how these rules work for folds over lists, and then we indicate how they
-are extended to work for arbitrary algebraic datatypes.
+In this section, we discuss the identification of folds that adhere to a certain
+set of rules. We begin by explaining how these rules apply to folding over a
+list. Generalising to arbitrary algebraic datatypes then follows naturally and
+is discussed later on.
 
-Our rules are based on rewrites. Suppose $x \leadsto y$ stands for ``$x$ can be
-rewritten as $y$''. With a set of rules, we can express rewriting explicit
-recursion as implicit recursion using |foldr|.
+With our set of rules, we can rewrite explicit recursion as implicit recursion
+using |foldr|. In these rules, the expression $x \leadsto y$ stands for
+\emph{$x$ can be rewritten as $y$}.
 
-The full set of rules can be found on page \pageref{tabular:fold-rules}.
-% TODO How do we refer to this?
+The complete set of rules are shown in Figure \ref{figure:fold-rules}.
 
-We have a rule for bindings of the form |f = e|. If can rewrite the body of a
-function |f| as a fold, we can rewrite the binding this way. This rule applies
-to top-level bindings as well as local bindings (i.e. in |let| expressions).
+We now briefly discuss these rules and show how they can be applied in practice.
+The simplest rule concerns bindings, which are of the form |f = e|. If the body
+can be rewritten as a fold, then the binding can be rewritten in the same
+fashion. Note that this rule applies to top-level bindings as well as to local
+bindings, i.e., in |let| expressions.
 
-Instances of folds may have an arbitrary number of arguments. As an example, we
-can consider the function:
+A fold may have an arbitrary number of arguments. For example, consider the
+following function:
 
 \begin{code}
 mapAppend :: (a -> b) -> [a] -> b -> [b]
@@ -456,31 +462,33 @@ mapAppend f [] z        = [z]
 mapAppend f (x : xs) z  = f x : mapAppend f xs z
 \end{code}
 
-In this example, we fold over a list, and we have two additional arguments |f|
-and |z|. It is important that these additional arguments do not change in
-recursive applications.
+Here, we fold over a list with two extra arguments, namely |f| and |z|. For our
+technique to work correctly, it is paramount that these arguments do not change
+during recursive applications.
 
-Two separate deduction rules are given in order to deal with additional
-arguments to the left and additional to the right of the argument over which we
-fold.
+\textbf{TODO: Why?}
 
-At last, we have a more complicated deduction rule which forms the core for our
-fold recognition. As stated before, our recognition works for arbitrary
-algebraic datatypes. However, we give a simplified rule which is specific to
-lists.
+In the case of extra aguments being present, we rely on two separate deduction
+rules -- for arguments on the left and on the right of the argument over which
+we will perform the fold.
+
+Finally, the bottom deduction rule from Figure \ref{figure:fold-rules} forms the
+core of our fold recognition. It is more involved than the other rules and it
+actually is trivially extended to arbitrary algebraic datatypes. To explain its
+operation, we consider only the simplified version specific for lists.
 
 An argument |x| is \emph{destroyed}, and we have an expression for every
-constructor (|[]| and |:|). The expression corresponding to the |[]| constructor
-becomes the second argument to |foldr|.
+constructor -- in this case |:| and |:|. Naturally, the expression corresponding
+to the |[]| constructor becomes the second argument to |foldr|.
 
-For the |:| constructor, we have an expression |e2| which can use the subterms
-|y|, |ys| bound by the |case| expression. In the rewritten version using
-|foldr|, however, |y| and |ys| are not in scope. Hence, |e2| needs to be
+For |:|, on the other hand, we have an expression |e2| which can use the
+subterms |y|, |ys| bound by the |case| expression. In the rewritten version
+using |foldr|, however, |y| and |ys| are not in scope. Hence, |e2| needs to be
 converted to an anonymous function taking two parameters instead. Additionally,
-the explicit recursion needs to be eliminated. |e'2| is the corresponding,
-rewritten expression.
+the explicit recursion needs to be eliminated. This results in the corresponding
+and rewritten expression |e'2|.
 
-Let's look at a concrete example: if we have the expression:
+Let's look at a concrete example: where we have an expression for sum.
 
 \begin{spec}
 sum = \ls -> case ls of
@@ -634,9 +642,10 @@ temporary lists need to be allocated!
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Identifying build}
 
-\begin{table}
+\begin{figure}[t]
 \begin{center}
-\fbox{
+    \begin{subfigure}{\columnwidth}
+    \fbox{
     \begin{tabular}{cc}
         \multicolumn{2}{c}{
             \infer{
@@ -710,12 +719,13 @@ temporary lists need to be allocated!
         }
         \\
     \end{tabular}
-}
-\label{tabular:build-rules}
-\vspace{0.1in} \\
-Deduction rules for identifying builds
+    }
+    \end{subfigure}
+    \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
+    \caption{Deduction rules for identifying builds}
+    \label{figure:build-rules}
 \end{center}
-\end{table}
+\end{figure}
 
 While foldr/build fusion is implemented in GHC, the |build| function is not
 exported from the |Data.List| module, because it's rank-2 type is not
@@ -937,8 +947,8 @@ categories:
 \textbf{pandoc}     & 1012             & 35   &  1  & 0     \\
 \textbf{cabal}      & 1701             & 43   & 30  & 1     \\
 \end{tabular}
-\label{tabular:project-results}
 \caption{Results of identifying folds in some well-known projects}
+\label{tabular:project-results}
 \end{center}
 \end{table}
 
