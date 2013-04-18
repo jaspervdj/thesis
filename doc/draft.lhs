@@ -637,8 +637,8 @@ actually is trivially extended to arbitrary algebraic datatypes. To explain its
 operation, we consider only the simplified version specific for lists.
 
 An argument |x| is \emph{destroyed}, and we have an expression for every
-constructor -- in this case |:| and |:|. Naturally, the expression corresponding
-to the |[]| constructor becomes the second argument to |foldr|.
+constructor -- in this case |:| and |[]|. Naturally, the expression
+corresponding to the |[]| constructor becomes the second argument to |foldr|.
 
 For |:|, on the other hand, we have an expression |e2| which can use the
 subterms |y|, |ys| bound by the |case| expression. In the rewritten version
@@ -967,10 +967,6 @@ literal. |App| and |Lam| are well-known from the $\lambda$-calculus and
 represent function application and lambda abstraction respectively. |Let| is
 used to introduce new recursive or non-recursive binds, and |Case| is used for
 pattern matching -- the only kind of branching possible in GHC Core.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Evaluation}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
