@@ -1022,6 +1022,28 @@ used hlint during development.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Related work}
 
+In ``A short cut to deforestation'' \cite{gill1993}, the foldr/build rule is
+discussed. The authors discuss the benefits of this approach, supported by many
+benchmarks. However, they also mention the issues with the fact that every
+programmer needs to use a specific style (i.e., write all functions in terms of
+|foldr|/|build|). Naturally, this is exactly what our research mitigates!
+
+Stream fusion \cite{coutts2007} is an advanced alternative to foldr/build
+fusion. It has the benefits of easily being able to fuse zips and left folds.
+However, at the time of writing, there is no known reliable method of optimising
+uses of |concatMap|. |concatMap| is important because it represents the entire
+class of nested list computations, including list comprehensions
+\cite{coutts2010}.
+
+TODO
+
+\begin{itemize}
+\item fold applications
+\item supercompilation
+\item datatypes a la carte
+\item attribute grammars
+\end{itemize}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
