@@ -222,7 +222,7 @@ order to do so, we need some manner in which to detect recursion patterns in a
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Generalized foldr}
+\section{Generalised foldr}
 
 As we mentioned in the introduction, one of our goals is to automatically detect
 instances of well-known recursion patterns.  Our work around the detection of
@@ -462,6 +462,13 @@ Haskell, just like the |foldTree| function.
 $(deriveBuild Tree "buildTree")
 \end{spec}
 %}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{foldr/foldr fusion}
+
+TODO: Give a quick overview what foldr-foldr fusion is. Explain we don't
+implement it, but that our work facilitates the optimisation.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -971,6 +978,7 @@ pattern matching -- the only kind of branching possible in GHC Core.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Identifying folds}
+\label{subsection:identifying-folds}
 
 A first aspect we can evaluate is how well our detection of folds works.
 Unfortunately, manually identifying folds in projects takes too much time. This
@@ -1035,7 +1043,11 @@ uses of |concatMap|. |concatMap| is important because it represents the entire
 class of nested list computations, including list comprehensions
 \cite{coutts2010}.
 
-TODO
+The \emph{hlint} \cite{hlint} tool is also able to recognise several
+higher-order functions, under which |foldr|. However, as we already showed in
+\ref{subsection:identifying-folds}, we are able to detect more instances of
+folds for Haskell lists. Additionally, detecting fold instances for arbitrary
+algebraic datatypes is outside of the scope of hlint.
 
 \begin{itemize}
 \item fold applications
