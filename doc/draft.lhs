@@ -29,6 +29,10 @@
 
 % For typesetting infer rules, found in proof.sty in this directory
 \usepackage{proof}
+\usepackage{bussproofs}
+
+% If we want white lines in a table
+\newcommand{\whiteline}{\\[0.2in]}
 
 % Document metadata
 
@@ -543,59 +547,64 @@ this in more detail later, in subsection \ref{subsection:ghc-core}.
 
 \begin{figure}[t]
 \begin{center}
-    \begin{subfigure}{\columnwidth}
     \fbox{
-    \begin{tabular}{rr}
+        \begin{tabular}{c}
+
         % Bindings
-        \infer{|f = e| \leadsto |f = e'|}{|e| \leadsto_f |e'|}
-        &
+        \AxiomC{|e| $\leadsto_f$ |e'|}
+        \RightLabel{binds}
+        \UnaryInfC{|f = e| $\leadsto$ |f = e'|}
+        \DisplayProof
+        \whiteline
+
         % Left-side arguments
-        \infer{|\x -> e| \leadsto_{f} |\x -> e'|}{|e| \leadsto_{fx} |e'|}
-        \vspace{0.1in}
-        \\
-        \multicolumn{2}{c}{
-            % Right-side arguments
-            \infer{|\x -> \y -> e| \leadsto_{f} |\x -> y -> e'|}
-            {|\x -> e| \leadsto_{|\x -> f x y|} |\x -> e'|}
-        }
-        \vspace{0.1in}
-        \\
+        \AxiomC{|e| $\leadsto_{fx}$ |e'|}
+        \RightLabel{left arguments}
+        \UnaryInfC{|\x -> e| $\leadsto_f$ |\x -> e'|}
+        \DisplayProof
+        \whiteline
+
+        % Right-side arguments
+        \AxiomC{|\x -> e| $\leadsto_{|\x -> fxy|}$ |\x -> e'|}
+        \RightLabel{right arguments}
+        \UnaryInfC{|\x -> \y -> e| $\leadsto_{f}$ |\x -> y -> e'|}
+        \DisplayProof
+        \whiteline
+
         % Case
-        \multicolumn{2}{c}{
-            \infer{
-                \begin{minipage}{0.4\columnwidth}
-                \begin{spec}
-                \x -> case x of
-                    []        -> e1
-                    (y : ys)  -> e2
-                \end{spec}
-                \end{minipage}
-                \leadsto_f
-                \begin{minipage}{0.4\columnwidth}
-                \begin{spec}
-                \x -> foldr e'2 e1 x
-                \end{spec}
-                \end{minipage}
-            }{
-                \begin{minipage}{0.6\columnwidth}
-                \begin{spec}
-                z, zs <- fresh
-                e'2 = \z ->
-                    subst (subst e2 (f ys) zs) y z
-                \end{spec}
-                \end{minipage}
-                \begin{minipage}{0.3\columnwidth}
-                \begin{spec}
-                x   `notElem` fv(e1)
-                x   `notElem` fv(e'2)
-                ys  `notElem` fv(e'2)
-                \end{spec}
-                \end{minipage}
-            }
+        \AxiomC{
+            \begin{minipage}{0.4\columnwidth}
+            \begin{spec}
+            z, zs <- fresh
+            e'2 = \z ->
+                subst (subst e2 (f ys) zs) y z
+            \end{spec}
+            \end{minipage}
         }
-    \end{tabular}
+        \AxiomC{
+            \begin{minipage}{0.3\columnwidth}
+            \begin{spec}
+            x   `notElem` fv(e1)
+            x   `notElem` fv(e'2)
+            ys  `notElem` fv(e'2)
+            \end{spec}
+            \end{minipage}
+        }
+        \RightLabel{case}
+        \BinaryInfC{
+            \begin{minipage}{0.35\columnwidth}
+            \begin{spec}
+            \x -> case x of
+                []        -> e1
+                (y : ys)  -> e2
+            \end{spec}
+            \end{minipage}
+            $\leadsto_f$ |\x -> foldr e'2 e1 x|
+        }
+        \DisplayProof
+
+        \end{tabular}
     }
-    \end{subfigure}
     \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
     \caption{Rewrite rules for introducing fold}
     \label{figure:fold-rules}
