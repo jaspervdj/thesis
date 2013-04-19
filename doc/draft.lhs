@@ -4,8 +4,9 @@
 
 \usepackage{amsmath}
 \usepackage[numbers]{natbib}  % For URLs in bibliography
-\usepackage{subcaption}
-\usepackage{caption}
+\usepackage{subfigure}
+% \usepackage{caption}
+% \usepackage{subcaption}
 
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
@@ -605,7 +606,7 @@ this in more detail later, in subsection \ref{subsection:ghc-core}.
 
         \end{tabular}
     }
-    \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
+    % \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
     \caption{Rewrite rules for introducing fold}
     \label{figure:fold-rules}
 \end{center}
@@ -718,7 +719,7 @@ present, and hence the optimisation is futile.
 
 \begin{figure}[t]
 \begin{center}
-    \begin{subfigure}{\columnwidth}
+    % \begin{subfigure}{\columnwidth}
     \fbox{
     \begin{tabular}{cc}
         \multicolumn{2}{c}{
@@ -794,8 +795,8 @@ present, and hence the optimisation is futile.
         \\
     \end{tabular}
     }
-    \end{subfigure}
-    \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
+    % \end{subfigure}
+    % \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
     \caption{Deduction rules for identifying builds}
     \label{figure:build-rules}
 \end{center}
