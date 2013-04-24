@@ -35,20 +35,21 @@
 % If we want white lines in a table
 \newcommand{\whiteline}{\\[0.2in]}
 
+\newcommand{\tom}[1]{\textbf{[\textsc{Tom:} #1]}}
+
 % Document metadata
 
 \conferenceinfo{WXYZ '05}{date, City.}
 \copyrightyear{2005}
 \copyrightdata{[to be supplied]}
 
-\titlebanner{banner above paper title}        % These are ignored unless
-\preprintfooter{short description of paper}   % 'preprint' option specified.
+% \titlebanner{banner above paper title}        % These are ignored unless
+% \preprintfooter{short description of paper}   % 'preprint' option specified.
 
 \title{Bringing Functions into the Fold}
-\subtitle{Subtitle Text, if any}
+% \subtitle{Subtitle Text, if any}
 
-\authorinfo{Name1}{Affiliation1}{Email1}
-\authorinfo{Name2\and Name3}{Affiliation2/3}{Email2/3}
+\authorinfo{Jasper Van der Jeugt \and Steven Keuchel \and Tom Schrijvers}{Ghent University, Belgium}{\{jasper.vanderjeugt,steven.keuchel,tom.schrijvers\}@@ugent.be}
 
 \begin{document}
 
@@ -91,6 +92,17 @@ keyword1, keyword2
 
 % TODO: 2 paragraphs, 1 about own research/additions
 
+\tom{Focus on performance optimization as a goal.}
+
+The contributions of this work are:
+\begin{itemize}
+\item We show how to automatically detect explicitly recursive function definitions
+      that are \emph{catamorpisms} and transform them into calls to |fold|.
+\item We show how to automatically detect functions that can be expressed as
+      a call to |build|.
+\item We provide an implementation that performs these detections on GHC Core.
+\item Our experimental evaluation shows \ldots
+\end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Motivation}
@@ -121,10 +133,10 @@ For example, loop invariants can be used to reason about \texttt{while} loops:
 \end{center}
 
 Additionally, \texttt{goto}-based code can be much harder to understand: the
-developer needs to understand the function in it's entirety before arriving at a
+developer needs to understand the function in its entirety before arriving at a
 basic understanding of the control flow.
 
-A similar argument can be made about \emph{arbitrary recursion} in functional
+A similar argument can be made about \emph{explicit recursion} in functional
 programming languages. Consider the simple functions:
 
 \begin{code}
@@ -139,13 +151,12 @@ sum []        = 0
 sum (x : xs)  = x + sum xs
 \end{code}
 
-These functions illustrate the concept of \emph{arbitrary recursion}. Explicit
-recursion is used in both functions to iterate over a list. This is not
-considered idiomatic Haskell code.
+Explicit recursion is used in both functions to iterate over a list. This is
+not considered idiomatic Haskell code.
 
-Instead, the patterns visited in the upper and sum function -- and as we will
+Instead, the code pattern in the |upper| and |sum function| -- and as we will
 show further on, indeed in many recursive functions -- allow using higher-order
-functions to rewrite them in a more concise version. In this case, we can use
+functions to rewrite them to a more concise version. In this case, we can use
 |map| and |foldr|, which are defined as follows:
 
 \begin{code}
@@ -176,11 +187,11 @@ sum' = foldr (+) 0
 
 \begin{itemize}
 
-\item First, it comes immediately clear to any functional programmer who has
+\item First, it is immediately clear to any functional programmer who has
 grasped the concepts of |map| and |foldr|, how these functions operate on their
 argument(s).
 
-And once the higher-order function is understood in terms of performance,
+Once the higher-order function is understood in terms of performance,
 control flow, and other aspects, it is usually trivial to understand functions
 written in terms of this higher-order function. As such, the code can be grokked
 more swiftly and without suprises.
@@ -192,15 +203,15 @@ boilerplate, less code to read (and to debug). Since the number of bugs is
 usually proportional to the number of code lines \cite{gaffney1984}, this
 suggests there should be fewer bugs.
 
-\item Third, well-known higher-order functions exhibit certain well-known
-properties that allow then to be reasoned about. For example, for any |f| and
+\item Third, famous higher-order functions exhibit well-known
+properties that allow them to be reasoned about. For example, for any |f| and
 |xs|:
 
 \begin{spec}
 length (map f xs) == length xs
 \end{spec}
 
-As such, these properties need only be proven once for an arbitrary |f|. This
+As such, these properties need only be proven once, independently of |f|. This
 approach saves quite some effort when reasoning about the program we are writing
 (or debugging).
 
@@ -227,7 +238,7 @@ order to do so, we need some manner in which to detect recursion patterns in a
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Generalised foldr}
+\subsection{Generalised foldr}
 
 As we mentioned in the introduction, one of our goals is to automatically detect
 instances of well-known recursion patterns.  Our work around the detection of
@@ -313,7 +324,7 @@ $(deriveFold Tree "foldTree")
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{foldr/build fusion}
+\subsection{foldr/build fusion}
 
 In this section, we look at a simple optimisation, which clearly indicates that
 rewriting functions in terms of a fold is an advantage. We begin by explaining
@@ -470,14 +481,17 @@ $(deriveBuild Tree "buildTree")
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{foldr/foldr fusion}
+\subsection{foldr/foldr fusion}
 
 TODO: Give a quick overview what foldr-foldr fusion is. Explain we don't
 implement it, but that our work facilitates the optimisation.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Core Expressions}
+\subsection{Identifying folds}
+\label{subsection:identifying-folds}
+
+\subsection{Core Expressions}
 \label{section:core-expressions}
 
 For simplicity, we only use a subset of Haskell called Core. This Core language
@@ -543,7 +557,7 @@ this in more detail later, in subsection \ref{subsection:ghc-core}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Identifying folds}
+\subsection{Identifying folds}
 \label{subsection:identifying-folds}
 
 \begin{figure}[t]
@@ -1032,10 +1046,16 @@ lists. The fact that the number of possible folds in these projects found by
 hlint is so low indicates that the authors of the respective packages might have
 used hlint during development.
 
+%-------------------------------------------------------------------------------
+\subsection{Identifying builds}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%-------------------------------------------------------------------------------
 \subsection{Optimization results}
 
+\tom{We need to specifically address what happens to functions that are both
+     a fold and a build like |map| and |filter|.}
+
+\tom{We need to benchmark foldr/build examples from the literature.}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Related work}
@@ -1072,14 +1092,14 @@ algebraic datatypes is outside of the scope of hlint.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\appendix
-\section{Appendix Title}
-
-This is the text of the appendix, if you need one.
-
-\acks
-
-Acknowledgments, if needed.
+% \appendix
+% \section{Appendix Title}
+% 
+% This is the text of the appendix, if you need one.
+% 
+% \acks
+% 
+% Acknowledgments, if needed.
 
 % References
 \bibliographystyle{abbrvnat}
