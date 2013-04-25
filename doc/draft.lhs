@@ -123,16 +123,22 @@ properties and optimizations based on folds. \tom{add many citations}
 
 Hence, given all these advantages of folds, one would expect every programmer
 to diligently avoid explicit recursion where folds can do the job.
-Unfortunately, that is far from true in practice.
+Unfortunately, that is far from true in practice. For many reasons, programmers
+do not write their code in terms of explicit folds. This class comprises a
+large set of advanced functional programmers \tom{evidence of our case study}.
 
-Structural recursion
-Catamorphisms are ubiquitous in programming
+Who are we to criticize these programmers? There are many good reasons for not
+using folds. First-order recursive functions should not be treated as
+second-class by compilers; all catamorphism should be optimized in the same way
+and benefit from the same performance gains, loop fusions and deforestations.
+This paper shows that this is possible, by automatically identifying
+catamorphisms and rewriting them to explicit calls to fold.
 
 % TODO: 2 paragraphs, 1 about own research/additions
 
 \tom{Focus on performance optimization as a goal.}
 
-The contributions of this work are:
+The specific contributions of this work are:
 \begin{itemize}
 \item We show how to automatically detect explicitly recursive function definitions
       that are \emph{catamorpisms} and transform them into calls to |fold|.
