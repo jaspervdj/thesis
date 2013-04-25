@@ -5,6 +5,7 @@
 \usepackage{amsmath}
 \usepackage[numbers]{natbib}  % For URLs in bibliography
 \usepackage{subfigure}
+\usepackage{color}
 % \usepackage{caption}
 % \usepackage{subcaption}
 
@@ -35,7 +36,7 @@
 % If we want white lines in a table
 \newcommand{\whiteline}{\\[0.2in]}
 
-\newcommand{\tom}[1]{\textbf{[\textsc{Tom:} #1]}}
+\newcommand{\tom}[1]{\textcolor{red}{\textbf{[\textsc{Tom:} \textcolor{black}{#1}]}}}
 
 % Document metadata
 
@@ -89,6 +90,43 @@ keyword1, keyword2
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
+
+Higher-order functions are immensely popular in Haskell, whose Prelude alone
+offers a wide range of them (e.g., |map|, |filter|, |any|, \ldots). This is not
+surprising, because they the key \emph{abstraction} mechanism of functional
+programming languages. They enable capturing and reusing common patterns among,
+often recursive, function definitions to a much larger extent than first-order
+functions. In addition to the obvious code reuse and increased programmer
+productivity, uses of higher-order functions have many other potential
+advantages over conventional first-order definitions.
+\begin{itemize}
+\item Uses of higher-order functions can be more quickly understood because
+      they reduce the that is already known pattern to a single name and thus draw
+      the attention immediately to what is new (i.e., the function parameters).
+
+\item Because the code is more compact and the number of bugs is proportional
+      to code size~\cite{gaffney1984}, higher-order functions should lead to
+      fewer bugs.
+
+\item Properties can be established for the higher-order function indepently
+      from its particular uses. This makes (e.g., equational) reasoning more productive.
+
+\item Since properties and occurrences are more readily available, they make good targets
+      for automatic optimization in compilers.
+\end{itemize}
+
+A particularly ubiquitous pattern is that of folds or \emph{catamorphisms}. In
+the case of lists, this pattern has been captured in the well-known |foldr|
+function. Yet, it can be defined just as well for other inductively defined
+algebraic datatypes. Indeed, the research literature is full of applications,
+properties and optimizations based on folds. \tom{add many citations}
+
+Hence, given all these advantages of folds, one would expect every programmer
+to diligently avoid explicit recursion where folds can do the job.
+Unfortunately, that is far from true in practice.
+
+Structural recursion
+Catamorphisms are ubiquitous in programming
 
 % TODO: 2 paragraphs, 1 about own research/additions
 
@@ -1000,7 +1038,7 @@ used to introduce new recursive or non-recursive binds, and |Case| is used for
 pattern matching -- the only kind of branching possible in GHC Core.
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%-------------------------------------------------------------------------------
 \subsection{Identifying folds}
 \label{subsection:identifying-folds}
 
@@ -1087,9 +1125,10 @@ algebraic datatypes is outside of the scope of hlint.
 \end{itemize}
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%===============================================================================
 \section{Conclusion}
 
+\tom{mention mutually recursive ADTs as important future work}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % \appendix
