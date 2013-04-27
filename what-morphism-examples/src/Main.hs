@@ -66,6 +66,15 @@ testTree = buildTree $ \leaf node ->
 
 
 --------------------------------------------------------------------------------
+treeUpTo :: Int -> Int -> Tree Int
+treeUpTo lo hi
+    | lo >= hi  = Leaf lo
+    | otherwise =
+        let mid = (lo + hi) `div` 2
+        in Node (treeUpTo lo mid) (treeUpTo (mid + 1) hi)
+
+
+--------------------------------------------------------------------------------
 treeSum :: Tree Int -> Int
 treeSum (Leaf x)   = x
 treeSum (Node l r) = treeSum l + treeSum r
@@ -90,7 +99,7 @@ treeMapB f' tree' = buildTree (\(leaf :: b -> c) (node :: c -> c -> c) ->
 --------------------------------------------------------------------------------
 result :: Int
 result = listSum (1 `listUpTo` 10)
-{-# NOINLINE result #-}
+-- {-# NOINLINE result #-}
 
 
 --------------------------------------------------------------------------------

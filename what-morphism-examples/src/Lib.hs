@@ -20,9 +20,6 @@ data List a
 $(deriveFold ''List "foldList")
 $(deriveBuild ''List "buildList")
 {-# ANN type List (RegisterFoldBuild "foldList" "buildList") #-}
-{-# RULES "foldList/buildList"
-    forall (g :: forall b. (a -> b -> b) -> b -> b) c n.
-    foldList c n (buildList g) = g c n #-}
 
 
 --------------------------------------------------------------------------------
@@ -36,6 +33,3 @@ data Tree a
 $(deriveFold ''Tree "foldTree")
 $(deriveBuild ''Tree "buildTree")
 {-# ANN type Tree (RegisterFoldBuild "foldTree" "buildTree") #-}
-{-# RULES "foldTree/buildTree"
-    forall (g :: forall b. (a -> b) -> (b -> b -> b) -> b) l n.
-    foldTree l n (buildTree g) = g l n #-}
