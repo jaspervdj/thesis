@@ -76,8 +76,8 @@ treeUpTo lo hi
 
 
 --------------------------------------------------------------------------------
-treeSum :: Tree Int -> Int
-treeSum (Leaf x)   = x
+treeSum :: Tree Int -> Double
+treeSum (Leaf x)   = fromIntegral x
 treeSum (Node l r) = treeSum l + treeSum r
 
 
@@ -105,9 +105,9 @@ haskellUpTo lo up
 
 
 --------------------------------------------------------------------------------
-haskellSum :: [Int] -> Int
-haskellSum []       = 0
-haskellSum (x : xs) = x + haskellSum xs
+haskellSum :: [Int] -> Double
+haskellSum []       = fromIntegral 0
+haskellSum (x : xs) = fromIntegral x + haskellSum xs
 
 
 --------------------------------------------------------------------------------
@@ -118,11 +118,40 @@ $(deriveBuild ''[] "buildHaskell")
 
 
 --------------------------------------------------------------------------------
-result :: Int
-result = haskellSum (1 `haskellUpTo` 10)
--- {-# NOINLINE result #-}
+gmkTree :: (Int -> b) -> (b -> b -> b) -> b
+gmkTree = \leaf node ->
+    let mkTree lo hi
+            | lo >= hi  = leaf lo
+            | otherwise =
+                let mid = (lo + hi) `div` 2
+                in node (mkTree lo mid) (mkTree (mid + 1) hi)
+    in mkTree 1 1024
+
+
+--------------------------------------------------------------------------------
+result :: Double
+result = treeSum (1 `treeUpTo` 10)
+{-# NOINLINE result #-}
+
+
+--------------------------------------------------------------------------------
+gresult :: Double
+gresult = gmkTree fromIntegral (+)
+{-# NOINLINE gresult #-}
+
+
+--------------------------------------------------------------------------------
+haskellResult :: Double
+haskellResult = haskellSum (1 `haskellUpTo` 10)
+{-# NOINLINE haskellResult #-}
 
 
 --------------------------------------------------------------------------------
 main :: IO ()
-main = print result
+main = do
+    print result
+    print gresult
+    print haskellResult
+    let ls = [1 .. 10]  -- (1 `haskellUpTo` 10)
+    print ls
+    print (haskellSum ls)
