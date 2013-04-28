@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 import           WhatMorphism.Annotations
+import           WhatMorphism.HaskellList
 import           WhatMorphism.TemplateHaskell
 
 
@@ -97,8 +98,28 @@ treeMapB f' tree' = buildTree (\(leaf :: b -> c) (node :: c -> c -> c) ->
 
 
 --------------------------------------------------------------------------------
+haskellUpTo :: Int -> Int -> [Int]
+haskellUpTo lo up
+    | lo >= up  = [up]
+    | otherwise = lo : haskellUpTo (lo + 1) up
+
+
+--------------------------------------------------------------------------------
+haskellSum :: [Int] -> Int
+haskellSum []       = 0
+haskellSum (x : xs) = x + haskellSum xs
+
+
+--------------------------------------------------------------------------------
+type Haskell a = [a]
+$(deriveFold ''[] "foldHaskell")
+$(deriveBuild ''[] "buildHaskell")
+{-# ANN type Haskell (RegisterFoldBuild "foldHaskell" "buildHaskell") #-}
+
+
+--------------------------------------------------------------------------------
 result :: Int
-result = listSum (1 `listUpTo` 10)
+result = haskellSum (1 `haskellUpTo` 10)
 -- {-# NOINLINE result #-}
 
 
