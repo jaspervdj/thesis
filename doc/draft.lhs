@@ -3,12 +3,18 @@
 %include polycode.fmt
 
 \usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{url}
+\usepackage{pgf}
+\usepackage{pdfpages}
+\usepackage{booktabs}
 \usepackage[numbers]{natbib}  % For URLs in bibliography
 \usepackage{subfigure}
 \usepackage{color}
 % \usepackage{caption}
 % \usepackage{subcaption}
 
+\newcommand{\ra}[1]{\renewcommand{\arraystretch}{#1}}
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
 
@@ -85,7 +91,7 @@ can have his cake and eat it, too.
 term1, term2
 
 \keywords
-keyword1, keyword2
+paramorphisms, fold-build fusion, analysis, transformation 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -117,8 +123,13 @@ advantages over conventional first-order definitions.
 
 A particularly ubiquitous pattern is that of folds or \emph{catamorphisms}. In
 the case of lists, this pattern has been captured in the well-known |foldr|
-function. Yet, it can be defined just as well for other inductively defined
-algebraic datatypes. Indeed, the research literature is full of applications,
+function.
+\begin{code}
+foldr :: (a -> b -> b) -> b -> [a] -> b
+foldr _ z []        = z
+foldr f z (x : xs)  = f x (foldr f z xs)
+\end{code}
+Indeed, the research literature is full of applications,
 properties and optimizations based on folds. \tom{add many citations}
 
 Hence, given all these advantages of folds, one would expect every programmer
@@ -126,191 +137,208 @@ to diligently avoid explicit recursion where folds can do the job.
 Unfortunately, that is far from true in practice. For many reasons, programmers
 do not write their code in terms of explicit folds. This class comprises a
 large set of advanced functional programmers \tom{evidence of our case study}.
+This is compounded by the fact that programmers often do not bother to define
+the equivalent of |foldr| for other inductive algebraic datatypes.
 
-Who are we to criticize these programmers? There are many good reasons for not
-using folds. First-order recursive functions should not be treated as
-second-class by compilers; all catamorphism should be optimized in the same way
-and benefit from the same performance gains, loop fusions and deforestations.
-This paper shows that this is possible, by automatically identifying
-catamorphisms and rewriting them to explicit calls to fold.
+Yet, sadly, these first-order recursive functions are treated as second-class
+by compilers. They do not benefit from the same performance gains like loop
+fusion and deforestations. In fact, the leading Haskell compiler GHC won't even
+inline recursive functions. We disagree with this injustice and argue that it
+is quite unnecessary to penalize programmers for using first-class recursion.
+In fact, we show that with a little effort, paramorphisms can be detected
+automatically by the compiler and automatically transformed into explicit
+invocations of folds for the purpose of automation.
 
-% TODO: 2 paragraphs, 1 about own research/additions
-
-\tom{Focus on performance optimization as a goal.}
-
-The specific contributions of this work are:
-\begin{itemize}
-\item We show how to automatically detect explicitly recursive function definitions
-      that are \emph{catamorpisms} and transform them into calls to |fold|.
-\item We show how to automatically detect functions that can be expressed as
-      a call to |build|.
-\item We provide an implementation that performs these detections on GHC Core.
-\item Our experimental evaluation shows \ldots
-\end{itemize}
+In particular, our specific contribuations are:
+\begin{enumerate}
+\item We show how to automatically identify \emph{paramorphisms} and transform
+      them into explicit calls to |fold|. 
+\item In order to support a particular well-known optimization,
+      fold-build fusion, we also show how to automatically detect and transform
+      functions that can be expressed as a call to |build|.
+\item We provide a GHC compiler plugin that performs these detections and
+      transformations on GHC Core.
+      It covers not only paramorphisms over Haskell lists, but paramorphisms
+      over all inductively defined directly recursive datatypes.
+\item We have performed a case study of our detection and transformation
+      plugin on a range of well-known Haskell packages and applications
+      to take stock of the number of explicitly recursive paramorphisms
+      and currently missed opportunities for fold-build fusion.
+      \tom{The results are astounding.}
+\end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Motivation}
+\newpage
+\section{Overview}
 
-In the early days of computing, assembly code was used for writing programs. In
-assembly, the control flow of a program is controlled using \emph{jumps}. This
-convention was continued in early programming languages, and developers
-manipulated the control flow of their applications using the \texttt{goto}
-construct. This allowed \emph{arbitrary} jumps through code, which brought with
-it many disadvantages \cite{dijkstra1968}. In particular, it could be very hard
-to understand code written in this style.
+% In the early days of computing, assembly code was used for writing programs. In
+% assembly, the control flow of a program is controlled using \emph{jumps}. This
+% convention was continued in early programming languages, and developers
+% manipulated the control flow of their applications using the \texttt{goto}
+% construct. This allowed \emph{arbitrary} jumps through code, which brought with
+% it many disadvantages \cite{dijkstra1968}. In particular, it could be very hard
+% to understand code written in this style.
+% 
+% Later programming languages favoured use of control stuctures such as
+% \texttt{for} and \texttt{while} over \texttt{goto}. This made it easier for
+% programmers and tools to reason about these structures.
+% 
+% For example, loop invariants can be used to reason about \texttt{while} loops:
+% 
+% \begin{center}
+% \mbox{
+%     \infer{
+%         \left\{ I \right\} \text{while} (C) ~ \text{body}
+%         \left\{ \lnot C \wedge I \right\}
+%     }{
+%         \left\{C \wedge I\right\} \text{body} \left\{ I \right\}
+%     }
+% }
+% \end{center}
+% 
+% Additionally, \texttt{goto}-based code can be much harder to understand: the
+% developer needs to understand the function in its entirety before arriving at a
+% basic understanding of the control flow.
+% 
+% A similar argument can be made about \emph{explicit recursion} in functional
+% programming languages. Consider the simple functions:
 
-Later programming languages favoured use of control stuctures such as
-\texttt{for} and \texttt{while} over \texttt{goto}. This made it easier for
-programmers and tools to reason about these structures.
-
-For example, loop invariants can be used to reason about \texttt{while} loops:
-
-\begin{center}
-\mbox{
-    \infer{
-        \left\{ I \right\} \text{while} (C) ~ \text{body}
-        \left\{ \lnot C \wedge I \right\}
-    }{
-        \left\{C \wedge I\right\} \text{body} \left\{ I \right\}
-    }
-}
-\end{center}
-
-Additionally, \texttt{goto}-based code can be much harder to understand: the
-developer needs to understand the function in its entirety before arriving at a
-basic understanding of the control flow.
-
-A similar argument can be made about \emph{explicit recursion} in functional
-programming languages. Consider the simple functions:
-
+\subsection{Paramorphisms and Folds}
+Paramorphisms are functions that perform structural recursion
+over an inductively defined algebraic datatype. Here are two
+examples of paramorphisms over the most ubiquitous inductive
+datatype, lists.
 \begin{code}
 upper :: String -> String
 upper []        = []
 upper (x : xs)  = toUpper x : upper xs
-\end{code}
 
-\begin{code}
 sum :: [Int] -> Int
 sum []        = 0
 sum (x : xs)  = x + sum xs
 \end{code}
 
-Explicit recursion is used in both functions to iterate over a list. This is
-not considered idiomatic Haskell code.
+% Explicit recursion is used in both functions to iterate over a list. This is
+% not considered idiomatic Haskell code.
+% 
+% Instead, the code pattern in the |upper| and |sum function| -- and as we will
+% show further on, indeed in many recursive functions -- allow using higher-order
+% functions to rewrite them to a more concise version. In this case, we can use
+% |map| and |foldr|, which are defined as follows:
+% 
+% \begin{code}
+% map :: (a -> b) -> [a] -> [b]
+% map f []        = []
+% map f (x : xs)  = f x : map f xs
+% \end{code}
 
-Instead, the code pattern in the |upper| and |sum function| -- and as we will
-show further on, indeed in many recursive functions -- allow using higher-order
-functions to rewrite them to a more concise version. In this case, we can use
-|map| and |foldr|, which are defined as follows:
-
-\begin{code}
-map :: (a -> b) -> [a] -> [b]
-map f []        = []
-map f (x : xs)  = f x : map f xs
-\end{code}
-
+Instead of using explicit recursion again and again, the paramorphic 
+pattern can be captured once and for all in a higher-order
+function, the fold function. In case of list, the fold function
+is also known as |foldr|.
 \begin{code}
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr _ z []        = z
 foldr f z (x : xs)  = f x (foldr f z xs)
 \end{code}
 
-\noindent This in turn yields the following version of the example functions:
+Any other paramorphism over lists can easily be expressed
+as an invocation of |foldr|.
 
 \begin{code}
 upper' :: String -> String
-upper' = map toUpper
-\end{code}
+upper' = foldr (\x xs -> toUpper x : xs) []
 
-\begin{code}
 sum' :: [Int] -> Int
 sum' = foldr (+) 0
 \end{code}
 
-\noindent Let us briefly list the advantages these alternative versions exhibit.
+% \noindent Let us briefly list the advantages these alternative versions exhibit.
+% 
+% \begin{itemize}
+% 
+% \item First, it is immediately clear to any functional programmer who has
+% grasped the concepts of |map| and |foldr|, how these functions operate on their
+% argument(s).
+% 
+% Once the higher-order function is understood in terms of performance,
+% control flow, and other aspects, it is usually trivial to understand functions
+% written in terms of this higher-order function. As such, the code can be grokked
+% more swiftly and without suprises.
+% 
+% % TODO: Cite something on concise code can be read faster (some Scala study?)
+% 
+% \item Second, the code becomes much more concise. This results in less
+% boilerplate, less code to read (and to debug). Since the number of bugs is
+% usually proportional to the number of code lines \cite{gaffney1984}, this
+% suggests there should be fewer bugs.
+% 
+% \item Third, famous higher-order functions exhibit well-known
+% properties that allow them to be reasoned about. For example, for any |f| and
+% |xs|:
+% 
+% \begin{spec}
+% length (map f xs) == length xs
+% \end{spec}
+% 
+% As such, these properties need only be proven once, independently of |f|. This
+% approach saves quite some effort when reasoning about the program we are writing
+% (or debugging).
+% 
+% In our example, we can immediately deduce that |upper'| does not change the
+% length of its argument, because it is implemented in terms of |map|.
+% 
+% \item Finally, a number of well-known properties also allow for certain
+% optimisations. Map fusion is a well-known example \cite{meijer1991}:
+% 
+% \begin{spec}
+% map f . map g = map (f . g)
+% \end{spec}
+% 
+% This optimisation merges two maps over a list, so that no temporary list needs
+% to be created, and we only need to loop over a list once instead of twice.
+% 
+% \end{itemize}
+% 
+% Hence, it should be clear that manually rewriting functions using higher-order
+% functions offers some nice advantages. In what follows, we will aim for
+% automating this manual labour, further simplifying the programmer's task. In
+% order to do so, we need some manner in which to detect recursion patterns in a
+% (sufficiently) general way.
 
-\begin{itemize}
 
-\item First, it is immediately clear to any functional programmer who has
-grasped the concepts of |map| and |foldr|, how these functions operate on their
-argument(s).
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\paragraph{Generalised foldr}
 
-Once the higher-order function is understood in terms of performance,
-control flow, and other aspects, it is usually trivial to understand functions
-written in terms of this higher-order function. As such, the code can be grokked
-more swiftly and without suprises.
+% As we mentioned in the introduction, one of our goals is to automatically detect
+% instances of well-known recursion patterns.  Our work around the detection of
+% recursion pattern revolves mostly around |foldr|. There are several reasons for
+% this.
+% 
+% First, |foldr| is an \emph{elementary} higher-order function. Many other
+% higher-order functions (such as |map|, |filter|, and |foldl|) can actually be
+% redefined in terms of |foldr|.
+% 
+% \begin{code}
+% map' :: (a -> b) -> [a] -> [b]
+% map' f = foldr (\x xs -> f x : xs) []
+% \end{code}
+% 
+% This means that every function which can be written as an application of |map|
+% can also be written as an application of |foldr|.
+% 
+% This allows us to work in a bottom-up fashion, first detecting a |foldr|-like
+% pattern before classifying the pattern as an instance of a more specific
+% higher-order function such as |map|.
 
-% TODO: Cite something on concise code can be read faster (some Scala study?)
+Paramorphisms and fold functions are of course not limited
+to lists. They extend readily to other inductive algebraic datatypes.
 
-\item Second, the code becomes much more concise. This results in less
-boilerplate, less code to read (and to debug). Since the number of bugs is
-usually proportional to the number of code lines \cite{gaffney1984}, this
-suggests there should be fewer bugs.
+% Applying |foldr| yields a
+% \emph{catamorphism} \cite{meijer1991}; this is applicable to arbitrary algebraic
+% data types instead of just Haskell lists.
 
-\item Third, famous higher-order functions exhibit well-known
-properties that allow them to be reasoned about. For example, for any |f| and
-|xs|:
-
-\begin{spec}
-length (map f xs) == length xs
-\end{spec}
-
-As such, these properties need only be proven once, independently of |f|. This
-approach saves quite some effort when reasoning about the program we are writing
-(or debugging).
-
-In our example, we can immediately deduce that |upper'| does not change the
-length of its argument, because it is implemented in terms of |map|.
-
-\item Finally, a number of well-known properties also allow for certain
-optimisations. Map fusion is a well-known example \cite{meijer1991}:
-
-\begin{spec}
-map f . map g = map (f . g)
-\end{spec}
-
-This optimisation merges two maps over a list, so that no temporary list needs
-to be created, and we only need to loop over a list once instead of twice.
-
-\end{itemize}
-
-Hence, it should be clear that manually rewriting functions using higher-order
-functions offers some nice advantages. In what follows, we will aim for
-automating this manual labour, further simplifying the programmer's task. In
-order to do so, we need some manner in which to detect recursion patterns in a
-(sufficiently) general way.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Generalised foldr}
-
-As we mentioned in the introduction, one of our goals is to automatically detect
-instances of well-known recursion patterns.  Our work around the detection of
-recursion pattern revolves mostly around |foldr|. There are several reasons for
-this.
-
-First, |foldr| is an \emph{elementary} higher-order function. Many other
-higher-order functions (such as |map|, |filter|, and |foldl|) can actually be
-redefined in terms of |foldr|.
-
-\begin{code}
-map' :: (a -> b) -> [a] -> [b]
-map' f = foldr (\x xs -> f x : xs) []
-\end{code}
-
-This means that every function which can be written as an application of |map|
-can also be written as an application of |foldr|.
-
-This allows us to work in a bottom-up fashion, first detecting a |foldr|-like
-pattern before classifying the pattern as an instance of a more specific
-higher-order function such as |map|.
-
-Second, focussing on |foldr| means that we are not limited to Haskell lists -- a
-basic datatype on which recursion is commonly used.  Applying |foldr| yields a
-\emph{catamorphism} \cite{meijer1991}; this is applicable to arbitrary algebraic
-data types instead of just Haskell lists.
-
-Consider the following example:
+Consider the following example of leaf trees.
 
 \begin{code}
 data Tree a
@@ -341,23 +369,16 @@ foldTree l b (Branch x y)  =
 sumTree' :: Tree Int -> Int
 sumTree' = foldTree id (+)
 \end{code}
+In general, a fold function transforms an inductive datatype into a value of a
+user-specified type |r| by replacing every constructor by a user-specified
+function.
 
-In general, a fold takes a number of functions as arguments. To be more precise,
-there will be exactly one function for every constructor of the algebraic
-datatype the fold operates over.
-
-Furthermore, it has been shown that while you can write different variations of
-|foldTree| (e.g. by swapping argument order), all these variations are
-isomorphic: there really is only one way to reduce an algebraic datatype to one
-value, and that is the fold for this datatype \cite{hutton1999}.
-
-% TODO: Talk about subterms?
-
-This indicates that, given the definition of an algebraic datatype, we can
-derive a fold for this datatype. This is not just a theoretical idea, in our
-work: we implemented a Template Haskell \cite{sheard2002} routine to make this
-derivation. For example, the |foldTree| function can be automatically generated
-by using:
+Note that the fold function for a datatype is unique up to isomorphism (e.g.,
+swapping the order of arguments), and characterized by the universal property
+of folds~\cite{hutton1999}.  In fact, the fold function for an inductive
+datatype can be derived automatically from its definition. We have implemented
+a Template Haskell~\cite{sheard2002} routine to do so. For example, the
+above |foldTree| function can be automatically generated as follows. 
 
 %{
 %format Tree = "`Tree"
@@ -368,19 +389,28 @@ $(deriveFold Tree "foldTree")
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{foldr/build fusion}
+\subsection{Fusion}
 
-In this section, we look at a simple optimisation, which clearly indicates that
-rewriting functions in terms of a fold is an advantage. We begin by explaining
-the optimisation for lists and later generalise it for arbitrary algebraic
-datatypes.
+One of the main advantages of expressing functions in terms of fold is that
+they inherit known properties of fold, which can be used for reasoning or for
+\emph{optimization}.  In this work, we look at one such optimization and first
+explain it for lists before generalizing it to other inductive datatypes.
 
 Haskell best practices encourage building complicated functions by composing
 small, easy to understand functions, rather than writing complex functions in a
-monolithic way.
+monolithic way. An example is the following sum-of-odd-squares function:
+\begin{code}
+sumOfSquaredOdds' :: [Int] -> Int
+sumOfSquaredOdds' = sum . map (^ 2) . filter odd
+\end{code}
+This code is quite compact and easy to compose from existing library functions.
+However, when compiled naively, it is also rather inefficient because it
+performs three loops and allocates two intermediate lists ( one as a result of
+|filter odd|, and another as result of |map (^ 2)|) that are immediately
+consumed again.
 
-Consider the following example.
-
+With the help of fusion, |foldr|/|build| fusion in particular, the above code
+can be automatically transformed into the much more efficient definition:
 \begin{code}
 sumOfSquaredOdds :: [Int] -> Int
 sumOfSquaredOdds [] = 0
@@ -388,17 +418,8 @@ sumOfSquaredOdds (x : xs)
     | odd x      = x ^ 2 + sumOfSquaredOdds xs
     | otherwise  = sumOfSquaredOdds xs
 \end{code}
+which performs only a single loop and allocates no intermediate lists.
 
-Using well-known, predefined functions, this can be rewritten as:
-
-\begin{code}
-sumOfSquaredOdds' :: [Int] -> Int
-sumOfSquaredOdds' = sum . map (^ 2) . filter odd
-\end{code}
-
-However, the latter would be compiled to slower code when no optimisations are
-used: two \emph{intermediate} lists are created: one as a result of |filter
-odd|, and another as result of |map (^ 2)|.
 
 foldr/build fusion makes it possible to optimise this function by ensuring no
 intermediate lists are created.
@@ -437,10 +458,7 @@ build g = g (:) []
 %}
 
 Then, the fusion rule is given by:
-
-\begin{spec}
-foldr cons nil (build g) = g cons nil
-\end{spec}
+\[ |foldr cons nil (build g)| ~~ |==| ~~ |g cons nil| \]
 
 Let us look at the |replicate| example again. In order to use this optimisation,
 |replicate| needs to be rewritten. Using |build|, we arrive at this alternative
@@ -487,7 +505,7 @@ should be able to remove the intermediate list using foldr/build fusion.
                 | otherwise  = cons x' (g (n' - 1) x')
         in g n x) (+) 0
 
-== {- simplifier -}
+== {- $\beta$-reduction -}
 
     let g n' x'
             | n' <= 0    = 0
@@ -524,15 +542,33 @@ $(deriveBuild Tree "buildTree")
 %}
 
 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \subsection{foldr/foldr fusion}
+% 
+% TODO: Give a quick overview what foldr-foldr fusion is. Explain we don't
+% implement it, but that our work facilitates the optimisation.
+
+%-------------------------------------------------------------------------------
+\subsection{Automation}
+
+The main Haskell compiler, GHC, currently provides limited automation for
+foldr/build fusion.
+
+\tom{explain rewrite rule and limitation to List library with encapsulated
+     build function}
+
+Clearly, this existing automation is severely limited. Firstly, it is
+restricted to lists and secondly it requires programmers to explicitly define
+their functions in terms of |build| and |foldr|. The latter is further
+compounded by the fact that |build| is a non-exported function of the
+|Data.List| library.
+
+This work lifts both limitations. It allows programmers to write their
+functions in explicitly recursive style and performs foldr/build fusion for any
+directly inductive datatype.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{foldr/foldr fusion}
-
-TODO: Give a quick overview what foldr-foldr fusion is. Explain we don't
-implement it, but that our work facilitates the optimisation.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Identifying folds}
+\section{Identifying folds}
 \label{subsection:identifying-folds}
 
 \subsection{Core Expressions}
@@ -1068,14 +1104,17 @@ categories:
 
 \begin{table}
 \begin{center}
-\begin{tabular}{l||rrr||r}
-                    & Degenerate folds & List & Data& hlint \\
-\hline
-\textbf{hlint}      &  248             & 17   & 25  & 0     \\
-\textbf{parsec}     &  150             &  6   &  0  & 0     \\
-\textbf{containers} &  311             &  7   & 75  & 0     \\
-\textbf{pandoc}     & 1012             & 35   &  1  & 0     \\
-\textbf{cabal}      & 1701             & 43   & 30  & 1     \\
+\ra{1.3}
+\begin{tabular}{@@{}lrrr@@{}}
+\toprule
+                    & Degenerate & List & Data& hlint \\
+\midrule
+\textbf{hlint}      &   248             & 17   & 25  & 0     \\
+\textbf{parsec}     &   150             &  6   &  0  & 0     \\
+\textbf{containers} &   311             &  7   & 75  & 0     \\
+\textbf{pandoc}     & 1,012             & 35   &  1  & 0     \\
+\textbf{cabal}      & 1,701             & 43   & 30  & 1     \\
+\bottomrule
 \end{tabular}
 \caption{Results of identifying folds in some well-known projects}
 \label{tabular:project-results}
