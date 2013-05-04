@@ -1,1 +1,0 @@
-:set -XTemplateHaskell -isrc -package ghc
