@@ -12,6 +12,8 @@
 \usepackage{titlesec}
 \usepackage{url}
 
+\newcommand{\TODO}[1]{\textbf{(TODO: #1)}}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -119,8 +121,8 @@ Een soortgelijke redenering is te maken over \emph{functionele
 programmeertalen}. Deze talen maken geen gebruik van \texttt{goto} instructies,
 maar implementeren controlestructuren door middel van \emph{recursie}.
 
-Deze programmeertalen bieden een hoog niveau van abstractie bieden, en moedigen
-de programmeurs aan om gebruik te maken van \emph{higher-order} functies (bv.
+Deze programmeertalen bieden een hoog niveau van abstractie, en moedigen de
+programmeurs aan om gebruik te maken van \emph{higher-order} functies (bv.
 |map|, |filter|, |any|, \ldots). Op deze manier is geen expliciete recursie
 nodig. Dit biedt verschillende voordelen:
 
@@ -145,15 +147,49 @@ voor elke applicatie van deze higher-order functie.
 optimalisaties uit te voeren op de code.
 \end{itemize}
 
-\begin{itemize}
-\item Hoog niveau
-\item Dijksta etc
-\item Overzicht geven
-\end{itemize}
+Er zijn dus weinig redenen om in deze talen expliciete recursie te gebruiken
+wanneer een higher-order functie beschikbaar is. Toch blijkt dat veel
+programmeurs nog gebruik maken van expliciete recursie.
+
+Enkele redenen hiervoor zijn bijvoorbeeld dat de programmeur niet bekend is met
+de higher-order functie, of dat er geen tijd is om de functie te refactoren. We
+zien zelfs dat we voorbeelden terugvinden van expliciete recursie in code
+geschreven door geavanceerde gebruikers van functionele programmeertalen
+\TODO{cite: GHC HQ does it}.
+
+De voordelen die hierboven beschreven staan vormen een motivatie om te
+onderzoeken of het niet mogelijk is om deze functies, geschreven in expliciet
+recursieve stijl, automatisch om te zetten in functies die gebruik maken van de
+higher-order hulpfuncties. Op die manier kan de programmeur code schrijven in om
+het even welke stijl, en toch genieten van de verschillende optimalisaties.
+
+In dit document beschrijven we een aanpak om dit mogelijk te maken.
+
+\TODO{Kort overzicht van de verschillende hoofdstukken}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Achtergrond}
+
+We kozen voor de functionele programmeertaal Haskell \cite{jones2003} omwille
+van verschillende redenen:
+
+\begin{itemize}[topsep=0.00cm]
+
+\item Een grote variatie higher-order functies is beschikbaar in het Prelude en
+in de aanvullende libraries.
+
+\item Haskell is een sterk getypeerde programmeertaal. Deze types geven ons meer
+informatie die we kunnen gebruiken in de transformaties.
+
+\item De de-facto standaard Haskell Compiler, GHC \cite{ghc}, laat via een
+plugin-systeem toe om code te manipuleren op een relatief eenvoudige manier
+\TODO{Cite het deel over GHC plugins/implementatie...}.
+
+\end{itemize}
+
+In dit hoofdstuk geven we een kort overzicht van Haskell, en de relevante
+higher-order functies voor dit werk.
 
 \begin{itemize}
 \item Haskell, lambda
