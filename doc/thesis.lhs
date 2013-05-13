@@ -26,8 +26,8 @@
 \begin{code}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Rank2Types      #-}
-import Data.Char     (toUpper)
-import Prelude       hiding (head, foldr, map, sum, replicate)
+import Data.Char (toUpper)
+import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
 \end{code}
 }
 
@@ -36,15 +36,31 @@ import Prelude       hiding (head, foldr, map, sum, replicate)
 % \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
 \setmainfont{DejaVu Serif}
 \setmonofont{Inconsolata}
-\newfontfamily\futura{Futura Std}
+\newfontfamily{\futura}[Scale=1.30]{Futura Std}
 
 \newcommand{\chapterstyle}{\futura\huge}
 \titleformat{\chapter}
   {\chapterstyle}  % format
-  {}               % label
+  {\thechapter ~}  % label
   {0.00cm}         % sep
   {}               % before
   [\normalfont]    % after
+
+\newcommand{\sectionstyle}{\futura\large}
+\titleformat{\section}
+  {\sectionstyle}
+  {\thesection ~}
+  {0.00cm}
+  {}
+  [\normalfont]
+
+\newcommand{\subsectionstyle}{\futura}
+\titleformat{\subsection}
+  {\subsectionstyle}
+  {\thesubsection ~}
+  {0.00cm}
+  {}
+  [\normalfont]
 
 \setlength{\parindent}{0.00cm}
 \setlength{\parskip}{0.50cm}
@@ -191,13 +207,264 @@ plugin-systeem toe om code te manipuleren op een relatief eenvoudige manier
 In dit hoofdstuk geven we een kort overzicht van Haskell, en de relevante
 higher-order functies voor dit werk.
 
-\begin{itemize}
-\item Haskell, lambda
-\item Higher order functions
-\item Syntax
-\item Wat zijn folds, toepassing
-\item Wat zijn builds, toepassing
-\end{itemize}
+\section{Haskell: types en functies}
+
+Haskell is ontstaan uit de lambda-calculus. Het is dan ook logisch om hieruit te
+vertrekken.
+
+\begin{spec}
+e ::= x        -- Een variabele
+   |  e e      -- Functie-applicatie (links-associatief)
+   |  \x -> x  -- Functie-abstractie (rechts-associatief)
+\end{spec}
+
+Dit is natuurlijk een zeer beperkte syntax en Haskell breidt deze sterk uit.
+Beschouw bijvoorbeeld de volgende Haskell-functie en het lambda-calculus
+equivalent:
+
+\begin{minipage}{0.5\textwidth}
+\begin{code}
+middle x y = (x + y) / 2
+\end{code}
+\end{minipage}
+\begin{minipage}{0.4\textwidth}
+\begin{spec}
+middle = \x -> \y -> (/) ((+) x y) 2
+\end{spec}
+\end{minipage}
+
+In tegenstelling tot de lambda-calculus \TODO{Cite lambda-calculus?}, is Haskell
+ook een \emph{sterk getypeerde} programmeertaal. Functies worden, naast een
+definitie, ook voorzien van een \emph{type-signatuur}:
+
+\begin{code}
+middle :: Float -> Float -> Float
+\end{code}
+
+Net zoals lambda-abstracties is de |->| in type-signaturen rechts-associatief.
+Deze type-signatuur is dus equivalent met |Float -> (Float -> Float)|. Dit
+concept heet \emph{currying}: we kunnen |middle| beschouwen als een functie die
+twee |Float|-argumenten neemt en een |Float| als resultaatwaarde heeft, of als
+een functie die \'e\'en Float argument neemt en functie van het type |Float ->
+Float| als resultaatwaarde heeft.
+
+In tegenstelling tot de lambda-calculus is het is Haskell niet nodig om gebruik
+te maken van fixpoint-combinators: men kan eenvoudig expliciet recursieve
+definities geven.
+
+\begin{code}
+fib :: Int -> Int
+fib n = if n <= 1 then 1 else fib (n - 1) + fib (n - 2)
+\end{code}
+
+Verder breidt Haskell de lambda-calculus uit met \emph{algebra\"ische datatypes}
+en \emph{pattern matching}.
+
+Bijschouw bijvoorbeeld een datatype dat de exit-code van een programma
+voorsteld:
+
+\begin{code}
+data ExitCode
+    =  ExitSuccess
+    |  ExitError Int
+\end{code}
+
+Met behulp van pattern-matching kan de onderliggende constructor onderzocht
+worden:
+
+\begin{code}
+isError :: ExitCode -> Bool
+isError (ExitError _)  = True
+isError ExitSuccess    = False
+\end{code}
+
+Het typesysteem van Haskell is zeer complex en valt buiten de scope van dit
+werk. Een interessante feature die we wel nodig hebben is
+\emph{type-polymorfisme}. Beschouw bijvoorbeeld de polymorfe functie |id|, de
+identiteitsfunctie:
+
+\begin{code}
+id :: a -> a
+id x = x
+\end{code}
+
+Polymorfe datatypes zijn ook mogelijk. Een voorbeeld hiervan is de lijst.
+
+\begin{spec}
+data [a]
+    =  a : [a]
+    |  []
+\end{spec}
+
+Lijsten zijn alomtegenwoordig in functionele programmas en verdienen speciale
+aandacht. Zo worden bijvoorbeeld |String|s in Haskell ook voorgesteld als
+karakter-lijsten:
+
+\begin{spec}
+type String = [Char]
+\end{spec}
+
+Omdat een lijst een recursief datatype is, is het zeer gebruikelijk om
+recursieve functies over lijsten te schrijven. Met behulp van de
+standaard-functie |toUpper :: Char -> Char| kan men bijvoorbeeld een functie
+schrijven die een volledige |String| omzet naar drukletters:
+
+\begin{code}
+upper :: String -> String
+upper []        = []
+upper (x : xs)  = toUpper x : upper xs
+\end{code}
+
+\section{Higher-order functies}
+
+Omdat recursieve functies over lijsten zo veel voorkomen, kunnen we vaak
+patronen onderscheiden.
+
+\begin{code}
+sum :: [Int] -> Int
+sum []        = 0
+sum (x : xs)  = x + sum xs
+
+product :: [Int] -> Int
+product []        = 1
+product (x : xs)  = x * product xs
+\end{code}
+
+Deze patronen kunnen ge\"implementeerd worden door middel van higher-order
+functies: functies die andere functies als parameters nemen. De twee
+bovenstaande functies zijn bijvoorbeeld eenvoudige voorbeelden van het
+|foldr|-patroon.
+
+\begin{code}
+foldr :: (a -> b -> b) -> b -> [a] -> b
+foldr _  z []        = z
+foldr f  z (x : xs)  = f x (foldr f z xs)
+\end{code}
+
+Als we |sum| en |product| herschrijven met behulp van |foldr|, krijgen we veel
+beknoptere definities:
+
+\begin{code}
+sum' :: [Int] -> Int
+sum' = foldr (+) 0
+
+product' :: [Int] -> Int
+product' = foldr (*) 1
+\end{code}
+
+Andere voorbeelden van higher-order functies zijn |map| en |filter|. |map| laat
+ons toe een functie uit te voeren op elk element van een lijst:
+
+\begin{code}
+map :: (a -> b) -> [a] -> [b]
+map f = foldr (\x xs -> f x : xs) []
+
+upper' :: String -> String
+upper' = map toUpper
+\end{code}
+
+En |filter| wordt gebruikt om bepaalde elementen uit een lijst te selecteren:
+
+\begin{code}
+filter :: (a -> Bool) -> [a] -> [a]
+filter f = foldr (\x xs -> if f x then x : xs else xs) []
+
+odds :: [Int] -> [Int]
+odds = filter odd
+\end{code}
+
+\section{De universele eigenschap van fold}
+
+Het feit dat we zowel |map| als |filter| schrijven met behulp van |foldr| duidt
+aan dat |foldr| een zeer interessante functie is. Meer bepaald, de universele
+eigenschap van fold \cite{hutton1999} is als volgt:
+
+\begin{minipage}[c]{0.3\textwidth}
+\begin{spec}
+g []        = v
+g (x : xs)  = f x (g xs)
+\end{spec}
+\end{minipage}
+\begin{minipage}[c]{0.3\textwidth}
+\center{$\Leftrightarrow$}
+\end{minipage}
+\begin{minipage}[c]{0.3\textwidth}
+\begin{spec}
+g = foldr f v
+\end{spec}
+\end{minipage}
+
+Concreet wil dat zeggen dat |foldr| recursief over een lijst werkt, en dat alle
+andere functies die recursief over een lijst werken, ofwel gelijk zijn aan
+|foldr|, ofwel applicaties zijn van |foldr|.
+
+Dit wil dus zeggen dat er een wederzijds verband is tussen het type |[a]| en de
+functie |foldr|. Als we dit willen veralgemenen, kunnen we ons afvragen of er
+dus een bijectie bestaat tussen algebra\"ische datatypes en fold-functies.
+
+Een zodanige bijectie bestaat, en legt het verband tussen een datatype en het
+overeenkomstige \emph{catamorfisme}. We kunnen deze catamorfismes eenvoudig
+afleiden voor algebra\"ische datatypes.
+
+Om dit beter te verstaan, hebben we het concept van een \emph{algebra} nodig.
+Wanneer we een catamorfisme toepassen op een datatype, interpreteren we dit
+datatype in een bepaalde algebra, door elke constructor te vervangen door een
+operator uit deze algebra. Zo is |sum| als het ware een interpretatie in de
+som-algebra, die |:| en |[]| vervangt door respectievelijk |+| en |0|:
+
+\begin{spec}
+foldr (+) 0  (1  :  (2  :  (3  :  (4  :  []))))
+==           (1  +  (2  +  (3  +  (4  +  0))))
+\end{spec}
+
+Dit laat ons toe folds te defini\"eren voor andere datatypes. Beschouw
+bijvoorbeeld een eenvoudig boom-type:
+
+\begin{code}
+data Tree a
+    =  Leaf a
+    |  Branch (Tree a) (Tree a)
+\end{code}
+
+Door een functie-argument te specifi\"eren voor elke constructor, kunnen we nu
+een fold defin\"eren voor het type |Tree|:
+
+\begin{code}
+foldTree  ::  (a -> b)       -- Operator voor leaf
+          ->  (b -> b -> b)  -- Operator voor branch
+          ->  Tree a         -- Input tree
+          ->  b              -- Resultaat van de fold
+foldTree leaf  _       (Leaf x)      = leaf x
+foldTree leaf  branch  (Branch x y)  =
+  branch (foldTree leaf branch x) (foldTree leaf branch y)
+\end{code}
+
+En met behulp van deze functie kunnen we dus eenvoudig recursieve functies over
+bomen schrijven. |sumTree|, bijvoorbeeld, berekent de som van de waarden van de
+bladeren van een boom:
+
+\begin{code}
+sumTree :: Tree Int -> Int
+sumTree = foldTree id (+)
+\end{code}
+
+We concluderen dat het een fold voor een bepaald algebra\"isch datatype dus
+eenvoudig is af te leiden uit de definitie van dat datatype. Bijgevolg kunnen we
+dit ook automatisch doen: we implementeerden een Template Haskell
+\cite{sheard2002} \emph{splice} die als parameter de naam van een datatype neemt
+en de bijhorende fold genereerd. Zo kan bijvoorbeeld |foldTree| gegenereerd
+worden door:
+
+%{
+%format quote = "~ ``"
+\begin{spec}
+$(deriveFold quote Tree "foldTree")
+\end{spec}
+%}
+
+\section{Folds en Builds}
+
+\TODO{Write this section}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
