@@ -6,8 +6,10 @@
 \usepackage[left=1.90cm, right=1.90cm, top=1.90cm, bottom=3.67cm]{geometry}
 \usepackage[numbers]{natbib}  % For URLs in bibliography
 \usepackage[xetex]{graphicx}
-\usepackage{fontspec,xunicode}
+\usepackage{amsmath}
+\usepackage{amsthm}
 \usepackage{enumitem}
+\usepackage{fontspec,xunicode}
 \usepackage{listings}
 \usepackage{titlesec}
 \usepackage{url}
@@ -21,6 +23,9 @@
 
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
+
+\def\commentbegin{\quad\{\ }
+\def\commentend{\}}
 
 \ignore{
 \begin{code}
@@ -462,9 +467,105 @@ $(deriveFold quote Tree "foldTree")
 \end{spec}
 %}
 
-\section{Folds en Builds}
+\section{Fusion: Folds en Builds}
 
-\TODO{Write this section}
+Naast de verschillende voordelen op vlak van \emph{refactoring}, is het ook
+mogelijk \emph{optimalisaties} door te voeren op basis van deze higher-order
+functions.
+
+Beschouw de volgende twee versies van een functie die de som van de kwadraten
+van de oneven nummers in een lijst berekenen:
+
+\begin{code}
+sumOfSquaredOdds :: [Int] -> Int
+sumOfSquaredOdds []  = 0
+sumOfSquaredOdds (x : xs)
+    | odd x          = x ^ 2 + sumOfSquaredOdds xs
+    | otherwise      = sumOfSquaredOdds xs
+\end{code}
+
+\begin{code}
+sumOfSquaredOdds' :: [Int] -> Int
+sumOfSquaredOdds' = sum . map (^ 2) . filter odd
+\end{code}
+
+Ervaren Haskell-programmeurs zullen steevast de tweede versie boven de eerste
+verkiezen. Het feit dat de tweede versie is opgebouwd uit kleinere, makkelijk te
+begrijpen functies maakt deze veel leesbaarder.
+
+De eerste versie lijkt echter effici\"enter: deze berkent rechtstreeks het
+resultaat (een |Int|), terwijl de tweede versie twee tijdelijke |[Int]| lijsten
+aanmaakt: \'e\'en als resultaat van |filter odd|, en nog een tweede als
+resultaat van |map (^ 2)|.
+
+In de ideale situatie willen we dus de effici\"entie van de eerste versie
+combineren met de leesbaarheid van de tweede versie. Dit wordt mogelijk gemaakt
+door \emph{fusion} \cite{wadler1990} \cite{gill1993}.
+
+We kunnen fusion best uitleggen door te starten met een eenvoudig voorbeeld:
+\emph{map/map-fusion}. Dit is een transformatie die gegeven wordt door de
+definitie \ref{theorem:map-map-fusion}.
+
+\newtheorem{theorem:map-map-fusion}{Definitie}
+\begin{theorem:map-map-fusion}\label{theorem:map-map-fusion}
+\[ |map f . map g| ~~ |==| ~~ |map (f . g)| \]
+\end{theorem:map-map-fusion}
+
+Deze equivalentie is eenvoudig te bewijzen via inductie.
+
+\begin{proof}
+We bewijzen dit eerst voor de lege lijst |[]|. Voor |map f . map g| krijgen we:
+
+\begin{spec}
+    map f (map g [])
+
+== {- def map [] -}
+
+    map f []
+
+== {- def map [] -}
+
+    []
+\end{spec}
+
+En voor |map (f . g)| krijgen we:
+
+\begin{spec}
+
+    map (f . g) []
+
+== {- def map [] -}
+
+    []
+\end{spec}
+
+We nemen nu aan dat map/map-fusion correct is voor een willekeurige lijst |xs|
+en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
+
+\begin{spec}
+    map f (map g (x : xs))
+
+== {- def map : -}
+
+    map f (g x : map g xs)
+
+== {- def map : -}
+
+    f (g x) : map f (map g xs)
+
+== {- inductiehypothese -}
+
+    f (g x) : map (f . g) xs
+
+== {- def map : -}
+
+    map (f . g) (x : xs)
+\end{spec}
+\end{proof}
+
+\emph{foldr/build-fusion}:
+
+\[ |foldr cons nil (build g)| ~~ |==| ~~ |g cons nil| \]
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
