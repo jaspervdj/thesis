@@ -11,6 +11,7 @@
 \usepackage[numbers]{natbib}  % For URLs in bibliography
 \usepackage{subfigure}
 \usepackage{color}
+\usepackage{mathpartir}
 % \usepackage{caption}
 % \usepackage{subcaption}
 
@@ -32,8 +33,14 @@
 %format e'1 = "e^{\prime}_1"
 %format e'2 = "e^{\prime}_2"
 %format forall (x) = "\mathopen{}\forall" x "\mathclose{}"
-\def\commentbegin{\quad\{\ }
-\def\commentend{\}}
+\def\commentbegin{\quad$[\![\enskip$}
+\def\commentend{$\enskip]\!]$}
+
+\def\myruleform#1{
+\setlength{\fboxrule}{0.5pt}\fbox{\normalsize $#1$}
+}
+\newcommand{\myirule}[2]{{\renewcommand{\arraystretch}{1.2}\begin{array}{c} #1
+                      \\ \hline #2 \end{array}}}
 
 % For typesetting infer rules, found in proof.sty in this directory
 \usepackage{proof}
@@ -211,36 +218,9 @@ they inherit known properties of fold, which can be used for reasoning or for
 \emph{optimization}.  In this work, we look at one such optimization and first
 explain it for lists before generalizing it to other inductive datatypes.
 
-Haskell best practices encourage building complicated functions by composing
-small, easy to understand functions, rather than writing complex functions in a
-monolithic way. An example is the following sum-of-odd-squares function:
-\begin{code}
-sumOfSquaredOdds' :: [Int] -> Int
-sumOfSquaredOdds' = sum . map (^ 2) . filter odd
-\end{code}
-This code is quite compact and easy to compose from existing library functions.
-However, when compiled naively, it is also rather inefficient because it
-performs three loops and allocates two intermediate lists ( one as a result of
-|filter odd|, and another as result of |map (^ 2)|) that are immediately
-consumed again.
-
-With the help of fusion, |foldr|/|build| fusion in particular, the above code
-can be automatically transformed into the much more efficient definition:
-\begin{code}
-sumOfSquaredOdds :: [Int] -> Int
-sumOfSquaredOdds [] = 0
-sumOfSquaredOdds (x : xs)
-    | odd x      = x ^ 2 + sumOfSquaredOdds xs
-    | otherwise  = sumOfSquaredOdds xs
-\end{code}
-which performs only a single loop and allocates no intermediate lists. This removal
-of intermediate data structures is called \emph{deforestation}.
-
-The idea of foldr/build fusion is to fuse a consumer of lists, |foldr|, with a
-consumer, |build|.
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 \paragraph{Folds}
-Catamorphisms are functions that consume an inductively defined datastructure
+Catamorphisms are functions that \emph{consume} an inductively defined datastructure
 by means of structural recursion.  Here are two examples of catamorphisms over
 the most ubiquitous inductive datatype, lists.
 \begin{code}
@@ -277,7 +257,7 @@ sum' = foldr (+) 0
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 \paragraph{Build}
 
-The |build| function captures a particular pattern of list production.
+The |build| function captures a particular pattern of list \emph{production}.
 %{
 %format . = "."
 \begin{code}
@@ -307,8 +287,7 @@ replicate' n x = build $ \cons nil ->
 \end{code}
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 \paragraph{Fusion}
-
-The foldr/build fusion rule expresses that a consumer and producer can be merged:
+The foldr/build fusion rule expresses that a consumer and producer can be fused:
 \[ |foldr cons nil (build g)| ~~ |==| ~~ |g cons nil| \]
 
 Consider the following expressions:
@@ -350,9 +329,58 @@ as follows.
     in g n x
 
 \end{spec}
+Although arguable less readable, we can see that the final version of |sum'
+(replicate' n x)| does not need to create an intermediate list.
 
-Altough arguable less readable, we can see that the final version of |sum'
-(replicate' n x)| does not need to create a intermediate list.
+\paragraph{Pipelines}
+Haskell best practices encourage building complicated functions by producing,
+repeatedly transforming and finally consuming an intermediate datastructure in a pipeline. An
+example of such a pipeline is the following sum-of-odd-squares function:
+\begin{code}
+sumOfSquaredOdds' :: Int -> Int
+sumOfSquaredOdds' = 
+  sum . map (^ 2) . filter odd . enumFromTo 1
+\end{code}
+This code is quite compact and easy to compose from existing library functions.
+However, when compiled naively, it is also rather inefficient because it
+performs three loops and allocates two intermediate lists ( one as a result of
+|filter odd|, and another as result of |map (^ 2)|) that are immediately
+consumed again.
+
+With the help of |foldr|/|build| fusion, whole pipelines like |sumOfSquareOdds| can be
+fused into one recursive function:
+\begin{code}
+sumOfSquaredOdds :: Int -> Int
+sumOfSquaredOdds n = go 1
+  where
+   go :: Int -> Int
+   go x
+     | x > n      = 0
+     | odd x      = x ^ 3 + go (x+1)
+     | otherwise  = go (x+1)
+\end{code}
+which performs only a single loop and allocates no intermediate lists. 
+
+The key to pipeline optimization is the fact that transformation functions
+like |map| and |filter| can be expressed as a |build| whose generator
+function is a |foldr|.
+\begin{spec}
+map :: (a -> b) -> [a] -> [b]
+map f l = build (\cons nil -> foldr (cons . f) nil l)
+
+filter :: (a -> Bool) -> [a] -> [a]
+filter p l = 
+  build (\cons nil -> foldr (\x -> if p x  then cons x 
+                                           else id) nil l)
+\end{spec}
+and |build|. This means they can fuse with both the producer before it and the
+consumer after it.
+
+Note that several specialized fusion laws in the literature, like
+\begin{equation*}
+  |map f . map g| | == | |map (f . g)| 
+\end{equation*}
+are merely a special case of the |foldr|/|build| law. 
 
 % \noindent Let us briefly list the advantages these alternative versions exhibit.
 % 
@@ -473,12 +501,10 @@ user-specified type |r| by replacing every constructor by a user-specified
 function.
 
 Note that the fold function for a datatype is unique up to isomorphism (e.g.,
-swapping the order of arguments), and characterized by the universal property
+swapping the order of arguments), and characterized by the \emph{universal property}
 of folds~\cite{hutton1999}.  In fact, the fold function for an inductive
 datatype can be derived automatically from its definition. We have implemented
-a Template Haskell~\cite{sheard2002} routine to do so. For example, the
-above |foldTree| function can be automatically generated as follows. 
-
+a Template Haskell~\cite{sheard2002} routine, |deriveFold|, to do so. For example, 
 %{
 %format Tree = "`Tree"
 \begin{spec}
@@ -486,17 +512,11 @@ $(deriveFold Tree "foldTree")
 \end{spec}
 %}
 
+generates the fold function, named |foldTree|, for the type |Tree|.
 
 \paragraph{Build}
-
-\begin{code}
-range :: Int -> Int -> Tree a
-range l u
-  | u > l      =  let m = l + (u - l) `div` 2
-                  in  Branch (range l m) (range (m+1) u)
-  | otherwise  =  Leaf l
-\end{code}
-
+The notion of a build function also generalizes. For instance,
+this is the build function for leaf trees:
 %{
 %format . = "."
 \begin{code}
@@ -506,6 +526,15 @@ buildTree g = g Leaf Branch
 \end{code}
 %}
 
+With this build function we can express a producer of leaf trees
+\begin{code}
+range :: Int -> Int -> Tree a
+range l u
+  | u > l      =  let m = l + (u - l) `div` 2
+                  in  Branch (range l m) (range (m+1) u)
+  | otherwise  =  Leaf l
+\end{code}
+as a build:
 \begin{code}
 range' :: Int -> Int -> Tree a
 range' l u  = buildTree $ \leaf branch ->
@@ -516,9 +545,8 @@ range' l u  = buildTree $ \leaf branch ->
   in g l u
 \end{code}
 
-Using the libraries we developed, the programmer does not have to write this
-function manually. Instead, it can be automatically generated using Template
-Haskell, just like the |foldTree| function.
+Just like for folds, we have automated the writing
+of build functions with Template Haskell:
 
 %{
 %format Tree = "`Tree"
@@ -526,11 +554,14 @@ Haskell, just like the |foldTree| function.
 $(deriveBuild Tree "buildTree")
 \end{spec}
 %}
+yields the build function, named |buildTree|, for the type |Tree|.
 
 \paragraph{Fusion}
-
+Any type that provides both a fold and build function, has a corresponding
+fusion law. For leaf trees, this law is:
 \[ |foldTree leaf branch (buildTree g)| ~~ |==| ~~ |g leaf branch| \]
 
+It is key to fusing two loops into one:
 \begin{spec}
     sumTree' (range' l u)
 
@@ -664,71 +695,115 @@ this in more detail later, in subsection \ref{subsection:ghc-core}.
 \subsection{Identifying folds}
 \label{subsection:identifying-folds}
 
+%{
+%format (many (x)) = "\overline{" x "}"
+%format box = "\Box"
+\begin{spec}
+E  ::=  box
+   |    E e
+   |    e E
+\end{spec}
+%}
+
 \begin{figure}[t]
 \begin{center}
-    \fbox{
-        \begin{tabular}{c}
-
-        % Bindings
-        \AxiomC{|e| $\leadsto_f$ |e'|}
-        \RightLabel{binds}
-        \UnaryInfC{|f = e| $\leadsto$ |f = e'|}
-        \DisplayProof
-        \whiteline
-
-        % Left-side arguments
-        \AxiomC{|e| $\leadsto_{fx}$ |e'|}
-        \RightLabel{left arguments}
-        \UnaryInfC{|\x -> e| $\leadsto_f$ |\x -> e'|}
-        \DisplayProof
-        \whiteline
-
-        % Right-side arguments
-        \AxiomC{|\x -> e| $\leadsto_{|\x -> fxy|}$ |\x -> e'|}
-        \RightLabel{right arguments}
-        \UnaryInfC{|\x -> \y -> e| $\leadsto_{f}$ |\x -> y -> e'|}
-        \DisplayProof
-        \whiteline
-
-        % Case
-        \AxiomC{
-            \begin{minipage}{0.4\columnwidth}
-            \begin{spec}
-            z, zs <- fresh
-            e'2 = \z ->
-                subst (subst e2 (f ys) zs) y z
-            \end{spec}
-            \end{minipage}
-        }
-        \AxiomC{
-            \begin{minipage}{0.3\columnwidth}
-            \begin{spec}
-            x   `notElem` fv(e1)
-            x   `notElem` fv(e'2)
-            ys  `notElem` fv(e'2)
-            \end{spec}
-            \end{minipage}
-        }
-        \RightLabel{case}
-        \BinaryInfC{
-            \begin{minipage}{0.35\columnwidth}
-            \begin{spec}
-            \x -> case x of
-                []        -> e1
-                (y : ys)  -> e2
-            \end{spec}
-            \end{minipage}
-            $\leadsto_f$ |\x -> foldr e'2 e1 x|
-        }
-        \DisplayProof
-
-        \end{tabular}
-    }
-    % \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
-    \caption{Rewrite rules for introducing fold}
-    \label{figure:fold-rules}
+\fbox{
+\begin{minipage}{0.9\columnwidth}
+\[\begin{array}{c}
+\myruleform{\inferrule*{}{b \leadsto b'}} \hspace{2cm}
+\inferrule*[left=(\textsc{F-Bind})]{e \stackrel{f}{\leadsto}_{f\,\Box} e'}
+        {f = e \leadsto f = e'} \\
+\\
+\myruleform{\inferrule*{}{e \stackrel{f}{\leadsto}_E e'}} \hspace{2cm}
+\inferrule*[left=(\textsc{F-Abs})]
+  {e \stackrel{f}{\leadsto}_{E[x]\,\Box} e'}
+  {\lambda x \rightarrow e \stackrel{f}{\leadsto}_E \lambda x \rightarrow e'} \\
+\\
+\inferrule*[left=(\textsc{F-SwapAbs})]
+  {\lambda x \rightarrow e \stackrel{f}{\leadsto}_{E\,y} \lambda x \rightarrow e'}
+  {\lambda x \rightarrow \lambda y \rightarrow e \stackrel{f}{\leadsto}_E \lambda x \rightarrow \lambda y \rightarrow e'} \\
+\\
+\inferrule*[left=(\textsc{F-AbsCase})]
+  {|e2| = [|z| \mapsto |y|][|zs| \mapsto E[|ys|]]|e'2| \\
+   |z|,|zs|~\textit{fresh} \\ f \not\in |e'2|  \\\\
+   \{|x|,|y|,|ys|\} \cap \textit{fv}(|e'2|) = \emptyset   \\
+   |x| \not\in \textit{fv}(|e1|) }
+  {
+|\x -> case x of { [] -> e1 ; (y:ys) -> e2 }| \\
+    \stackrel{f}{\leadsto}_E |\x -> foldr (\z zs -> e'2) e1 x| 
+  } 
+\end{array}\]
+\end{minipage}
+}
 \end{center}
+\caption{Fold introduction rules}
 \end{figure}
+
+% \begin{figure}[t]
+% \begin{center}
+%     \fbox{
+%         \begin{tabular}{c}
+% 
+%         % Bindings
+%         \AxiomC{|e| $\leadsto_f$ |e'|}
+%         \RightLabel{binds}
+%         \UnaryInfC{|f = e box| $\leadsto$ |f = e'|}
+%         \DisplayProof
+%         \whiteline
+% 
+%         % Left-side arguments
+%         \AxiomC{|e| $\leadsto_{fx}$ |e'|}
+%         \RightLabel{left arguments}
+%         \UnaryInfC{|\x -> e| $\leadsto_f$ |\x -> e'|}
+%         \DisplayProof
+%         \whiteline
+% 
+%         % Right-side arguments
+%         \AxiomC{|\x -> e| $\leadsto_{|\x -> fxy|}$ |\x -> e'|}
+%         \RightLabel{right arguments}
+%         \UnaryInfC{|\x -> \y -> e| $\leadsto_{f}$ |\x -> y -> e'|}
+%         \DisplayProof
+%         \whiteline
+% 
+%         % Case
+%         \AxiomC{
+%             \begin{minipage}{0.4\columnwidth}
+%             \begin{spec}
+%             z, zs <- fresh
+%             e'2 = \z ->
+%                 subst (subst e2 (f ys) zs) y z
+%             \end{spec}
+%             \end{minipage}
+%         }
+%         \AxiomC{
+%             \begin{minipage}{0.3\columnwidth}
+%             \begin{spec}
+%             x   `notElem` fv(e1)
+%             x   `notElem` fv(e'2)
+%             ys  `notElem` fv(e'2)
+%             \end{spec}
+%             \end{minipage}
+%         }
+%         \RightLabel{case}
+%         \BinaryInfC{
+%             \begin{minipage}{0.35\columnwidth}
+%             \begin{spec}
+%             \x -> case x of
+%                 []        -> e1
+%                 (y : ys)  -> e2
+%             \end{spec}
+%             \end{minipage}
+%             $\leadsto_f$ |\x -> foldr e'2 e1 x|
+%         }
+%         \DisplayProof
+% 
+%         \end{tabular}
+%     }
+%     % \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
+%     \caption{Rewrite rules for introducing fold}
+%     \label{figure:fold-rules}
+% \end{center}
+% \end{figure}
 
 In this section, we discuss the identification of folds that adhere to a certain
 set of rules. We begin by explaining how these rules apply to folding over a
