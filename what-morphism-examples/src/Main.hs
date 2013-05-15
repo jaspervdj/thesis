@@ -130,19 +130,6 @@ haskellUpTo lo up = go lo
 
 
 --------------------------------------------------------------------------------
-haskellSum :: [Int] -> Double
-haskellSum []       = fromIntegral (0 :: Int)
-haskellSum (x : xs) = fromIntegral x + haskellSum xs
-
-
---------------------------------------------------------------------------------
-type Haskell a = [a]
-$(deriveFold ''[] "foldHaskell")
-$(deriveBuild ''[] "buildHaskell")
-{-# ANN type Haskell (RegisterFoldBuild "foldHaskell" "buildHaskell") #-}
-
-
---------------------------------------------------------------------------------
 mkTreeBuild :: Int -> Tree Int
 mkTreeBuild = \n -> buildTree $ \leaf node ->
     let g lo hi
@@ -197,42 +184,57 @@ foldBuildInlined = (treeSumFold 1 (mkTreeBuild 10) 5)
 
 
 --------------------------------------------------------------------------------
-mkResult :: Int -> Double
-mkResult n = treeSum (treeMap (+ 1) (1 `treeUpTo` n))
+mkTreeResult :: Int -> Double
+mkTreeResult n = treeSum (treeMap (+ 1) (1 `treeUpTo` n))
 
 
 --------------------------------------------------------------------------------
-hresult :: Double
+haskellFilter :: (a -> Bool) -> [a] -> [a]
+haskellFilter _ []   = []
+haskellFilter p (x : xs)
+    | p x            = x : haskellFilter p xs
+    | otherwise      = haskellFilter p xs
+
+
+--------------------------------------------------------------------------------
+haskellMap :: (a -> b) -> [a] -> [b]
+haskellMap _ []       = []
+haskellMap f (x : xs) = f x : haskellMap f xs
+
+
+--------------------------------------------------------------------------------
+haskellSum :: [Int] -> Int
+haskellSum []       = 0
+haskellSum (x : xs) = x + haskellSum xs
+
+
+--------------------------------------------------------------------------------
+haskellSumSquaredOdds :: [Int] -> Int
+haskellSumSquaredOdds xs = haskellSum (haskellMap (^ 2) (haskellFilter odd xs))
+
+
+--------------------------------------------------------------------------------
+mkHaskellResult :: Int -> Int
+mkHaskellResult x = haskellSumSquaredOdds [1 .. x]
+
+
+--------------------------------------------------------------------------------
+hresult :: Int
 hresult = haskellSum (1 `haskellUpTo` 10)
 
 
 --------------------------------------------------------------------------------
-jiggle :: [String] -> Int -> [String]
-jiggle = \ds b -> case ds of
-    []       -> [];
-    (y : ys) -> case b <= 1 of
-        False -> y : jiggle ys (b - 1)
-        True -> y : []
-
-
---------------------------------------------------------------------------------
 main :: IO ()
-main = do
-    {-
-    defaultMain
-    [ bench "10 nodes"     $ nf mkResult 10
-    , bench "100 nodes"    $ nf mkResult 100
-    , bench "1000 nodes"   $ nf mkResult 1000
-    , bench "10000 nodes"  $ nf mkResult 10000
-    , bench "100000 nodes" $ nf mkResult 100000
+main = defaultMain
+    [ bench "10 nodes"     $ nf mkTreeResult 10
+    , bench "100 nodes"    $ nf mkTreeResult 100
+    , bench "1000 nodes"   $ nf mkTreeResult 1000
+    , bench "10000 nodes"  $ nf mkTreeResult 10000
+    , bench "100000 nodes" $ nf mkTreeResult 100000
+
+    , bench "10 elems"     $ nf mkHaskellResult 10
+    , bench "100 elems"    $ nf mkHaskellResult 100
+    , bench "1000 elems"   $ nf mkHaskellResult 1000
+    , bench "10000 elems"  $ nf mkHaskellResult 10000
+    , bench "100000 elems" $ nf mkHaskellResult 100000
     ]
-    -}
-    print hresult
-    print (mkResult 100)
-    -- let ls = [1 .. 10]  -- (1 `haskellUpTo` 10)
-    -- print ls
-    -- print (haskellSum ls)
-    -- print $ foldBuild
-    -- print $ treeUpTo' 1 (10 :: Integer)
-    -- print $ treeUpTo'' 1 (10 :: Integer)
-    -- print $ jiggle ["lol"] 3
