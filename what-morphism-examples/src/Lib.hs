@@ -31,5 +31,7 @@ data Tree a
 
 --------------------------------------------------------------------------------
 $(deriveFold ''Tree "foldTree")
+{-# NOINLINE foldTree #-}
 $(deriveBuild ''Tree "buildTree")
+{-# NOINLINE buildTree #-}
 {-# ANN type Tree (RegisterFoldBuild "foldTree" "buildTree") #-}

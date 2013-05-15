@@ -11,28 +11,6 @@ def valid_name(name)
   !name.include?('$')
 end
 
-def results(output)
-  folds = {}
-  folds_per_type = Hash.new { |h, k| h[k] = [] }
-
-  output.lines.each do |line|
-    words = line.split
-    if words[0] == 'RewriteResult:' && words.last != 'NoFold' then
-      name = words[1]
-      if valid_name(name) && !folds[name]
-        fold_type = words.last
-        folds_per_type[fold_type] << name
-        folds[name] = true
-      end
-    end
-  end
-
-  folds_per_type.each do |fold_type, names|
-    puts "#{fold_type}: #{names.length}"
-    puts "#{fold_type}: #{names.join(', ')}"
-  end
-end
-
 def compile(command, name)
   print "Compiling #{name}: "
 
@@ -43,35 +21,11 @@ def compile(command, name)
   elapsed = (Time.now - start).floor
   if status.success? then
     print "success (#{elapsed}s)\n"
-    results(output)
   else
     print "exit code #{status.exitstatus} (#{elapsed}s)\n"
   end
 
-  log = `mktemp /tmp/whatmorpism-XXXXX`.chomp
-  File.open(log, 'w') { |f| f.write(output) }
-  puts "Log written to #{log}"
-end
-
-def compile_zip(name)
-  # Preventive cleanup
-  FileUtils.rm_rf TMP
-
-  # Move over zip file
-  FileUtils.mkdir TMP
-  FileUtils.cp name, TMP
-
-  # Go to tmp dir and unzip
-  FileUtils.cd TMP
-  `unzip "#{name}"`
-
-  # Analysis
-  command = 'ghc --make -package what-morphism -fplugin=WhatMorphism Main.hs 2>&1'
-  compile(command, name)
-
-  # Remove tmp dir
-  FileUtils.cd ROOT
-  FileUtils.rm_r TMP
+  return output
 end
 
 def compile_cabal(name)
@@ -90,10 +44,15 @@ def compile_cabal(name)
   File.open(cabal_file, 'w') { |f| f.write(patched) }
 
   command = 'cabal configure && cabal build 2>&1'
-  compile(command, package)
+  output = compile(command, package)
 
   FileUtils.cd ROOT
   FileUtils.rm_r package
+
+  # Write log
+  log = "#{package}.log"
+  File.open(log, 'w') { |f| f.write(output) }
+  puts "Log written to #{log}"
 end
 
 file = ARGV[0]
