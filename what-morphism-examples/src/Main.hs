@@ -2,6 +2,8 @@
 {-# LANGUAGE Rank2Types          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
+import           Criterion                    (bench, nf)
+import           Criterion.Main               (defaultMain)
 import           WhatMorphism.Annotations
 import           WhatMorphism.HaskellList
 import           WhatMorphism.TemplateHaskell
@@ -76,6 +78,27 @@ treeUpTo lo hi
 
 
 --------------------------------------------------------------------------------
+treeUpTo' :: Integral a => a -> a -> Tree [a]
+treeUpTo' lo hi
+    | lo >= hi  = Leaf [lo]
+    | otherwise =
+        let mid = (lo + hi) `div` 2
+        in Node (treeUpTo' lo mid) (treeUpTo' (mid + 1) hi)
+
+
+--------------------------------------------------------------------------------
+treeUpTo'' :: Integral a => a -> a -> Tree [a]
+treeUpTo'' lo' hi' = buildTree (\leaf node ->
+    let g lo hi
+            | lo >= hi  = leaf [lo]
+            | otherwise =
+                let mid = (lo + hi) `div` 2
+                in node (g lo mid) (g (mid + 1) hi)
+    in g lo' hi')
+{-# NOINLINE treeUpTo'' #-}
+
+
+--------------------------------------------------------------------------------
 treeSum :: Tree Int -> Double
 treeSum (Leaf x)   = fromIntegral x
 treeSum (Node l r) = treeSum l + treeSum r
@@ -99,14 +122,16 @@ treeMapB f' tree' = buildTree (\(leaf :: b -> c) (node :: c -> c -> c) ->
 
 --------------------------------------------------------------------------------
 haskellUpTo :: Int -> Int -> [Int]
-haskellUpTo lo up
-    | lo >= up  = [up]
-    | otherwise = lo : haskellUpTo (lo + 1) up
+haskellUpTo lo up = go lo
+  where
+    go i
+        | i > up    = []
+        | otherwise = i : go (i + 1)
 
 
 --------------------------------------------------------------------------------
 haskellSum :: [Int] -> Double
-haskellSum []       = fromIntegral 0
+haskellSum []       = fromIntegral (0 :: Int)
 haskellSum (x : xs) = fromIntegral x + haskellSum xs
 
 
@@ -118,40 +143,96 @@ $(deriveBuild ''[] "buildHaskell")
 
 
 --------------------------------------------------------------------------------
-gmkTree :: (Int -> b) -> (b -> b -> b) -> b
-gmkTree = \leaf node ->
-    let mkTree lo hi
+mkTreeBuild :: Int -> Tree Int
+mkTreeBuild = \n -> buildTree $ \leaf node ->
+    let g lo hi
             | lo >= hi  = leaf lo
             | otherwise =
                 let mid = (lo + hi) `div` 2
-                in node (mkTree lo mid) (mkTree (mid + 1) hi)
-    in mkTree 1 1024
+                in node (g lo mid) (g (mid + 1) hi)
+    in g 1 n
 
 
 --------------------------------------------------------------------------------
-result :: Double
-result = treeSum (1 `treeUpTo` 10)
-{-# NOINLINE result #-}
+treeSumFold :: Int -> Tree Int -> Int -> Double
+treeSumFold = \a t b -> foldTree (\x -> fromIntegral (x + a + b)) (+) t
 
 
 --------------------------------------------------------------------------------
-gresult :: Double
-gresult = gmkTree fromIntegral (+)
-{-# NOINLINE gresult #-}
+foldBuild :: Double
+foldBuild =
+    ((\a t b -> foldTree (\x -> fromIntegral (x + a + b)) (+) t)
+        1
+        ((\n -> buildTree $ \leaf node ->
+            let g lo hi
+                    | lo >= hi  = leaf lo
+                    | otherwise =
+                        let mid = (lo + hi) `div` 2
+                        in node (g lo mid) (g (mid + 1) hi)
+            in g 1 n)
+            10)
+        5)
 
 
 --------------------------------------------------------------------------------
-haskellResult :: Double
-haskellResult = haskellSum (1 `haskellUpTo` 10)
-{-# NOINLINE haskellResult #-}
+foldBuildFused :: Double
+foldBuildFused =
+    (\a t b ->
+        ((\n -> (\leaf node ->
+            let g lo hi
+                    | lo >= hi  = leaf lo
+                    | otherwise =
+                        let mid = (lo + hi) `div` 2
+                        in node (g lo mid) (g (mid + 1) hi)
+            in g 1 n))
+            10) (\x -> fromIntegral (x + a + b)) (+))
+        1
+        undefined
+        5
+
+
+--------------------------------------------------------------------------------
+foldBuildInlined :: Double
+foldBuildInlined = (treeSumFold 1 (mkTreeBuild 10) 5)
+
+
+--------------------------------------------------------------------------------
+mkResult :: Int -> Double
+mkResult n = treeSum (treeMap (+ 1) (1 `treeUpTo` n))
+
+
+--------------------------------------------------------------------------------
+hresult :: Double
+hresult = haskellSum (1 `haskellUpTo` 10)
+
+
+--------------------------------------------------------------------------------
+jiggle :: [String] -> Int -> [String]
+jiggle = \ds b -> case ds of
+    []       -> [];
+    (y : ys) -> case b <= 1 of
+        False -> y : jiggle ys (b - 1)
+        True -> y : []
 
 
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-    print result
-    print gresult
-    print haskellResult
-    let ls = [1 .. 10]  -- (1 `haskellUpTo` 10)
-    print ls
-    print (haskellSum ls)
+    {-
+    defaultMain
+    [ bench "10 nodes"     $ nf mkResult 10
+    , bench "100 nodes"    $ nf mkResult 100
+    , bench "1000 nodes"   $ nf mkResult 1000
+    , bench "10000 nodes"  $ nf mkResult 10000
+    , bench "100000 nodes" $ nf mkResult 100000
+    ]
+    -}
+    print hresult
+    print (mkResult 100)
+    -- let ls = [1 .. 10]  -- (1 `haskellUpTo` 10)
+    -- print ls
+    -- print (haskellSum ls)
+    -- print $ foldBuild
+    -- print $ treeUpTo' 1 (10 :: Integer)
+    -- print $ treeUpTo'' 1 (10 :: Integer)
+    -- print $ jiggle ["lol"] 3

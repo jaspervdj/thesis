@@ -12,9 +12,12 @@ Cabal-version: >= 1.8
 Executable what-morphism-examples
   Ghc-options:    -fplugin WhatMorphism -dverbose-core2core -O2
                   -ddump-rule-firings -fsimpl-tick-factor=1000
+                  -dcore-lint
+  -- Ghc-options:    -O2 -fsimpl-tick-factor=1000 -dverbose-core2core
   Hs-source-dirs: src
   Main-is:        Main.hs
 
   Build-depends:
     base          >= 4   && < 5,
+    criterion     >= 0.8 && < 0.9,
     what-morphism >= 0.0 && < 0.1
