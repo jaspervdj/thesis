@@ -20,6 +20,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %include polycode.fmt
+%include forall.fmt
 
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
@@ -36,12 +37,10 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
 \end{code}
 }
 
-%format forall (x) = "\mathopen{}\forall" x ".\mathclose{}"
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Style
 % \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
-\setmainfont{DejaVu Serif}
+\setmainfont[Ligatures=TeX]{DejaVu Serif}
 \setmonofont{Inconsolata}
 \newfontfamily{\futura}[Scale=1.30]{Futura Std}
 
@@ -69,9 +68,6 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
   {}
   [\normalfont]
 
-\setlength{\parindent}{0.00cm}
-\setlength{\parskip}{0.50cm}
-
 \lstset{basicstyle=\ttfamily, keywordstyle=\ttfamily\bf}
 
 
@@ -86,17 +82,22 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
 \maketitle
 \tableofcontents
 
+\setlength{\parindent}{0.00cm}
+\setlength{\parskip}{0.50cm}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Inleiding}
 
-Laten we beginnen bij het begin. Sinds er programmeertalen gebruikt worden,
-maakt men gebruik van \emph{controlestructuren}. Deze laten toe de manier waarop
-het programma wordt uitgevoerd te be\"invloeden. In assembleertaal zijn dit de
-verschillende \emph{jump} instructies (\texttt{jmp}, \texttt{je}...). Enkel
-gebruik maken van simpele tests en jumps zonder duidelijke consistentie in de
-manier waarop deze gebruikt worden kan echter leiden tot "spaghetti code", code
-die zowel moeilijk te lezen als te onderhouden is.
+Laten we beginnen bij het begin. Reeds van bij de ontwikkeling van de eerste
+computers, naar onze hedendaagse normen vrij rudimentaire machines, was het
+noodzakelijk om in de gebruikte programmeertalen \emph{controlestructuren} te
+voorzien.  Deze laten toe de manier waarop het programma wordt uitgevoerd te
+be\"invloeden. In assembleertaal zijn dit de verschillende \emph{jump}
+instructies (\texttt{jmp}, \texttt{je}...). Enkel gebruik maken van simpele
+tests en jumps zonder duidelijke consistentie in de manier waarop deze gebruikt
+worden kan echter leiden tot "spaghetti code", code die zowel moeilijk te lezen
+als te onderhouden is.
 
 In latere programmeertalen (initieel talen zoals ALGOL, en een beetje later ook
 C), maakte het concept \emph{gestructureerd programmeren} een opmars.  Dit
@@ -321,7 +322,7 @@ We kunnen eenvoudig aantonen dat dit wel degelijk een fixpoint-combinator is.
 \begin{spec}
     Y f
 
-== {- def Y -}
+== {- def |Y| -}
 
     (\f -> (\x -> f (x x)) (\x -> f (x x))) f
 
@@ -337,7 +338,7 @@ We kunnen eenvoudig aantonen dat dit wel degelijk een fixpoint-combinator is.
 
     f ((\f -> (\x -> f (x x)) (\x -> f (x x))) f)
 
-== {- def Y -}
+== {- def |Y| -}
 
     f (Y f)
 \end{spec}
@@ -485,6 +486,7 @@ odds = filter odd
 \end{code}
 
 \section{De universele eigenschap van fold}
+\label{section:universal-fold}
 
 Het feit dat we zowel |map| als |filter| schrijven met behulp van |foldr| duidt
 aan dat |foldr| een zeer interessante functie is. Meer bepaald, de universele
@@ -659,6 +661,8 @@ een recursieve subterm is dit |go t|.
 
 \section{Fusion: Folds en Builds}
 
+\subsection{Wat is fusion?}
+
 Naast de verschillende voordelen op vlak van \emph{refactoring}, is het ook
 mogelijk \emph{optimalisaties} door te voeren op basis van deze hogere-orde
 functions.
@@ -709,11 +713,11 @@ We bewijzen dit eerst voor de lege lijst |[]|. Voor |map f . map g| krijgen we:
 \begin{spec}
     map f (map g [])
 
-== {- def map [] -}
+== {- def |map []| -}
 
     map f []
 
-== {- def map [] -}
+== {- def |map []| -}
 
     []
 \end{spec}
@@ -724,7 +728,7 @@ En voor |map (f . g)| krijgen we:
 
     map (f . g) []
 
-== {- def map [] -}
+== {- def |map []| -}
 
     []
 \end{spec}
@@ -735,11 +739,11 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 \begin{spec}
     map f (map g (x : xs))
 
-== {- def map : -}
+== {- def |map :| -}
 
     map f (g x : map g xs)
 
-== {- def map : -}
+== {- def |map :| -}
 
     f (g x) : map f (map g xs)
 
@@ -747,20 +751,87 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 
     f (g x) : map (f . g) xs
 
-== {- def map : -}
+== {- def |map :| -}
 
     map (f . g) (x : xs)
 \end{spec}
 \end{proof}
 
-\emph{foldr/build-fusion}:
+GHC beschikt over een mechanisme om dit soort transformaties uit te voeren
+tijdens de compilatie, door middel van het \texttt{RULES} pragmas
+\cite{jones2001}. Zo kunnen we bijvoorbeeld map/map-fusion implementeren door
+eenvodigweg het volgende pragma te vermelden:
 
+\begin{lstlisting}
+{-# RULES "map/map-fusion" forall f g xs.
+    map f (map g xs) = map (f . g) xs #-}
+\end{lstlisting}
+
+Het nadeel van deze aanpak is echter dat het aantal nodige rules kwadratisch
+stijgt in proportie tot het aantal hogere-orde functies dat op het datatype (in
+dit geval lijsten) werkt.
+
+Ter illustratie, als we bijvoorbeeld enkel de functies |map| en |filter|
+beschouwen, hebben we al vier rules nodig, en een additonele hulpfunctie
+|mapFilter|:
+
+\begin{spec}
+map f . map g        = map (f . g)
+map f . filter g     = mapFilter f g
+filter f . map g     = filter (f . g)
+filter f . filter g  = filter (\x -> f x && g x)
+
+mapFilter :: (a -> b) -> (a -> Bool) -> [a] -> [b]
+mapFilter _ _ []  = []
+mapFilter f g (x : xs)
+    | g x         = f x : mapFilter f g xs
+    | otherwise   = mapFilter f g xs
+\end{spec}
+
+Voor sommige modules ligt het aantal hogere-orde functies zeer hoog, dus wordt
+deze aanpak onhaalbaar.
+
+\subsection{Foldr/build-fusion}
+
+Dit probleem wordt opgelost met \emph{foldr/build-fusion}. We kunnen |foldr|
+beschouwen als een algemene manier om lijsten te \emph{consumeren}. Hiervan is
+|build| de tegenhanger: een algemene manier om lijsten te \emph{produceren}.
+
+\begin{code}
+build :: (forall b. (a -> b -> b) -> b -> b) -> [a]
+build g = g (:) []
+\end{code}
+
+We kunnen nu bijvoorbeeld |map| en |filter| met behulp van |build|:
+
+\begin{spec}
+map :: (a -> b) -> [a] -> [b]
+map f ls = build $ \cons nil ->
+    foldr (\x xs -> cons (f x) xs) nil ls
+
+filter :: (a -> Bool) -> [a] -> [a]
+filter f ls = build $ \cons nil ->
+    foldr (\x xs -> if f x then cons x xs else xs) nil ls
+\end{spec}
+
+Het nut van |build| wordt nu duidelijk: we gebruiken deze functie om te
+\emph{abstraheren} over de concrete constructoren: in plaats van |:| en |[]|
+gebruiken we nu de abstracte |cons| en |nil|.
+
+Intu\"itief laat dit ons toe om de constructoren |:| en |[]| te \emph{vervangen}
+door andere functies -- en zoals we in Sectie \ref{section:universal-fold}
+zagen, kunnen we het toepassen van |foldr| net beschouwen als het vervangen van
+de constructoren door de argumenten van |foldr|!
+
+Dit idee laat ons toe om een de productie en consumatie van een lijst te fusen,
+zodanig dat er geen tijdelijke lijst moet worden aangemaakt. We werken dit nu
+formeel uit.
 
 \newtheorem{theorem:foldr-build-fusion}{Definitie}[section]
 \begin{theorem:foldr-build-fusion}\label{theorem:foldr-build-fusion}
 Als
 
-\[ |g :: forall b (a -> b -> b) -> b -> b| \]
+\[ |g :: forall b. (a -> b -> b) -> b -> b| \]
 
 dan
 
@@ -776,7 +847,8 @@ met als types:
 
 de volgende implicatie geldt:
 
-\[ |h (f a b) == f' a (h b)| \Rightarrow |h (g f b) == g f' (h b)| \]
+\[ |(forall a b. h (f a b) == f' a (h b))|
+    \Rightarrow |(forall b. h (g f b) == g f' (h b))| \]
 
 We kunnen deze implicatie nu instanti\"eren met:
 
@@ -785,15 +857,15 @@ We kunnen deze implicatie nu instanti\"eren met:
 We krijgen dus:
 
 \begin{align*}
-|foldr cons nil (a : b) == cons a (foldr cons nil b)|
+|(forall a b. foldr cons nil (a : b) == cons a (foldr cons nil b))|
     \Rightarrow \\
-    |foldr cons nil (g (:) b) == g cons (foldr cons nil b)|
+    |(forall b. foldr cons nil (g (:) b) == g cons (foldr cons nil b))|
 \end{align*}
 
 De linkerkant van de implicatie is triviaal geldig: dit is gewoon de definitie
 van |foldr| voor een niet-ledige lijst. Hieruit volgt dat:
 
-\[ |foldr cons nil (g (:) b) == g cons (foldr cons nil b)| \]
+\[ |(forall b. foldr cons nil (g (:) b) == g cons (foldr cons nil b))| \]
 
 Deze gelijkheid kunnen we opnieuw instanti\"eren, ditmaal met |b = []|. Zo
 krijgen we:
@@ -801,16 +873,87 @@ krijgen we:
 \begin{spec}
     foldr cons nil (g (:) []) == g cons (foldr cons nil [])
 
-== {- def foldr [] -}
+== {- def |foldr []| -}
 
     foldr cons nil (g (:) []) == g cons nil
 
-== {- def build -}
+== {- def |build| -}
 
     foldr cons nil (build g) == g cons nil
 \end{spec}
 
 \end{proof}
+
+Ter illustratie tonen we nu hoe met deze enkele fusie-regel onze elegantere
+versie van |sumOfSquaredOdds'| automatisch door GHC kan worden omgezet naar een
+performante versie.
+
+\begin{spec}
+    sumOfSquaredOdds'
+
+== {- inline |sumOfSquaredOdds'| -}
+
+    sum . map (^ 2) . filter odd
+
+== {- inline |.| -}
+
+    \ls -> sum (map (^ 2) (filter odd ls))
+
+== {- inline |filter| -}
+
+    \ls -> sum (map (^ 2)
+        (build $ \cons nil ->
+            foldr (\x xs -> if odd x then cons x xs else xs) nil ls))
+
+== {- inline |map| -}
+
+    \ls -> sum
+        (build $ \cons' nil' ->
+            foldr (\x xs -> cons' (x ^ 2) xs) nil'
+                (build $ \cons nil ->
+                    foldr (\x xs -> if odd x then cons x xs else xs) nil ls))
+
+== {- foldr/build-fusion -}
+
+    \ls -> sum
+        (build $ \cons' nil' ->
+            (\cons nil ->
+                foldr (\x xs -> if odd x then cons x xs else xs) nil ls)
+            (\x xs -> cons' (x ^ 2) xs)
+            nil')
+
+== {- $\beta$-reductie -}
+
+    \ls -> sum
+        (build $ \cons' nil' ->
+            foldr (\x xs -> if odd x then cons' (x ^ 2) xs else xs) nil' ls)
+
+== {- inline |sum| -}
+
+    \ls -> foldr (+) 0
+        (build $ \cons' nil' ->
+            foldr (\x xs -> if odd x then cons' (x ^ 2) xs else xs) nil' ls)
+
+== {- foldr/build-fusion -}
+
+    \ls -> (\cons' nil' ->
+        foldr (\x xs -> if odd x then cons' (x ^ 2) xs else xs) nil' ls) (+) 0
+
+== {- $\beta$-reductie -}
+
+    \ls -> foldr (\x xs -> if odd x then (x ^ 2) + xs else xs) 0 ls
+
+\end{spec}
+
+Finaal is |sumOfSquaredOdds'| dus volledig gereduceerd tot \'e\'en enkele
+|foldr| over een lijst: het is niet meer nodig om tijdelijke lijsten te
+alloceren om het resultaat te berekenen. In \TODO{Cite results chapter} tonen we
+aan dat dit leid tot significante speedups.
+
+We krijgen dus als het ware het beste van beide werelden: we kunnen elegante
+definities gebruiken voor de functies, die eenvoudiger leesbaar zijn een
+makkelijker onderhoudbaar; maar tevens worden deze vertaald door de compiler tot
+snelle, geoptimaliseerde versies.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
