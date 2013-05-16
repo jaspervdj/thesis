@@ -36,6 +36,8 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
 \end{code}
 }
 
+%format forall (x) = "\mathopen{}\forall" x ".\mathclose{}"
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Style
 % \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
@@ -753,7 +755,62 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 
 \emph{foldr/build-fusion}:
 
+
+\newtheorem{theorem:foldr-build-fusion}{Definitie}[section]
+\begin{theorem:foldr-build-fusion}\label{theorem:foldr-build-fusion}
+Als
+
+\[ |g :: forall b (a -> b -> b) -> b -> b| \]
+
+dan
+
 \[ |foldr cons nil (build g)| ~~ |==| ~~ |g cons nil| \]
+\end{theorem:foldr-build-fusion}
+
+\begin{proof}
+Van het type van een polymorfe functie kan een \emph{gratis theorie} afgeleid
+worden \cite{wadler1989}. Zo krijgen we voor |g| dat voor alle |f|, |f'| en |h|
+met als types:
+
+\[ |f :: A -> B -> B|, |f' :: A -> B' -> B'|, |h :: B -> B'| \]
+
+de volgende implicatie geldt:
+
+\[ |h (f a b) == f' a (h b)| \Rightarrow |h (g f b) == g f' (h b)| \]
+
+We kunnen deze implicatie nu instanti\"eren met:
+
+\[ |f = (:)|, |f' = cons|, |h = foldr cons nil| \]
+
+We krijgen dus:
+
+\begin{align*}
+|foldr cons nil (a : b) == cons a (foldr cons nil b)|
+    \Rightarrow \\
+    |foldr cons nil (g (:) b) == g cons (foldr cons nil b)|
+\end{align*}
+
+De linkerkant van de implicatie is triviaal geldig: dit is gewoon de definitie
+van |foldr| voor een niet-ledige lijst. Hieruit volgt dat:
+
+\[ |foldr cons nil (g (:) b) == g cons (foldr cons nil b)| \]
+
+Deze gelijkheid kunnen we opnieuw instanti\"eren, ditmaal met |b = []|. Zo
+krijgen we:
+
+\begin{spec}
+    foldr cons nil (g (:) []) == g cons (foldr cons nil [])
+
+== {- def foldr [] -}
+
+    foldr cons nil (g (:) []) == g cons nil
+
+== {- def build -}
+
+    foldr cons nil (build g) == g cons nil
+\end{spec}
+
+\end{proof}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
