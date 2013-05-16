@@ -676,7 +676,7 @@ The term |E[e]| denotes the expression obtained by replacing the hole by |e|.
 \begin{figure}[t]
 \begin{center}
 \fbox{
-\begin{minipage}{0.9\columnwidth}
+\begin{minipage}{0.95\columnwidth}
 \[\begin{array}{c}
 \myruleform{\inferrule*{}{b \leadsto b'}} \hspace{2cm}
 \inferrule*[left=(\textsc{F-Bind})]{e \stackrel{f}{\leadsto}_{f\,\Box} e'}
@@ -692,12 +692,13 @@ The term |E[e]| denotes the expression obtained by replacing the hole by |e|.
   {\lambda x \rightarrow \lambda y \rightarrow e \stackrel{f}{\leadsto}_E \lambda x \rightarrow \lambda y \rightarrow e'} \\
 \\
 \inferrule*[left=(\textsc{F-AbsCase})]
-  {|e2| = [|z| \mapsto |y|][|zs| \mapsto E[|ys|]]|e'2| \\
-   |z|,|zs|~\textit{fresh} \\ f \not\in |e'2|  \\\\
-   \{|x|,|y|,|ys|\} \cap \textit{fv}(|e'2|) = \emptyset }
+  { [|x| \mapsto |[]|]|e1| = |e'1| \quad\quad |z|,|zs|~\textit{fresh} \\\\
+    [|x| \mapsto |(y:ys)|]|e2| = [|z| \mapsto |y|][|zs| \mapsto E[|ys|]]|e'2| \\
+    f \not\in |e'2|  \\
+   \{|y|,|ys|\} \cap \textit{fv}(|e'2|) = \emptyset }
   {
 |\x -> case x of { [] -> e1 ; (y:ys) -> e2 }| \\
-    \stackrel{f}{\leadsto}_E |\x -> foldr (\z zs -> e'2) e1 x| 
+    \stackrel{f}{\leadsto}_E |\x -> foldr (\z zs -> e'2) e'1 x| 
   } 
 \end{array}\]
 \end{minipage}
@@ -739,22 +740,23 @@ on the rule make sure that the function being rewritten is a proper catamorphism
       by |z|.
 \item If |ys| appears in |e'2|, then, if it appears as $|E|[|ys|]$, the latter
       has not been properly replaced by |zs|. If it appears in any other capacity,
-      then the function is not a catamorphism, but a ... An example of such a
-      function, is the function |tails|.
+      then the function is not a catamorphism, but a \emph{paramorphism}. An example of such a
+      function, is the function |suff|.
 \begin{spec}
-tails = \x -> case x of
+suff = \x -> case x of
             []      -> []
             (y:ys)  -> ys : tails ys
 \end{spec}
-\item If |x| appears in |e'2| (and thus |e2|), then it is essentially an alias for |(y:ys)|
-      and the above two cases apply. For instance, |sums| is a problematic function
-      that is not a |fold|.
+This function can be written as 
 \begin{spec}
-sums = \x -> case x of
-              []      -> 0
-              (y:ys)  -> sum x : sums ys
+suff = para (\z zs r -> zs : r) []
 \end{spec}
-\tom{If |x| appears in |e1|, we need to cope with it as well!}
+where the higher-order pattern of paramorphisms is
+\begin{spec}
+para :: (a -> [a] -> b -> b) -> b -> [a] -> b
+para f z []      = z
+para f z (x:xs)  = f x xs (para f z xs)
+\end{spec}
 \item If |f| appears in any other form than as part of recursive calls of the form $|E|[|ys|]$, then
       again the function is not a proper paramorphism. An example of that case
       is the following non-terminating function:
@@ -764,62 +766,47 @@ f = \x -> case x of
             (x:xs)  -> x + f xs + f [1,2,3]
 \end{spec}
 \end{enumerate}
+Note that we know in the branches |e1| and |e2| the variable |x| is an alias
+for respectively |[]| or |(y:ys)|. The rule exploits this property
+to eliminate |x| in |e'1| and |e'2|. In the latter case it may reveal an improper
+catamorphism, where |ys| appears
+outside of a recursive call (issue 2 above).
 
-A fold may have an arbitrary number of arguments. For example, consider the
-following function:
+The other two rules of the algorithm deal with additional constant arguments.
+In particular, rule (\textsc{F-Abs}) deals with extra arguments that 
+preceed the scrutinee. Consider for instance the well-known |map| function.
+\begin{spec}
+map :: (a -> b) -> [a] -> [b]
+map = \f -> \l -> case l of
+                    []      -> []
+                    (y:ys)  -> f y : map f ys
+\end{spec}
+It is not possible to express |map| itself as a |foldr|.
+\begin{spec}
+map = \l -> foldr ? ?  l
+\end{spec}
+However, it is possible to express |map f| as a |foldr|.
+\begin{spec}
+map = \f -> \l -> foldr (\z zs -> f z : zs) []  l
+\end{spec}
+Hence, rule (\textsc{F-Abs}) performs the rewriting under a binder and
+extends the context for recursive calls to include the new bound variable.
+In the case of the |map| example, the context for recursive calls is |map f box|.
 
-\begin{code}
-mapAppend :: (a -> b) -> [a] -> b -> [b]
-mapAppend f [] z        = [z]
-mapAppend f (x : xs) z  = f x : mapAppend f xs z
-\end{code}
-
-Here, we fold over a list with two extra arguments, namely |f| and |z|. For our
-technique to work correctly, it is catamount that these arguments do not change
-during recursive applications.
-
-\textbf{TODO: Why?}
-
-In the case of extra aguments being present, we rely on two separate deduction
-rules -- for arguments on the left and on the right of the argument over which
-we will perform the fold.
-
-% Finally, the bottom deduction rule from Figure \ref{figure:fold-rules} forms the
-% core of our fold recognition. It is more involved than the other rules and it
-% actually is trivially extended to arbitrary algebraic datatypes. To explain its
-% operation, we consider only the simplified version specific for lists.
-% 
-% An argument |x| is \emph{destroyed}, and we have an expression for every
-% constructor -- in this case |:| and |[]|. Naturally, the expression
-% corresponding to the |[]| constructor becomes the second argument to |foldr|.
-% 
-% For |:|, on the other hand, we have an expression |e2| which can use the
-% subterms |y|, |ys| bound by the |case| expression. In the rewritten version
-% using |foldr|, however, |y| and |ys| are not in scope. Hence, |e2| needs to be
-% converted to an anonymous function taking two parameters instead. Additionally,
-% the explicit recursion needs to be eliminated. This results in the corresponding
-% and rewritten expression |e'2|.
-% 
-% Let's look at a concrete example: where we have an expression for sum.
-% 
-% \begin{spec}
-% sum = \ls -> case ls of
-%     []        -> 0
-%     (x : xs)  -> x + sum xs
-% \end{spec}
-% 
-% We can apply our rules step-by-step to obtain the our result:
-% 
-% \begin{spec}
-% sum = \ls -> foldr (\z -> \zs -> z + zs) 0 ls
-% \end{spec}
-
-% TODO: Examples for this last rule, alternative rule for arguments
-
-% TODO: Check that stuff is in scope.
-
-% TODO: Try to explain the theorem: f is a fold <-> the args are well-scoped.
-
+Rule (\textsc{F-AbsSwap}) deals with additional constant arguments that come
+after the scrutinee argument by temporarily duplicating the first binder after
+the second one. An example that is handled by this rule is the |horner| function,
+\begin{spec}
+horner :: [Int] -> Int -> Int
+horner = \l -> \x -> case l of
+                       []      -> 0
+                       (y:ys)  -> y + x * horner ys x
+\end{spec}
+which is turned into
+\begin{spec}
+horner :: [Int] -> Int -> Int
+horner = \l -> \x -> foldr (\z zs -> z + x * zs) 0 l
+\end{spec}
 
 %-------------------------------------------------------------------------------
 \subsection{Degenerate folds}
