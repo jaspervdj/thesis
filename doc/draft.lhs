@@ -655,9 +655,9 @@ The extension to GHC's full core syntax, including
 types, is relatively straightforward. 
 
 %format box = "\Box"
+%format (many (x)) = "\overline{" x "}"
 We will also need a simple form of \emph{(expression) context}:
 %{
-%format (many (x)) = "\overline{" x "}"
 \begin{center}
 \begin{tabular}{llcl}
 context & |E| & ::=  & |box|  \\
@@ -704,7 +704,7 @@ The term |E[e]| denotes the expression obtained by replacing the hole by |e|.
 \end{minipage}
 }
 \end{center}
-\caption{Fold introduction rules}\label{fig:foldspec}
+\caption{Fold discovery rules}\label{fig:foldspec}
 \end{figure}
 
 Figure~\ref{fig:foldspec} shows our non-deterministic algorithm for rewriting 
@@ -834,6 +834,46 @@ recursive functions.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Identifying build}
+
+\begin{figure}[t]
+\begin{center}
+\fbox{
+\begin{minipage}{0.95\columnwidth}
+\[\begin{array}{c}
+\myruleform{\inferrule*{}{|b| \rightarrowtail |b'|;|b''|}} \quad\quad
+\inferrule*[left=(\textsc{B-Bind})]
+        { |c|, |n|, |g|~\text{fresh} \\ f \not\in e' \\\\
+          e ~{}_f\!\stackrel{c,n}{\rightarrowtail}_g~ e' }
+        {|f = \many x -> e| ~~\rightarrowtail \\\\ 
+          |f = \many x -> build (g (many x))|; \\\\
+          |g = \many x -> e'|
+             } \\
+\\
+\myruleform{\inferrule*{}{|e| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'|}} 
+\quad\quad
+\inferrule*[left=(\textsc{B-Rec})]
+        {  }
+        { |f (many e)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |g (many e)| }  \\
+\\
+\inferrule*[left=(\textsc{B-Nil})]
+        {  }
+        { |[]| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |n| }  
+\quad\quad
+\inferrule*[left=(\textsc{B-Cons})]
+        { |e2| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'2| }
+        { |(e1:e2)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |c e1 e'2| }  \\
+\\
+%format e_i = "e'_i"
+%format ei = "\Varid{e}_i"
+\inferrule*[left=(\textsc{B-Case})]
+        { e_i ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ e_i'\quad (\forall i) }
+        { |case e of many (p -> e)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |case e of many (p -> e')| }  \\
+\end{array}\]
+\end{minipage}
+}
+\end{center}
+\caption{Build discovery rules}\label{fig:buildspec}
+\end{figure}
 
 \begin{figure}[t]
 \begin{center}
