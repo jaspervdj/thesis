@@ -623,87 +623,55 @@ functions in explicitly recursive style and performs foldr/build fusion for any
 directly inductive datatype.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Identifying folds}
+\section{Discovering Folds}
 \label{subsection:identifying-folds}
 
-\subsection{Core Expressions}
+This section explains our approach to turning explicitly recrusive
+functions into invocations of |fold|.
+
+%-------------------------------------------------------------------------------
+\subsection{Syntax and Notation}
 \label{section:core-expressions}
 
-For simplicity, we only use a subset of Haskell called Core. This Core language
-is not much more than System F extended with a |let| and |case| construct
-\cite{sulzmann2007}. However, while it is a subset, it is important to note
-every Haskell expression can be translated into a semantically equal Core
-expression.
-
+To simplify the presentation, we do not explain our approach in terms of
+Haskell source syntax or even GHC's core syntax (based on System F). Instead, we use
+the untyped lambda-calculus extended with constructors and pattern matching,
+and (possibly recursive) bindings.  
 %{
 %format (many (x)) = "\overline{" x "}"
-\begin{spec}
-program ::= many b
-
-b ::= x = e
-
-p ::= K (many (x))
-
-e  ::=  x
-   |    e e
-   |    \x -> e
-   |    literal
-   |    let many b in e
-   |    case e of many (p -> e)
-\end{spec}
-%}
-
-A program consists of different top-level bindings, in which expressions are
-bound to variables.
-
-An expression in $\lambda$-calculus can be a variable, an application or a
-lambda term. Core extends this expression type with literals, |let| and |case|
-expressions.
-
-|let| allows binding expressions to variables, so they only need to be evaluated
-once. This way, the programmer has more control over the evaluation order,
-something which is not defined for $\lambda$-calculus.
-
-|case| is the only branching construct allowed and is used to evaluate and
-inspect the constructor. For every branch, an expression is bound to a pattern.
-This pattern consists of a constructor and can optionally bind a number of
-subterms to variables.
-
-In Table \ref{tabular:haskell-core}, we demonstrate how some common Haskell
-expressions are translated into Core.
-
-\begin{table}
 \begin{center}
-\begin{tabular}{l||l}
-|e1 + e2|              & |(+ e1) e2|                           \\
-|if c then e1 else e2| & |case c of True -> e1; False -> e2;|  \\
-|f x y = e|            & |f = \x -> \y -> e|                   \\
-|e1 where x = e2|      & |let x = e2 in e1|                    \\
-|head (x : _) = x|     & |head = \l -> case l of (x : _) -> x| \\
+\begin{tabular}{llcl}
+binding     & |b| & ::=  & |x = e|  \\
+pattern     & |p| & ::=  & |K (many (x))| \\
+expression  & |e| & ::=  & |x| \\
+            &     & $\mid$ & |e e| \\
+            &     & $\mid$ & |\x -> e| \\
+            &     & $\mid$ & |K| \\
+            &     & $\mid$ & |case e of many (p -> e)|
 \end{tabular}
-\caption{Haskell expressions on the left, and the corresponding Core
-expressions on the right}
-\label{tabular:haskell-core}
 \end{center}
-\end{table}
+%}
+The extension to GHC's full core syntax, including
+types, is relatively straightforward. 
 
-In our actual implementation, we use the GHC Core language. We will come back to
-this in more detail later, in subsection \ref{subsection:ghc-core}.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Identifying folds}
-\label{subsection:identifying-folds}
-
+%format box = "\Box"
+We will also need a simple form of \emph{(expression) context}:
 %{
 %format (many (x)) = "\overline{" x "}"
-%format box = "\Box"
-\begin{spec}
-E  ::=  box
-   |    E e
-   |    e E
-\end{spec}
+\begin{center}
+\begin{tabular}{llcl}
+context & |E| & ::=  & |box|  \\
+            &     & $\mid$ & |E e| \\
+            &     & $\mid$ & |e E|
+\end{tabular}
+\end{center}
 %}
+A context |E| denotes an expression with a hole, denoted by |box|.
+The term |E[e]| denotes the expression obtained by replacing the hole by |e|.
+
+%-------------------------------------------------------------------------------
+\subsection{Discovering Folds}
+\label{subsection:identifying-folds}
 
 \begin{figure}[t]
 \begin{center}
@@ -726,8 +694,7 @@ E  ::=  box
 \inferrule*[left=(\textsc{F-AbsCase})]
   {|e2| = [|z| \mapsto |y|][|zs| \mapsto E[|ys|]]|e'2| \\
    |z|,|zs|~\textit{fresh} \\ f \not\in |e'2|  \\\\
-   \{|x|,|y|,|ys|\} \cap \textit{fv}(|e'2|) = \emptyset   \\
-   |x| \not\in \textit{fv}(|e1|) }
+   \{|x|,|y|,|ys|\} \cap \textit{fv}(|e'2|) = \emptyset }
   {
 |\x -> case x of { [] -> e1 ; (y:ys) -> e2 }| \\
     \stackrel{f}{\leadsto}_E |\x -> foldr (\z zs -> e'2) e1 x| 
@@ -736,91 +703,67 @@ E  ::=  box
 \end{minipage}
 }
 \end{center}
-\caption{Fold introduction rules}
+\caption{Fold introduction rules}\label{fig:foldspec}
 \end{figure}
 
-% \begin{figure}[t]
-% \begin{center}
-%     \fbox{
-%         \begin{tabular}{c}
-% 
-%         % Bindings
-%         \AxiomC{|e| $\leadsto_f$ |e'|}
-%         \RightLabel{binds}
-%         \UnaryInfC{|f = e box| $\leadsto$ |f = e'|}
-%         \DisplayProof
-%         \whiteline
-% 
-%         % Left-side arguments
-%         \AxiomC{|e| $\leadsto_{fx}$ |e'|}
-%         \RightLabel{left arguments}
-%         \UnaryInfC{|\x -> e| $\leadsto_f$ |\x -> e'|}
-%         \DisplayProof
-%         \whiteline
-% 
-%         % Right-side arguments
-%         \AxiomC{|\x -> e| $\leadsto_{|\x -> fxy|}$ |\x -> e'|}
-%         \RightLabel{right arguments}
-%         \UnaryInfC{|\x -> \y -> e| $\leadsto_{f}$ |\x -> y -> e'|}
-%         \DisplayProof
-%         \whiteline
-% 
-%         % Case
-%         \AxiomC{
-%             \begin{minipage}{0.4\columnwidth}
-%             \begin{spec}
-%             z, zs <- fresh
-%             e'2 = \z ->
-%                 subst (subst e2 (f ys) zs) y z
-%             \end{spec}
-%             \end{minipage}
-%         }
-%         \AxiomC{
-%             \begin{minipage}{0.3\columnwidth}
-%             \begin{spec}
-%             x   `notElem` fv(e1)
-%             x   `notElem` fv(e'2)
-%             ys  `notElem` fv(e'2)
-%             \end{spec}
-%             \end{minipage}
-%         }
-%         \RightLabel{case}
-%         \BinaryInfC{
-%             \begin{minipage}{0.35\columnwidth}
-%             \begin{spec}
-%             \x -> case x of
-%                 []        -> e1
-%                 (y : ys)  -> e2
-%             \end{spec}
-%             \end{minipage}
-%             $\leadsto_f$ |\x -> foldr e'2 e1 x|
-%         }
-%         \DisplayProof
-% 
-%         \end{tabular}
-%     }
-%     % \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
-%     \caption{Rewrite rules for introducing fold}
-%     \label{figure:fold-rules}
-% \end{center}
-% \end{figure}
+Figure~\ref{fig:foldspec} shows our non-deterministic algorithm for rewriting 
+function bindings in terms of folds. To keep the exposition simple, the algorithm
+is specialized to folds over lists; we discuss the generalization to other
+algebraic datatypes later on.
 
-In this section, we discuss the identification of folds that adhere to a certain
-set of rules. We begin by explaining how these rules apply to folding over a
-list. Generalising to arbitrary algebraic datatypes then follows naturally and
-is discussed later on.
+The top-level judgement is of the form $|b| \leadsto |b'|$, which denotes the rewriting
+of a function binding |b| to |b'|. It is defined by one rule, (\textsc{F-Bind}), that rewrites
+the body of the binding with the help of the actual worker judgement: \[|e| \stackrel{f}{\leadsto}_E |e|'\]
+This judgement denotes that expression |e| can be rewritten to |e'| within the
+body of the binding for |f|, where recursive calls over a subterm |t| have the
+form $|E|[|t|]$.
 
-With our set of rules, we can rewrite explicit recursion as implicit recursion
-using |foldr|. In these rules, the expression $x \leadsto y$ stands for
-\emph{$x$ can be rewritten as $y$}.
-
-The complete set of rules are shown in Figure \ref{figure:fold-rules}.
-
-We now briefly discuss these rules and show how they can be applied in practice.
-The simplest rule concerns bindings, which are of the form |f = e|. If the body
-can be rewritten as a fold, then the binding can be rewritten in the same
-fashion. Note that this rule applies to top-level bindings as well as to local
-bindings, i.e., in |let| expressions.
+The core rule of the worker judgement is (\textsc{F-AbsCase}), which rewrites a case analysis
+into a fold. For instance, for the |sum| function and |E = sum box|, it rewrites
+\begin{center}
+\begin{minipage}{5cm}
+\begin{spec}
+     \x -> case x of
+             []        -> 0
+             (y,ys)    -> (+) y (sum ys)
+\end{spec}
+\end{minipage}
+\end{center}
+into
+\[ |\x -> foldr (\z zs -> (+) z zs) 0 x| \]
+Note that the recursive call |sum ys| takes the form $|E|[|ys|]$ and is replaced
+by a fresh variable |zs| in the invocation of |foldr|. The side-conditions
+on the rule make sure that the function being rewritten is a proper catamorphism.
+\begin{enumerate}
+\item If |y| appears in |e'2|, this indicates that it has not been properly replaced
+      by |z|.
+\item If |ys| appears in |e'2|, then, if it appears as $|E|[|ys|]$, the latter
+      has not been properly replaced by |zs|. If it appears in any other capacity,
+      then the function is not a catamorphism, but a ... An example of such a
+      function, is the function |tails|.
+\begin{spec}
+tails = \x -> case x of
+            []      -> []
+            (y:ys)  -> ys : tails ys
+\end{spec}
+\item If |x| appears in |e'2| (and thus |e2|), then it is essentially an alias for |(y:ys)|
+      and the above two cases apply. For instance, |sums| is a problematic function
+      that is not a |fold|.
+\begin{spec}
+sums = \x -> case x of
+              []      -> 0
+              (y:ys)  -> sum x : sums ys
+\end{spec}
+\tom{If |x| appears in |e1|, we need to cope with it as well!}
+\item If |f| appears in any other form than as part of recursive calls of the form $|E|[|ys|]$, then
+      again the function is not a proper paramorphism. An example of that case
+      is the following non-terminating function:
+\begin{spec}
+f = \x -> case x of
+            []      -> 0
+            (x:xs)  -> x + f xs + f [1,2,3]
+\end{spec}
+\end{enumerate}
 
 A fold may have an arbitrary number of arguments. For example, consider the
 following function:
@@ -841,37 +784,35 @@ In the case of extra aguments being present, we rely on two separate deduction
 rules -- for arguments on the left and on the right of the argument over which
 we will perform the fold.
 
-
-
-Finally, the bottom deduction rule from Figure \ref{figure:fold-rules} forms the
-core of our fold recognition. It is more involved than the other rules and it
-actually is trivially extended to arbitrary algebraic datatypes. To explain its
-operation, we consider only the simplified version specific for lists.
-
-An argument |x| is \emph{destroyed}, and we have an expression for every
-constructor -- in this case |:| and |[]|. Naturally, the expression
-corresponding to the |[]| constructor becomes the second argument to |foldr|.
-
-For |:|, on the other hand, we have an expression |e2| which can use the
-subterms |y|, |ys| bound by the |case| expression. In the rewritten version
-using |foldr|, however, |y| and |ys| are not in scope. Hence, |e2| needs to be
-converted to an anonymous function taking two parameters instead. Additionally,
-the explicit recursion needs to be eliminated. This results in the corresponding
-and rewritten expression |e'2|.
-
-Let's look at a concrete example: where we have an expression for sum.
-
-\begin{spec}
-sum = \ls -> case ls of
-    []        -> 0
-    (x : xs)  -> x + sum xs
-\end{spec}
-
-We can apply our rules step-by-step to obtain the our result:
-
-\begin{spec}
-sum = \ls -> foldr (\z -> \zs -> z + zs) 0 ls
-\end{spec}
+% Finally, the bottom deduction rule from Figure \ref{figure:fold-rules} forms the
+% core of our fold recognition. It is more involved than the other rules and it
+% actually is trivially extended to arbitrary algebraic datatypes. To explain its
+% operation, we consider only the simplified version specific for lists.
+% 
+% An argument |x| is \emph{destroyed}, and we have an expression for every
+% constructor -- in this case |:| and |[]|. Naturally, the expression
+% corresponding to the |[]| constructor becomes the second argument to |foldr|.
+% 
+% For |:|, on the other hand, we have an expression |e2| which can use the
+% subterms |y|, |ys| bound by the |case| expression. In the rewritten version
+% using |foldr|, however, |y| and |ys| are not in scope. Hence, |e2| needs to be
+% converted to an anonymous function taking two parameters instead. Additionally,
+% the explicit recursion needs to be eliminated. This results in the corresponding
+% and rewritten expression |e'2|.
+% 
+% Let's look at a concrete example: where we have an expression for sum.
+% 
+% \begin{spec}
+% sum = \ls -> case ls of
+%     []        -> 0
+%     (x : xs)  -> x + sum xs
+% \end{spec}
+% 
+% We can apply our rules step-by-step to obtain the our result:
+% 
+% \begin{spec}
+% sum = \ls -> foldr (\z -> \zs -> z + zs) 0 ls
+% \end{spec}
 
 % TODO: Examples for this last rule, alternative rule for arguments
 
@@ -880,34 +821,29 @@ sum = \ls -> foldr (\z -> \zs -> z + zs) 0 ls
 % TODO: Try to explain the theorem: f is a fold <-> the args are well-scoped.
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%-------------------------------------------------------------------------------
 \subsection{Degenerate folds}
 \label{subsection:degenerate-folds}
 
-The algorithm described in \ref{subsection:identifying-folds} also classifies
-\emph{degenerate folds} as being folds. |head| is an example of such a
-degenerate fold:
-
+Our algorithm also transforms certain non-recursive
+functions into folds. For instance, it rewrites
 \begin{code}
 head :: [a] -> a
-head (x : _)  = x
-head []       = error "empty list"
+head = \l -> case l of
+               []      ->  error "empty list"
+               (x:xs)  ->  x
 \end{code}
-
-Can be written as a fold:
-
+into
 \begin{code}
 head' :: [a] -> a
-head' = foldr const (error "empty list")
+head' = \l -> foldr (\z zs -> z) (error "empty list") l
 \end{code}
-
-Fortunately we can easily detect these degenerate folds: iff no recursive
-applications are made in any branch, we have a degenerate fold.
-
-These degenerate folds are of no interest to us, since our applications focus on
-optimisations regarding loop fusion. In degenerate folds, no such loop is
-present, and hence the optimisation is futile.
-
+These \emph{degenerate} folds are of no interest to us, since non-recursive functions
+are much more easily understood as they are than as a fold. Moreover, they can
+easily be optimized without 
+fold/build fusion: by simple inlining and specialization. 
+Fortunately we can easily avoid introducing degenerate folds by only rewriting
+recursive functions.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Identifying build}
