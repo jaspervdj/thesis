@@ -41,6 +41,8 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
 %format f2 = f"_2"
 %format B1 = B"_1"
 %format B2 = B"_2"
+%format xs1 = xs"_1"
+%format xs2 = xs"_2"
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Style
@@ -903,30 +905,49 @@ dan
 theorie} afgeleid worden \cite{wadler1989}. Zo krijgen we voor |g| dat voor alle
 |f1|, |f2| en |h| met als types:
 
-\[ |f1 :: A -> B1 -> B1|, |f2 :: A -> B2 -> B2|, |h :: B1 -> B2| \]
+\begin{center}
+\begin{spec}
+h   :: B1 -> B2
+f1  :: A -> B1 -> B1
+f2  :: A -> B2 -> B2
+\end{spec}
+\end{center}
 
 de volgende implicatie geldt:
 
-\[ |(forall a b. h (f1 a b) == f2 a (h b))|
-    \Rightarrow |(forall b. h (g f1 b) == g f2 (h b))| \]
+\begin{align*}
+(|forall x xs1 xs2. h xs1 == xs2| &\Rightarrow
+        |h (f1 x xs1) == f2 x xs2|) \Rightarrow \\
+(|forall xs1 xs2. h xs1 == xs2| &\Rightarrow
+        |h (g f1 xs1) == g f2 xs2|)
+\end{align*}
 
-We kunnen deze implicatie nu instanti\"eren met: |f1 = (:)|, |f2 = cons|, en
-|h = foldr cons nil|. We krijgen dus:
+De gelijkheid |h xs1 == xs2| kunnen we tweemaal substitueren, waardoor de
+implicatie herleid wordt tot:
 
 \begin{align*}
-|(forall a b. foldr cons nil (a : b)| &|== cons a (foldr cons nil b))|
+(|forall x xs2. h (f1 x xs1)| & |== f2 x (h xs1)|) \Rightarrow \\
+(|forall xs2. h (g f1 xs1)|   & |== g f2 (h xs1)|)
+\end{align*}
+
+We kunnen deze implicatie nu instanti\"eren met: |f1 := (:)|, |f2 := cons|, en
+|h := foldr cons nil|. We krijgen dus:
+
+\begin{align*}
+(|forall x xs2. foldr cons nil (x : xs1)|  & |== cons x (foldr cons nil xs1)|)
     \Rightarrow \\
-    |(forall b. foldr cons nil (g (:) b)| &|== g cons (foldr cons nil b))|
+(|forall xs2. foldr cons nil (g (:) xs1)|  & |== g cons (foldr cons nil xs1)|)
 \end{align*}
 
 De linkerkant van de implicatie is triviaal geldig: dit is gewoon de definitie
 van |foldr| voor een niet-ledige lijst. Hieruit volgt dat:
 
-\[ |(forall b. foldr cons nil (g (:) b) == g cons (foldr cons nil b))| \]
+\[ |(forall xs2. foldr cons nil (g (:) xs2) == g cons (foldr cons nil xs2))| \]
 
-Deze gelijkheid kunnen we opnieuw instanti\"eren, ditmaal met |b = []|. Zo
+Deze gelijkheid kunnen we opnieuw instanti\"eren, ditmaal met |xs2 := []|. Zo
 krijgen we:
 
+\begin{center}
 \begin{spec}
     foldr cons nil (g (:) []) == g cons (foldr cons nil [])
 
@@ -938,6 +959,7 @@ krijgen we:
 
     foldr cons nil (build g) == g cons nil
 \end{spec}
+\end{center}
 
 \end{proof}
 
