@@ -2,7 +2,7 @@
 \documentclass[12pt]{report}
 
 \usepackage[dutch]{babel}
-\usepackage[font=it]{caption}
+\usepackage[font={footnotesize, it}]{caption}
 \usepackage[left=1.90cm, right=1.90cm, top=1.90cm, bottom=3.67cm]{geometry}
 \usepackage[numbers]{natbib}  % For URLs in bibliography
 \usepackage[xetex]{graphicx}
@@ -20,6 +20,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %include polycode.fmt
+%include forall.fmt
 
 % Used to hide Haskell code from LaTeX
 \long\def\ignore#1{}
@@ -36,10 +37,15 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
 \end{code}
 }
 
+%format f1 = f"_1"
+%format f2 = f"_2"
+%format B1 = B"_1"
+%format B2 = B"_2"
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Style
 % \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
-\setmainfont{DejaVu Serif}
+\setmainfont[Ligatures=TeX]{DejaVu Serif}
 \setmonofont{Inconsolata}
 \newfontfamily{\futura}[Scale=1.30]{Futura Std}
 
@@ -67,9 +73,6 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
   {}
   [\normalfont]
 
-\setlength{\parindent}{0.00cm}
-\setlength{\parskip}{0.50cm}
-
 \lstset{basicstyle=\ttfamily, keywordstyle=\ttfamily\bf}
 
 
@@ -84,24 +87,30 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
 \maketitle
 \tableofcontents
 
+\setlength{\parindent}{0.00cm}
+\setlength{\parskip}{0.50cm}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Inleiding}
 
-Laten we beginnen bij het begin. Sinds er programmeertalen gebruikt worden,
-maakt men gebruik van \emph{controlestructuren}. Deze laten toe de manier waarop
-het programma wordt uitgevoerd te be\"invloeden. In assembleertaal zijn dit de
-verschillende \emph{jump} instructies (\texttt{jmp}, \texttt{je}...). Enkel
-gebruik maken van simpele tests en jumps zonder duidelijke consistentie in de
-manier waarop deze gebruikt worden kan echter leiden tot "spaghetti code", code
-die zowel moeilijk te lezen als te onderhouden is.
+Laten we beginnen bij het begin. Reeds van bij de ontwikkeling van de eerste
+computers, naar onze hedendaagse normen vrij rudimentaire machines, was het
+noodzakelijk om in de gebruikte programmeertalen \emph{controlestructuren} te
+voorzien. Deze instructies laten toe de manier waarop het programma wordt
+uitgevoerd te be\"invloeden. In assembleertaal zijn dit de verschillende
+\emph{sprong} instructies (\texttt{jmp}, \texttt{je}...). Typisch zal de
+instructie voor de spronginstructie een testinstructie zijn. Enkel gebruik maken
+van simpele tests en sprongen zonder duidelijke consistentie in de manier waarop
+deze gebruikt worden kan echter leiden tot zogenaamde "spaghetti code". Daarmee
+bedoelen we code die zowel moeilijk te lezen als te onderhouden is.
 
 In latere programmeertalen (initieel talen zoals ALGOL, en een beetje later ook
 C), maakte het concept \emph{gestructureerd programmeren} een opmars.  Dit
 betekende dat controlestructuren van een hoger abstractieniveau, zoals
 bijvoorbeeld \texttt{for}- en \texttt{while}-lussen, werden ge\"introduceerd.
 Deze programmeertalen laten echter meestal wel nog toe om \emph{expliciete}
-jumps te maken door middel van de \texttt{goto} instructie.  Dit wordt
+sprongen te maken door middel van de \texttt{goto} instructie.  Dit wordt
 ge\"illustreerd in Figuur \ref{figure:for-vs-goto}.
 
 \begin{figure}[h]
@@ -137,7 +146,7 @@ ge\"illustreerd in Figuur \ref{figure:for-vs-goto}.
   \label{figure:for-vs-goto}
 \end{figure}
 
-De versie die gebruikt maakt van \texttt{for} is makkelijker leesbaar voor
+De versie die gebruikt maakt van \texttt{for} is eenvoudiger leesbaar voor
 programmeurs die bekend zijn met dit concept. Het is immers niet langer nodig om
 de labels en \texttt{goto} instructies manueel te matchen en de relatie te
 bestuderen: het gebruikte keyword kondigt onmiddelijk de gebruikt
@@ -160,9 +169,9 @@ nodig. Dit biedt verschillende voordelen:
 
 \begin{itemize}[topsep=0.00cm]
 \item Voor een programmeur die bekend is met de gebruikte hogere-orde functies
-is mogelijk de code veel sneller te begrijpen: ze herkennen onmiddelijk het
-patroon dat aangeboden wordt door de functie en dienen enkel de argumenten van
-deze functie te bestuderen.
+is mogelijk de code veel sneller te begrijpen \cite{dubochet2009}: ze herkennen
+onmiddelijk het patroon dat aangeboden wordt door de functie en dienen enkel de
+argumenten van deze functie te bestuderen.
 
 \item Door gebruik te maken van hogere-orde functies wordt de code beknopter.
 Eerder is aangetoond dat het aantal fouten in code proportioneel is tot de
@@ -201,9 +210,9 @@ concreet:
 \begin{itemize}[topsep=0.00cm]
 
 \item We tonen aan hoe functies die expliciete recursie gebruiken maar wel een
-specifiek soort patroon (meer bepaald \emph{catamorfismes}) volgen kunnen
-gedetecteerd worden, en vertaald naar een versie die een hogere-orde |fold|
-functie gebruikt in plaats van expliciete recursie.
+specifiek soort patroon (meer bepaald \emph{catamorfismes} \TODO{citatie?})
+volgen kunnen gedetecteerd worden, en vertaald naar een versie die een
+hogere-orde |fold| functie gebruikt in plaats van expliciete recursie.
 
 \item Tevens leggen we ook uit hoe we functies die geschreven kunnen worden als
 een toepassing van |build| kunnen detecteren en vertalen naar een versie die
@@ -313,13 +322,18 @@ E\'en van de de bekendste voorbeelden hiervan is de \emph{Y-combinator}.
 \[ |Y = \f -> (\x -> f (x x)) (\x -> f (x x))| \]
 \end{theorem:y-combinator}
 
+\newtheorem*{theorem:y-fixpoint}{Stelling}
+\begin{theorem:y-fixpoint}\label{theorem:y-fixpoint}
+|Y| is een fixpoint-combinator.
+\end{theorem:y-fixpoint}
+
 \begin{proof}
 We kunnen eenvoudig aantonen dat dit wel degelijk een fixpoint-combinator is.
 
 \begin{spec}
     Y f
 
-== {- def Y -}
+== {- def |Y| -}
 
     (\f -> (\x -> f (x x)) (\x -> f (x x))) f
 
@@ -335,7 +349,7 @@ We kunnen eenvoudig aantonen dat dit wel degelijk een fixpoint-combinator is.
 
     f ((\f -> (\x -> f (x x)) (\x -> f (x x))) f)
 
-== {- def Y -}
+== {- def |Y| -}
 
     f (Y f)
 \end{spec}
@@ -483,13 +497,14 @@ odds = filter odd
 \end{code}
 
 \section{De universele eigenschap van fold}
+\label{section:universal-fold}
 
 Het feit dat we zowel |map| als |filter| schrijven met behulp van |foldr| duidt
 aan dat |foldr| een zeer interessante functie is. Meer bepaald, de universele
-eigenschap van fold \cite{hutton1999} is weergegeven in definitie
+eigenschap van fold \cite{hutton1999} is weergegeven in stelling
 \ref{theorem:universal-fold}.
 
-\newtheorem{theorem:universal-fold}{Definitie}[section]
+\newtheorem{theorem:universal-fold}{Stelling}[section]
 \begin{theorem:universal-fold}\label{theorem:universal-fold}
 \[
   |g = foldr f v|
@@ -536,6 +551,16 @@ data Tree a
     =  Leaf a
     |  Branch (Tree a) (Tree a)
 \end{code}
+
+% For testing
+\ignore{
+\begin{code}
+instance Show a => Show (Tree a) where
+    show = foldTree
+        (\x   -> "(Leaf " ++ show x ++ ")")
+        (\l r -> "(Branch " ++ l ++ " " ++ r ++ ")")
+\end{code}
+}
 
 Door een functie-argument te specifi\"eren voor elke constructor, kunnen we nu
 een fold defin\"eren voor het type |Tree|:
@@ -587,15 +612,15 @@ voorbeelden.
 type, en geeft een waarde van het type |b| terug.
 
 \begin{spec}
-foldTree :: ... -> Tree a -> b
-foldList :: ... -> [a] -> b
+foldTree  :: ... -> Tree a -> b
+foldList  :: ... -> [a] -> b
 \end{spec}
 
 \item Per constructor wordt er een extra argument meegeven.
 
 \begin{spec}
-foldTree :: <LeafArg> -> <NodeArg> -> Tree a -> b
-foldList :: <ConsArg> -> <NilArg> -> [a] -> b
+foldTree  :: <LeafArg> -> <NodeArg> -> Tree a -> b
+foldList  :: <ConsArg> -> <NilArg> -> [a] -> b
 \end{spec}
 
 \item Wat zijn nu de concrete types van deze argumenten? Laten we eerst de types
@@ -625,8 +650,8 @@ type |b|. Eveneens is |b| het type van het resultaat. We vinden:
 En dus:
 
 \begin{spec}
-foldTree :: (a -> b) -> (b -> b -> b) -> Tree a -> b
-foldList :: (a -> b -> b) -> b -> [a] -> b
+foldTree  :: (a -> b) -> (b -> b -> b) -> Tree a -> b
+foldList  :: (a -> b -> b) -> b -> [a] -> b
 \end{spec}
 
 \item Eens de type-signaturen bepaald zijn is het genereren van de implementatie
@@ -636,10 +661,10 @@ Argument Transformation (zie \TODO{Cite SAT}).
 
 \begin{spec}
 foldTree :: (a -> b) -> (b -> b -> b) -> Tree a -> b
-foldTree leaf node = go
+foldTree leaf branch = go
   where
     go (Leaf x)    = leaf x
-    go (Node x y)  = node (go x) (go y)
+    go (Node x y)  = branch (go x) (go y)
 
 foldList :: (a -> b -> b) -> b -> [a] -> b
 foldList cons nil = go
@@ -656,6 +681,8 @@ een recursieve subterm is dit |go t|.
 \end{enumerate}
 
 \section{Fusion: Folds en Builds}
+
+\subsection{Wat is fusion?}
 
 Naast de verschillende voordelen op vlak van \emph{refactoring}, is het ook
 mogelijk \emph{optimalisaties} door te voeren op basis van deze hogere-orde
@@ -691,27 +718,26 @@ combineren met de leesbaarheid van de tweede versie. Dit wordt mogelijk gemaakt
 door \emph{fusion} \cite{wadler1990} \cite{gill1993}.
 
 We kunnen fusion best uitleggen door te starten met een eenvoudig voorbeeld:
-\emph{map/map-fusion}. Dit is een transformatie die gegeven wordt door de
-definitie \ref{theorem:map-map-fusion}.
+\emph{map/map-fusion}. Dit is een transformatie die gegeven wordt door
+stelling \ref{theorem:map-map-fusion}.
 
-\newtheorem{theorem:map-map-fusion}{Definitie}[section]
+\newtheorem{theorem:map-map-fusion}{Stelling}[section]
 \begin{theorem:map-map-fusion}\label{theorem:map-map-fusion}
 \[ |map f . map g| ~~ |==| ~~ |map (f . g)| \]
 \end{theorem:map-map-fusion}
 
-Deze equivalentie is eenvoudig te bewijzen via inductie.
-
 \begin{proof}
-We bewijzen dit eerst voor de lege lijst |[]|. Voor |map f . map g| krijgen we:
+Deze equivalentie is eenvoudig te bewijzen via inductie.  We bewijzen dit eerst
+voor de lege lijst |[]|. Voor |map f . map g| krijgen we:
 
 \begin{spec}
     map f (map g [])
 
-== {- def map [] -}
+== {- def |map []| -}
 
     map f []
 
-== {- def map [] -}
+== {- def |map []| -}
 
     []
 \end{spec}
@@ -722,7 +748,7 @@ En voor |map (f . g)| krijgen we:
 
     map (f . g) []
 
-== {- def map [] -}
+== {- def |map []| -}
 
     []
 \end{spec}
@@ -733,11 +759,11 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 \begin{spec}
     map f (map g (x : xs))
 
-== {- def map : -}
+== {- def |map :| -}
 
     map f (g x : map g xs)
 
-== {- def map : -}
+== {- def |map :| -}
 
     f (g x) : map f (map g xs)
 
@@ -745,15 +771,367 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 
     f (g x) : map (f . g) xs
 
-== {- def map : -}
+== {- def |map :| -}
 
     map (f . g) (x : xs)
 \end{spec}
 \end{proof}
 
-\emph{foldr/build-fusion}:
+GHC beschikt over een mechanisme om dit soort transformaties uit te voeren
+tijdens de compilatie, door middel van het \texttt{RULES} pragmas
+\cite{jones2001}. Zo kunnen we bijvoorbeeld map/map-fusion implementeren door
+eenvodigweg het volgende pragma te vermelden:
+
+\begin{lstlisting}
+{-# RULES "map/map-fusion" forall f g xs.
+    map f (map g xs) = map (f . g) xs #-}
+\end{lstlisting}
+
+Het nadeel van deze aanpak is echter dat het aantal nodige rules kwadratisch
+stijgt in proportie tot het aantal hogere-orde functies dat op het datatype (in
+dit geval lijsten) werkt.
+
+Ter illustratie, als we bijvoorbeeld enkel de functies |map| en |filter|
+beschouwen, hebben we al vier rules nodig, en een additonele hulpfunctie
+|mapFilter|:
+
+\begin{spec}
+map f . map g        = map (f . g)
+map f . filter g     = mapFilter f g
+filter f . map g     = filter (f . g)
+filter f . filter g  = filter (\x -> f x && g x)
+
+mapFilter :: (a -> b) -> (a -> Bool) -> [a] -> [b]
+mapFilter _ _ []  = []
+mapFilter f g (x : xs)
+    | g x         = f x : mapFilter f g xs
+    | otherwise   = mapFilter f g xs
+\end{spec}
+
+Voor sommige modules ligt het aantal hogere-orde functies zeer hoog, dus wordt
+deze aanpak onhaalbaar.
+
+\subsection{Foldr/build-fusion}
+
+Dit probleem wordt opgelost met \emph{foldr/build-fusion}. We kunnen |foldr|
+beschouwen als een algemene manier om lijsten te \emph{consumeren}. Hiervan is
+|build| de tegenhanger: een algemene manier om lijsten te \emph{produceren}.
+
+\begin{code}
+build :: (forall b. (a -> b -> b) -> b -> b) -> [a]
+build g = g (:) []
+\end{code}
+
+We kunnen nu bijvoorbeeld |map| en |filter| met behulp van |build|:
+
+\begin{spec}
+map :: (a -> b) -> [a] -> [b]
+map f ls = build $ \cons nil ->
+    foldr (\x xs -> cons (f x) xs) nil ls
+
+filter :: (a -> Bool) -> [a] -> [a]
+filter f ls = build $ \cons nil ->
+    foldr (\x xs -> if f x then cons x xs else xs) nil ls
+\end{spec}
+
+Het nut van |build| wordt nu duidelijk: we gebruiken deze functie om te
+\emph{abstraheren} over de concrete constructoren: in plaats van |:| en |[]|
+gebruiken we nu de abstracte |cons| en |nil|.
+
+De type-signatuur van |build| met het expliciet gequantificeerde type |b| is
+cruciaal. Stel dat dit niet het geval zou zijn, en dat we |build| zouden
+defini\"eren met de meest algemene type-signatuur:
+
+\begin{code}
+build' :: ((a -> [a] -> [a]) -> [a] -> t) -> t
+build' g = g (:) []
+\end{code}
+
+Dan zou code als |list123| well-typed zijn:
+
+\begin{code}
+list123 :: [Int]
+list123 = build' $ \cons nil -> 1 : cons 2 (cons 3 [])
+\end{code}
+
+We krijgen een lijst die zowel gebruikt maakt van de concrete constructoren als
+de abstracte versies. Dit leidt tot problemen: intu\"itief laten de abstracte
+versies ons toe om de constructoren |:| en |[]| te \emph{vervangen} door andere
+functies -- en zoals we in Sectie \ref{section:universal-fold} zagen, kunnen we
+het toepassen van |foldr| net beschouwen als het vervangen van de constructoren
+door de argumenten van |foldr|!
+
+Als we echter ook nog letterlijk verwijzen naar |:| en |[]|, is deze vervanging
+onmogelijk. Het gequantificeerde type |b| lost dit probleem op. De programmeur
+is verplicht een |g| mee te geven die werkt voor \emph{elke} |b|, en hij weet
+niet welk type uiteindelijk geconstrueerd zal worden. Bijgevolg en kan hij dus
+ook geen concrete constructoren gebruiken.
+
+Nu we vastgesteld hebben dat enkel de abstracte versies van de constructoren
+gebruikt worden, laat dit idee ons toe om de productie en consumatie van een
+lijst te fusen, zodanig dat er geen tijdelijke lijst moet worden aangemaakt. We
+werken dit nu formeel uit.
+
+\newtheorem{theorem:foldr-build-fusion}{Stelling}[section]
+\begin{theorem:foldr-build-fusion}\label{theorem:foldr-build-fusion}
+Als
+
+\[ |g :: forall b. (a -> b -> b) -> b -> b| \]
+
+dan
 
 \[ |foldr cons nil (build g)| ~~ |==| ~~ |g cons nil| \]
+\end{theorem:foldr-build-fusion}
+
+\begin{proof} Van het type van een polymorfe functie kan een \emph{gratis
+theorie} afgeleid worden \cite{wadler1989}. Zo krijgen we voor |g| dat voor alle
+|f1|, |f2| en |h| met als types:
+
+\[ |f1 :: A -> B1 -> B1|, |f2 :: A -> B2 -> B2|, |h :: B1 -> B2| \]
+
+de volgende implicatie geldt:
+
+\[ |(forall a b. h (f1 a b) == f2 a (h b))|
+    \Rightarrow |(forall b. h (g f1 b) == g f2 (h b))| \]
+
+We kunnen deze implicatie nu instanti\"eren met: |f1 = (:)|, |f2 = cons|, en
+|h = foldr cons nil|. We krijgen dus:
+
+\begin{align*}
+|(forall a b. foldr cons nil (a : b)| &|== cons a (foldr cons nil b))|
+    \Rightarrow \\
+    |(forall b. foldr cons nil (g (:) b)| &|== g cons (foldr cons nil b))|
+\end{align*}
+
+De linkerkant van de implicatie is triviaal geldig: dit is gewoon de definitie
+van |foldr| voor een niet-ledige lijst. Hieruit volgt dat:
+
+\[ |(forall b. foldr cons nil (g (:) b) == g cons (foldr cons nil b))| \]
+
+Deze gelijkheid kunnen we opnieuw instanti\"eren, ditmaal met |b = []|. Zo
+krijgen we:
+
+\begin{spec}
+    foldr cons nil (g (:) []) == g cons (foldr cons nil [])
+
+== {- def |foldr []| -}
+
+    foldr cons nil (g (:) []) == g cons nil
+
+== {- def |build| -}
+
+    foldr cons nil (build g) == g cons nil
+\end{spec}
+
+\end{proof}
+
+Ter illustratie tonen we nu hoe met deze enkele fusion-regel onze elegantere
+versie van |sumOfSquaredOdds'| automatisch door GHC kan worden omgezet naar een
+performante versie.
+
+\begin{spec}
+    sumOfSquaredOdds'
+
+== {- inline |sumOfSquaredOdds'| -}
+
+    sum . map (^ 2) . filter odd
+
+== {- inline |.| -}
+
+    \ls -> sum (map (^ 2) (filter odd ls))
+
+== {- inline |filter| -}
+
+    \ls -> sum (map (^ 2)
+        (build $ \cons nil ->
+            foldr (\x xs -> if odd x then cons x xs else xs) nil ls))
+
+== {- inline |map| -}
+
+    \ls -> sum
+        (build $ \cons' nil' ->
+            foldr (\x xs -> cons' (x ^ 2) xs) nil'
+                (build $ \cons nil ->
+                    foldr (\x xs -> if odd x then cons x xs else xs) nil ls))
+
+== {- foldr/build-fusion -}
+
+    \ls -> sum
+        (build $ \cons' nil' ->
+            (\cons nil ->
+                foldr (\x xs -> if odd x then cons x xs else xs) nil ls)
+            (\x xs -> cons' (x ^ 2) xs)
+            nil')
+
+== {- $\beta$-reductie -}
+
+    \ls -> sum
+        (build $ \cons' nil' ->
+            foldr (\x xs -> if odd x then cons' (x ^ 2) xs else xs) nil' ls)
+
+== {- inline |sum| -}
+
+    \ls -> foldr (+) 0
+        (build $ \cons' nil' ->
+            foldr (\x xs -> if odd x then cons' (x ^ 2) xs else xs) nil' ls)
+
+== {- foldr/build-fusion -}
+
+    \ls -> (\cons' nil' ->
+        foldr (\x xs -> if odd x then cons' (x ^ 2) xs else xs) nil' ls) (+) 0
+
+== {- $\beta$-reductie -}
+
+    \ls -> foldr (\x xs -> if odd x then (x ^ 2) + xs else xs) 0 ls
+
+\end{spec}
+
+Finaal is |sumOfSquaredOdds'| dus volledig gereduceerd tot \'e\'en enkele
+|foldr| over een lijst: het is niet meer nodig om tijdelijke lijsten te
+alloceren om het resultaat te berekenen. In \TODO{Cite results chapter} tonen we
+aan dat dit leid tot significante speedups.
+
+We krijgen dus als het ware het beste van beide werelden: we kunnen elegante
+definities gebruiken voor de functies, die eenvoudiger leesbaar zijn en
+makkelijker onderhoudbaar; maar tevens worden deze vertaald door de compiler tot
+snelle, geoptimaliseerde versies.
+
+\subsection{Foldr/build for algebra\"ische datatypes}
+
+In Sectie \ref{section:universal-fold} toonden we reeds aan dat we een |fold|
+kunnen defini\"eren voor om het even welk algebra\"isch datatype. Dit is ook
+mogelijk voor |build|. Beschouw bijvoorbeeld een |build| voor ons
+|Tree|-datatype:
+
+\begin{code}
+buildTree :: (forall b. (a -> b) -> (b -> b -> b) -> b) -> Tree a
+buildTree g = g Leaf Branch
+\end{code}
+
+Zodra we beschikken over een |fold| en een |build| voor een algebra\"isch
+datatype, is het mogelijk om fusion toe te passen. Voor het type |Tree| wordt de
+fusion-regel gegeven in definitie \ref{theorem:foldr-build-tree-fusion}.
+
+\newtheorem{theorem:foldr-build-tree-fusion}{Definitie}[section]
+\begin{theorem:foldr-build-tree-fusion}\label{theorem:foldr-build-tree-fusion}
+\[ |foldTree leaf branch (buildTree g)| ~~ |==| ~~ |g leaf branch| \]
+\end{theorem:foldr-build-tree-fusion}
+
+Het bewijs hiervan verloopt analoog aan het bewijs voor
+\ref{theorem:foldr-build-fusion} en wordt hier achterwege gelaten \TODO{Of moet
+ik dit wel includeren? Het is 99\% hetzelfde...}.
+
+Om dit te verduidelijken kunnen we kijken naar een concreet voorbeeld. Beschouw
+de voorbeeldfunctie |treeUpTo| die een boom maakt met alle elementen van |n| tot
+en met |m| in-order in de bladeren.
+
+\begin{code}
+treeUpTo :: Int -> Int -> Tree Int
+treeUpTo n m = buildTree $ \leaf branch ->
+    let g lo hi
+            | lo >= hi   = leaf lo
+            | otherwise  =
+                let mid = (lo + hi) `div` 2
+                in branch (g lo mid) (g (mid + 1) hi)
+    in g n m
+\end{code}
+
+Nu kunnen we bestuderen wat gebeurd met een expressie als |sumTree (treeUpTo
+n m)|, die normaliter een tijdelijke boom moet aanmaken.
+
+\begin{spec}
+    sumTree (treeUpTo n m)
+
+== {- inline |sumTree| -}
+
+    foldTree id (+) (treeUpTo n m)
+
+== {- inline |makeTree| -}
+
+    foldTree id (+) (buildTree $ \leaf branch ->
+        let g lo hi
+                | lo >= hi   = leaf lo
+                | otherwise  =
+                    let mid = (lo + hi) `div` 2
+                    in branch (g lo mid) (g (mid + 1) hi)
+        in g n m)
+
+== {- foldTree/buildTree-fusion -}
+
+    (\leaf branch ->
+        let g lo hi
+                | lo >= hi   = leaf lo
+                | otherwise  =
+                    let mid = (lo + hi) `div` 2
+                    in branch (g lo mid) (g (mid + 1) hi)
+        in g n m)
+    id (+)
+
+== {- $\beta$-reductie -}
+
+    let g lo hi
+            | lo >= hi   = id lo
+            | otherwise  =
+                let mid = (lo + hi) `div` 2
+                in (g lo mid) + (g (mid + 1) hi)
+    in g n m
+\end{spec}
+
+We krijgen een expressie die rechtstreeks de som uitrekent zonder ooit een
+constructor te gebruiken. Opnieuw zal dit voor een significante speedup zorgen
+\TODO{Cite results chapter}.
+
+Omdat naast |fold| ook |build| functies eenvoudig af te leiden zijn vanuit de
+definitie van een datatype, hebben we dit ook geautomatiseerd. De programmeur
+dient enkel nog |deriveBuild| op te roepen:
+
+%{
+%format quote = "~ ``"
+\begin{spec}
+$(deriveBuild quote Tree "buildTree")
+\end{spec}
+%}
+
+Het algoritme om een |build| werkt als volgt:
+
+\begin{enumerate}
+
+\item De fold gebruikt een gequantificeerd type |b| in een functie |g| en geeft
+een waarde terug van het opgegeven type.
+
+\begin{spec}
+buildTree :: (forall b. ... -> b) -> Tree a
+buildTree g = ...
+
+buildList  :: (forall b. ... -> b) -> [a]
+buildList g = ...
+\end{spec}
+
+\item Opnieuw krijgen we voor elke constructor een functieparameter, ditmaal
+voor |g|. De types voor deze functieparameters worden afgeleid op dezelfde
+manier als in het algoritme voor |deriveFold| (zie Sectie
+\ref{section:universal-fold}).
+
+\begin{spec}
+buildTree :: (forall b. (a -> b) -> (b -> b -> b) -> b) -> Tree a
+buildTree g = ...
+
+buildList  :: (forall b. (a -> b -> b) -> b -> b) -> [a]
+buildList g = ...
+\end{spec}
+
+\item De implementatie bestaat er vervolgens gewoon uit het toepassen van |g| op
+de concrete constructoren.
+
+\begin{spec}
+buildTree :: (forall b. (a -> b) -> (b -> b -> b) -> b) -> Tree a
+buildTree g = g Leaf Branch
+
+buildList  :: (forall b. (a -> b -> b) -> b -> b) -> [a]
+buildList g = g (:) []
+\end{spec}
+
+\end{enumerate}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
