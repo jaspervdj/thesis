@@ -105,16 +105,19 @@ van simpele tests en sprongen zonder duidelijke consistentie in de manier waarop
 deze gebruikt worden kan echter leiden tot zogenaamde "spaghetti code". Daarmee
 bedoelen we code die zowel moeilijk te lezen als te onderhouden is.
 
-In latere programmeertalen (initieel talen zoals ALGOL, en een beetje later ook
+In latere programmeertalen (initieel talen zoals ALGOL, gevolgd door talen als
 C), maakte het concept \emph{gestructureerd programmeren} een opmars.  Dit
-betekende dat controlestructuren van een hoger abstractieniveau, zoals
+betekent dat controlestructuren van een hoger abstractieniveau, zoals
 bijvoorbeeld \texttt{for}- en \texttt{while}-lussen, werden ge\"introduceerd.
 Deze programmeertalen laten echter meestal wel nog toe om \emph{expliciete}
-sprongen te maken door middel van de \texttt{goto} instructie.  Dit wordt
-ge\"illustreerd in Figuur \ref{figure:for-vs-goto}.
+sprongen te maken door middel van de \texttt{goto} instructie \footnote{Merk op
+dat deze programmeertalen door een compiler worden omgezet naar machinetaal,
+waarin wel nog sprongen voorkomen. Dit vormt echter geen probleem voor
+leesbaarheid, sinds de meeste programmeurs deze machinetaal slechts zelden
+zullen bekijken.}. Dit wordt ge\"illustreerd in Figuur \ref{figure:for-vs-goto}.
 
 \begin{figure}[h]
-  \begin{minipage}[c]{0.5\textwidth}
+  \begin{minipage}[t]{0.5\textwidth}
     \begin{lstlisting}[language=C, gobble=4]
     int sum_squares_for(int n) {
       int i, sum = 0;
@@ -127,7 +130,7 @@ ge\"illustreerd in Figuur \ref{figure:for-vs-goto}.
     }
     \end{lstlisting}
   \end{minipage}
-  \begin{minipage}[c]{0.5\textwidth}
+  \begin{minipage}[t]{0.5\textwidth}
     \begin{lstlisting}[language=C, gobble=4]
     int sum_squares_goto(int n) {
       int i, sum = 0;
@@ -141,8 +144,9 @@ ge\"illustreerd in Figuur \ref{figure:for-vs-goto}.
     }
     \end{lstlisting}
   \end{minipage}
-  \caption{Twee semantisch equivalente programma's, links \'e\'en met
-  hoger-niveau controlestructuren en rechts \'e\'en met \texttt{goto}'s}
+  \caption{Twee semantisch equivalente programma's in de programmeertal C, links
+  \'e\'en met hoger-niveau controlestructuren en rechts \'e\'en met
+  \texttt{goto}'s.}
   \label{figure:for-vs-goto}
 \end{figure}
 
@@ -153,8 +157,8 @@ bestuderen: het gebruikte keyword kondigt onmiddelijk de gebruikt
 controlestructuur aan (dit wordt meestal ook visueel ondersteund door gebruik te
 maken van indentatie).
 
-Ook is het mogelijk formele eigenschappen uit te drukken over programmas die
-geschreven zijn in deze stijl, bijvoorbeeld met Floyd-Hoare logica
+Bovendien is het mogelijk formele eigenschappen uit te drukken over programma's
+die geschreven zijn in deze stijl, bijvoorbeeld met Floyd-Hoare logica
 \cite{floyd1967}. Dit leidde zelfs tot de conclusie dat het gebruik van
 \texttt{goto} volledig vermeden moet worden \cite{dijkstra1968}.
 
@@ -162,52 +166,55 @@ Een soortgelijke redenering is te maken over \emph{functionele
 programmeertalen}. Deze talen maken geen gebruik van \texttt{goto} instructies,
 maar implementeren controlestructuren door middel van \emph{recursie}.
 
-Deze programmeertalen bieden een hoog niveau van abstractie, en moedigen de
+Deze programmeertalen bieden een hoog abstractieniveau, en moedigen de
 programmeurs aan om gebruik te maken van \emph{hogere-orde} functies (bv.
 |map|, |filter|, |any|, \ldots). Op deze manier is geen expliciete recursie
 nodig. Dit biedt verschillende voordelen:
 
-\begin{itemize}[topsep=0.00cm]
+\begin{enumerate}[topsep=0.00cm]
 \item Voor een programmeur die bekend is met de gebruikte hogere-orde functies
-is mogelijk de code veel sneller te begrijpen \cite{dubochet2009}: ze herkennen
-onmiddelijk het patroon dat aangeboden wordt door de functie en dienen enkel de
+is mogelijk de code veel sneller te begrijpen \cite{dubochet2009}: men herkent
+onmiddelijk het patroon dat aangeboden wordt door de functie en dient enkel de
 argumenten van deze functie te bestuderen.
 
 \item Door gebruik te maken van hogere-orde functies wordt de code beknopter.
 Eerder is aangetoond dat het aantal fouten in code proportioneel is tot de
 grootte van de codebase \cite{gaffney1984}. Hieruit kunnen we concluderen dat
-het gebruik van hogere-orde functies het aantal fouten in programmas zou moeten
+het gebruik van hogere-orde functies het aantal fouten in programma's zou moeten
 reduceren.
 
 \item Het is mogelijk eigenschappen \'e\'enmaal te bewijzen over een
 hogere-orde functie voor willekeurige argumenten. Dit spaart ons werk uit als
-we willen redeneren over code, want de resultaten van deze bewijzen gelden dan
-voor elke applicatie van deze hogere-orde functie.
+we willen redeneren over code, want de bewijzen gelden dan voor elke applicatie
+van deze hogere-orde functie.
 
 \item Ook de compiler kan gebruik maken van deze eigenschappen, om verschillende
 optimalisaties uit te voeren op de code.
-\end{itemize}
+\end{enumerate}
 
 Deze redenen vormen een sterke motivatie om in deze talen geen expliciete
-recursie te gebruiken wanneer een hogere-orde functie beschikbaar is. Toch
-blijkt dat veel programmeurs nog gebruik maken van expliciete recursie.
+recursie te gebruiken als een hogere-orde functie beschikbaar is. Toch blijkt
+dat veel programmeurs nog gebruik maken van expliciete recursie.
 
 Enkele redenen hiervoor zijn bijvoorbeeld dat de programmeur niet bekend is met
-de hogere-orde functie, of dat er geen tijd is om de functie te refactoren. We
-zien zelfs dat we voorbeelden terugvinden van expliciete recursie in code
-geschreven door geavanceerde gebruikers van functionele programmeertalen
-\TODO{cite: GHC HQ does it}.
+de hogere-orde functie, of dat er geen tijd is om zijn zelfgeschreven functie te
+herschrijven op basis van bestaande hogere-orde functies. We zien zelfs dat we
+voorbeelden terugvinden van expliciete recursie in code geschreven door
+gevorderde gebruikers van functionele programmeertalen \TODO{cite: GHC HQ does
+it}.
 
-De voordelen die hierboven beschreven staan vormen een motivatie om te
-onderzoeken of het niet mogelijk is om deze functies, geschreven in expliciet
-recursieve stijl, automatisch om te zetten in functies die gebruik maken van de
+De hierboven beschreven voordelen vormen de basismotivatie voor het onderzoek
+dat we in deze thesis vericht hebben. We richten ons op functies die geschreven
+zijn in een expliciete recursieve stijl en onderzoeken in welke gevallen het
+mogelijk is deze automatisch om te zetten in functies die gebruik maken van de
 hogere-orde hulpfuncties. Op die manier kan de programmeur code schrijven in om
 het even welke stijl, en toch genieten van de verschillende optimalisaties.
 
-In dit document beschrijven we een aanpak om dit mogelijk te maken. Meer
-concreet:
+We hanteren hiervoor de volgende concrete aanpak:
 
-\begin{itemize}[topsep=0.00cm]
+\TODO{Verwijs meer naar hoofdstukken hier}
+
+\begin{enumerate}[topsep=0.00cm]
 
 \item We tonen aan hoe functies die expliciete recursie gebruiken maar wel een
 specifiek soort patroon (meer bepaald \emph{catamorfismes} \TODO{citatie?})
@@ -226,16 +233,18 @@ Haskell-programma. Deze plugin werkt zowel voor de typische folds over lijsten
 in Haskell (|[a]|), maar ook voor andere (direct) recursieve datatypes,
 gedefini\"eerd door de gebruiker.
 
-\item We onderzochten het aantal functies in enkele bekende Haskell programmas
+\item We onderzochten het aantal functies in enkele bekende Haskell programma's
 die kunnen herschreven worden met behulp van de hogere orde functie |fold|. Deze
 blijken in vele packages aanwezig te zijn. Ook bekijken we de resultaten van
 enkele benchmarks na automatische |foldr/build-fusion|. Omdat
 |foldr/build-fusion| de compiler toelaat om tussentijdse allocatie te vermijden,
 zien we hier zeer grote speedups.
 
-\end{itemize}
+\end{enumerate}
 
-\TODO{Kort overzicht van de verschillende hoofdstukken}
+We kozen Haskell als programmeertaal voor ons onderzoek. In het volgende
+hoofdstuk zullen we kort ingaan op de eigenschappen van deze programmeertaal die
+we gebruiken in deze thesis.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -246,16 +255,17 @@ omwille van verschillende redenen:
 
 \begin{itemize}[topsep=0.00cm]
 
-\item Een grote variatie aan hogere-orde functies is beschikbaar. Voor lijsten
-worden vele zelfs beschikbaar gesteld in het Prelude, de module die impliciet in
-elk Haskell-programma wordt ge\"importeerd. Zo is bijvoorbeeld |foldr|
-beschikbaar zonder ook maar \'e\'en library te moeten importeren! Verdere folds,
-ook over andere datatypes, zijn beschikbaar in aanvullende libraries.
+\item Het Haskell Prelude \footnote{Het Prelude is de module die impliciet in
+elk Haskell-programma wordt ge\"importeerd. De functies hieruit zijn dus
+rechtstreeks te gebruiken zonder dat men een library moet importeren.} en de
+beschikbare libraries bieden een waaier aan hogere-orde functies aan.
 
 \item Haskell is een sterk getypeerde programmeertaal. Na het ini\"ele parsen en
 typechecken van de code is deze type-informatie is beschikbaar in elke stap van
 de compilatie. Deze types geven ons meer informatie die we kunnen gebruiken in
-de transformaties.
+de transformaties. Bovendien maakt Haskell gebruik van type inference
+\TODO{cite}, wat ervoor zorgt dat de programmeur meestal zelf geen types moet
+opgeven.
 
 \item De de-facto standaard Haskell Compiler, GHC \cite{ghc}, laat via een
 plugin-systeem toe om code te manipuleren op een relatief eenvoudige manier
@@ -268,9 +278,10 @@ ook enkele relevante hogere-orde functies toe.
 
 \section{Haskell: types en functies}
 
-Haskell is ontstaan uit de lambda-calculus, een formeel systeem om aan logisch
-redeneren te doen, met een zeer eenvoudige syntax. Het is dan ook logisch om
-hieruit te vertrekken.
+Haskell is gebaseerd op de lambda-calculus. Dit is een formeel, doch eenvoudig
+systeem, om aan logisch redeneren te doen. Het beschikt over een zeer beperkt
+aantal basisoperaties. We beginnen onze Haskell-introductie dan ook bij de
+lambda-calculus.
 
 \begin{spec}
 e ::= x        -- Een variabele
@@ -301,17 +312,17 @@ definitie, ook voorzien van een \emph{type-signatuur}:
 middle :: Float -> Float -> Float
 \end{code}
 
-Net zoals lambda-abstracties is de |->| in type-signaturen rechts-associatief.
-Deze type-signatuur is dus equivalent aan |Float -> (Float -> Float)|. Dit
-concept heet \emph{currying}: we kunnen |middle| beschouwen als een functie die
-twee |Float|-argumenten neemt en een |Float| als resultaatwaarde heeft, of als
-een functie die \'e\'en Float argument neemt en functie van het type |Float ->
-Float| als resultaatwaarde heeft.
+Net zoals lambda-abstracties is de |->| (een operator op type-niveau) in
+type-signaturen rechts-associatief.  Deze type-signatuur is dus equivalent aan
+|Float -> (Float -> Float)|. Dit concept heet \emph{currying}: we kunnen
+|middle| beschouwen als een functie die \'e\'en Float argument neemt en functie
+van het type |Float -> Float| als resultaatwaarde heeft, of als een functie die
+twee |Float|-argumenten neemt en een |Float| als resultaatwaarde heeft.
 
 In de lambda-calculus is het niet mogelijk om direct recursieve functies te
-schrijven. In de plaats daarvan dient er een omweg gemaakt te worden via een
-\emph{fixpoint-combinator}. Een fixpoint-combinator is een functie |g| zodanig
-dat geldt voor elke functie |f|: |g f = f (g f)|. Hierdoor is het mogelijk een
+schrijven. Er bestaat echter een elegante oplossing: de
+\emph{fixpoint-combinator}. Een fixpoint-combinator is een functie |g| waarvoor
+geldt dat voor elke functie |f|: |g f = f (g f)|. Hierdoor is het mogelijk een
 functie door te geven voor een recursieve oproep, zonder deze functie expliciet
 een naam te geven.
 
@@ -324,12 +335,13 @@ E\'en van de de bekendste voorbeelden hiervan is de \emph{Y-combinator}.
 
 \newtheorem*{theorem:y-fixpoint}{Stelling}
 \begin{theorem:y-fixpoint}\label{theorem:y-fixpoint}
-|Y| is een fixpoint-combinator.
+|Y| is een fixpoint-combinator, dus:
+
+\[ |Y f == f (Y f)| \]
 \end{theorem:y-fixpoint}
 
 \begin{proof}
-We kunnen eenvoudig aantonen dat dit wel degelijk een fixpoint-combinator is.
-
+~ \newline
 \begin{spec}
     Y f
 
@@ -355,7 +367,7 @@ We kunnen eenvoudig aantonen dat dit wel degelijk een fixpoint-combinator is.
 \end{spec}
 \end{proof}
 
-In tegenstelling tot de lambda-calculus is het is Haskell niet nodig om gebruik
+In tegenstelling tot de lambda-calculus is het in Haskell niet nodig om gebruik
 te maken van fixpoint-combinators: men kan eenvoudig expliciet recursieve
 definities geven door de functie zelf bij naam aan te roepen.
 
@@ -397,21 +409,23 @@ pizzaPrice Plain                  = 5.20
 pizzaPrice (ExtraToppings t1 t2)  = 5.40 + toppingPrice t1 + toppingPrice t2
 \end{code}
 
-Het typesysteem van Haskell is zeer complex en valt buiten de scope van dit
-werk. Een interessante feature die we wel nodig hebben is
-\emph{type-polymorfisme}. Dit laat ons toe om met \'e\'enzelfde set functies en
-datatypes te werken met waarden van verschillende types. Beschouw bijvoorbeeld
-de functie |id|, de identiteitsfunctie. Deze functie kan op een waarde van
-om het even welk type toegepast worden en is bijgevolg polymorf.
+Het zou ons te ver voeren om het volledig typesysteem van Haskell hier te
+bespreken. We beperken ons dan ook tot de kenmerken die we nodig hebben in deze
+scriptie. Een belangrijk en bijzonder interessant kenmerk van het typesysteem
+dat we doorheen deze thesis gebruiken is \emph{type-polymorfisme}. Dit laat ons
+toe om met \'e\'enzelfde set functies en datatypes te werken met waarden van
+verschillende types. Beschouw bijvoorbeeld de identiteitsfunctie |id|. Deze
+functie kan op een waarde van om het even welk type toegepast worden en is
+bijgevolg polymorf.
 
 \begin{code}
 id :: a -> a
 id x = x
 \end{code}
 
-Polymorfe datatypes zijn ook mogelijk in Haskell. Een voorbeeld hiervan is de
-lijst: we kunnen voor elk mogelijk type een lijst maken met waarden van dit type
-door de dezelfde constructoren |:| en |[]| te gebruiken.
+Behalve polymorfe functies bestaan er ook polymorfe datatypes. Een voorbeeld
+hiervan is de lijst: we kunnen voor elk mogelijk type een lijst maken met
+waarden van dit type door de dezelfde constructoren |:| en |[]| te gebruiken.
 
 \begin{spec}
 data [a]
@@ -419,7 +433,7 @@ data [a]
     |  []
 \end{spec}
 
-Lijsten zijn alomtegenwoordig in functionele programmas en verdienen speciale
+Lijsten zijn alomtegenwoordig in functionele programma's en verdienen speciale
 aandacht. Zo worden bijvoorbeeld |String|s in Haskell ook voorgesteld als
 karakter-lijsten:
 
@@ -440,8 +454,9 @@ upper (x : xs)  = toUpper x : upper xs
 
 \section{Higher-order functies}
 
-Omdat recursieve functies over lijsten zo veel voorkomen, kunnen we vaak
-patronen onderscheiden.
+Omdat recursieve functies over lijsten alomtegenwoordig zijn, is het vaak
+mogelijk patronen te onderscheiden. Beschouw even de volgende twee functies,
+|sum| en |product|.
 
 \begin{code}
 sum :: [Int] -> Int
@@ -454,9 +469,9 @@ product (x : xs)  = x * product xs
 \end{code}
 
 Deze patronen kunnen ge\"implementeerd worden door middel van hogere-orde
-functies: functies die andere functies als parameters nemen. De twee
-bovenstaande functies zijn bijvoorbeeld eenvoudige voorbeelden van het
-|foldr|-patroon.
+functies: functies die andere functies als parameters nemen.  In het
+bovenstaande voorbeeld zijn de functies eenvoudige voorbeelden van het |foldr|
+patroon.
 
 \begin{code}
 foldr :: (a -> b -> b) -> b -> [a] -> b
@@ -464,8 +479,9 @@ foldr _  z []        = z
 foldr f  z (x : xs)  = f x (foldr f z xs)
 \end{code}
 
-Als we |sum| en |product| herschrijven met behulp van |foldr|, krijgen we veel
-beknoptere definities:
+Als we |sum| en |product| herschrijven op basis van |foldr|, krijgen we veel
+beknoptere definities, die semantisch equivalent zijn aan de expliciet
+recursieve versies en sneller te lezen door ervaren programmeurs:
 
 \begin{code}
 sum' :: [Int] -> Int
@@ -486,7 +502,8 @@ upper' :: String -> String
 upper' = map toUpper
 \end{code}
 
-En |filter| wordt gebruikt om bepaalde elementen uit een lijst te selecteren:
+De |filter|-functie wordt gebruikt om bepaalde elementen uit een lijst te
+selecteren:
 
 \begin{code}
 filter :: (a -> Bool) -> [a] -> [a]
@@ -518,19 +535,20 @@ g (x : xs)  = f x (g xs)
 \]
 \end{theorem:universal-fold}
 
-Concreet wil dit voor ons zeggen dat als we een |f| en |v| kunnen vinden die aan
-de vereiste eigenschappen voldoen, dat we |g| kunnen herschrijven als een
-|foldr|.
+Concreet betekent dit dat we een functie |g| kunnen herschrijven in termen van
+|foldr| zodra we een |f| en |v| vinden die aan de bovenstaande voorwaarden
+voldoen.
 
 Ook betekent dit dat er slechts \'e\'en |foldr| is voor een lijst -- elke
 alternatieve definitie is hieraan isomorf. Er is dus een wederzijds verband
-tussen het type |[a]| en de functie |foldr|. Als we dit willen veralgemenen,
-kunnen we ons afvragen of er dus een bijectie bestaat tussen algebra\"ische
-datatypes en fold-functies.
+tussen het type |[a]| en de functie |foldr|. De vraag naar het bestaan van een
+bijectie tussen algebra\"ische datatypes en fold-functies dringt zich dus op.
 
-Een zodanige bijectie bestaat, en legt het verband tussen een datatype en het
-overeenkomstige \emph{catamorfisme}. We kunnen deze catamorfismes eenvoudig
-afleiden voor algebra\"ische datatypes.
+Deze vraag kan affirmatief beantwoord worden: een dergelijke bijectie bestaat,
+ze legt bovendien het verband tussen een datatype en het overeenkomstige
+\emph{catamorfisme}: de unieke manier om een algebra\"isch datatype stap voor
+stap te reduceren tot \'e\'en enkele waarde. We kunnen deze catamorfismes
+eenvoudig afleiden voor algebra\"ische datatypes.
 
 Om dit beter te verstaan, hebben we het concept van een \emph{algebra} nodig.
 Wanneer we een catamorfisme toepassen op een datatype, interpreteren we dit
@@ -562,7 +580,7 @@ instance Show a => Show (Tree a) where
 \end{code}
 }
 
-Door een functie-argument te specifi\"eren voor elke constructor, kunnen we nu
+Door een functie-argument te specificeren voor elke constructor, kunnen we nu
 een fold defin\"eren voor het type |Tree|:
 
 \begin{code}
