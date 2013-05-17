@@ -833,7 +833,7 @@ Fortunately we can easily avoid introducing degenerate folds by only rewriting
 recursive functions.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Identifying build}
+\section{Discovering Builds}
 
 \begin{figure}[t]
 \begin{center}
@@ -846,14 +846,14 @@ recursive functions.
           e ~{}_f\!\stackrel{c,n}{\rightarrowtail}_g~ e' }
         {|f = \many x -> e| ~~\rightarrowtail \\\\ 
           |f = \many x -> build (g (many x))|; \\\\
-          |g = \many x -> e'|
+          |g = \many x -> \c -> \n -> e'|
              } \\
 \\
 \myruleform{\inferrule*{}{|e| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'|}} 
 \quad\quad
 \inferrule*[left=(\textsc{B-Rec})]
         {  }
-        { |f (many e)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |g (many e)| }  \\
+        { |f (many e)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |g (many e) c n| }  \\
 \\
 \inferrule*[left=(\textsc{B-Nil})]
         {  }
@@ -875,153 +875,79 @@ recursive functions.
 \caption{Build discovery rules}\label{fig:buildspec}
 \end{figure}
 
-\begin{figure}[t]
-\begin{center}
-    % \begin{subfigure}{\columnwidth}
-    \fbox{
-    \begin{tabular}{cc}
-        \multicolumn{2}{c}{
-            \infer{
-                |f a1 a2 ... = e|
-                \rightharpoonup
-                \begin{minipage}{0.5\columnwidth}
-                \begin{spec}
-                f a'1 a'2 ... = build $
-                    \cons nil ->
-                        let g a1 a2 ... = e'
-                        in g a'1 a'2 ...
-                \end{spec}
-                \end{minipage}
-            }{
-                |cons, nil, g <- fresh|
-                &
-                |e| \rightharpoonup_{f, g, cons, nil} |e'|
-            }
-        }
-        \\
-        \infer{
-            |f a1 a2 ...| \rightharpoonup_{f, g, cons, nil} |g a1 a2 ...|
-        }{}
-        &
-        \infer{
-            |[]| \rightharpoonup_{f, g, cons, nil} |nil|
-        }{}
-        \vspace{0.1in}
-        \\
-        \multicolumn{2}{c}{
-            \infer{
-                |(x : e)| \rightharpoonup_{f, g, cons, nil} |cons x e'|
-            }{
-                |e| \rightharpoonup_{f, g, cons, nil} |e'|
-            }
-        }
-        \vspace{0.1in}
-        \\
-        \multicolumn{2}{c}{
-            \infer{
-                |let b = x in e| \rightharpoonup_{f, g, cons, nil}
-                |let b = x in e'|
-            }{
-                |e| \rightharpoonup_{f, g, cons, nil} |e'|
-            }
-        }
-        \vspace{0.1in}
-        \\
-        \multicolumn{2}{c}{
-            \infer{
-                \begin{minipage}{0.3\columnwidth}
-                \begin{spec}
-                \x -> case x of
-                    c1 -> e1
-                    c2 -> e2
-                    ...
-                \end{spec}
-                \end{minipage}
-                \rightharpoonup_{f, g, c, n}
-                \begin{minipage}{0.3\columnwidth}
-                \begin{spec}
-                \x -> case x of
-                    c1 -> e'1
-                    c2 -> e'2
-                    ...
-                \end{spec}
-                \end{minipage}
-            }{
-                \forall i. e_i \rightharpoonup_{f, g, c, n} e'_i
-            }
-        }
-        \\
-    \end{tabular}
-    }
-    % \end{subfigure}
-    % \addtocounter{figure}{-1} % Counter weird subfigure counter thingy
-    \caption{Deduction rules for identifying builds}
-    \label{figure:build-rules}
-\end{center}
-\end{figure}
+Figure~\ref{fig:buildspec} lists our non-deterministic algorithm for
+discoverings list builds. The toplevel judgement is $b \rightarrowtail b';
+b_g$.  It rewrites a binding |b| into |b'| that uses |build| and also returns
+an auxiliary binding $b_g$ for the generator function used in the |build|.
+There is one rule defining this judgement, (\textsc{B-Bind}), that rewrites
+the body |e| of a binding into a |build| and produces the generator function binding.
+Note that the rule allows for an arbitrary number of lambda abstractions |\many
+x ->| to preceed the invocation of |build|. This enables auxiliary parameters to
+the generator function, e.g., to support an inductive definition. For instance, the
+|map| function can be written as a |build| with two auxiliary parameters.
+\begin{spec}
+map = \f -> \l -> build (g f l)
 
-While foldr/build fusion is implemented in GHC, the |build| function is not
-exported from the |Data.List| module, because it's rank-2 type is not
-implementable in Haskell 98.
+g   = \f -> \l -> \c -> \n -> 
+        case l of
+          []      -> n
+          (y:ys)  -> c (f y) (g f ys c n)
+\end{spec}
+Only the |f| parameter is constant. The |l| parameter changes in inductive calls as |g| is defined inductively over it.
 
-This means the developer is prevented from using |build| in its programs.
-Additionally, even if the |build| function was available everywhere, an
-inexperienced developer might not think of using this function.
+The toplevel judgement is defined in terms of the auxiliary judgement \[|e| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'|\]
+that yields the body of the generator function.
+This judgement is defined by four different rules, the last of which, (\textsc{B-Case}), is merely
+a congruence rule that performs the rewriting in the branches of a |case| expression.
+The first three rules distinguish the three ways in which the function body can yield a list.
+\begin{enumerate}
+\item Rule (\textsc{B-Nil}) captures the simplest way for producing a list, namely with |[]|,
+      which is rewritten to the new parameter |n|.
+\item Rule (\textsc{B-Cons}) replaces the |(:)| constructor with the new parameter |c|, and recursively
+      rewrites the tail of the list.
+\item Rule (\textsc{B-Rec}) replaces recursive calls to the original function |f| by recursive
+      calls to the generator function |g|.
+\end{enumerate}
+In the |map| example, all four of the rules are used.
 
-This means there is a need to detect instances |build| automatically and rewrite
-them automatically, as we already do for instances of folds. We use a similar
-set of deduction rules for this.
+%-------------------------------------------------------------------------------
+\subsection{Degenerate Builds}
 
-Note that we use the simplified syntax |f a1 a2 ... = e| for |f = \a1 -> \a2 ->
-... -> e|. This simplifies the set of rules, making them easier to understand.
+Just like we called non-recursive catamorphisms, degerate |folds|,
+we can also call non-recursive builds degenerate.
+For instance,
+\begin{spec}
+f = 1 : 2 : 3 : []
+\end{spec}
+is rewritten to
+\begin{spec}
+f  = build g
+g  = \c -> \n -> c 1 (c 2 (c 3 n))
+\end{spec}
+These functions can be easily identified by the absence of a recursive call. 
+In other words, the rule (\textsc{B-Rec}) is never used in the rewriting process.
 
-We have a main deduction rule which replaces the body of a binding by a call to
-|build|. A local function |g| is created, which is the worker of the function.
-
-This is not strictly necessary for non-recursive functions, but having a single
-rule is an implementation advantage.
-
-We examine the body of the expression. We're allowed to look through |let| and
-|case| expressions. If we find an application (|e arg|), we can rewrite |e| by
-replacing:
-
-\begin{itemize}
-\item Recursive applications of |f| by |g|
-\item |[]| by |nil|
-\item |(:)| by |cons|
-\end{itemize}
-
-In the last case, we also need to check the second subterm of |(:)|, as another
-constructor might appear there. For example, this is the case for:
-
-\begin{code}
-twice :: [a] -> [a]
-twice []        = []
-twice (x : xs)  = x : x : twice xs
-\end{code}
-
-We are very conservative, since correctness is of uttermost importance. Hence,
-we don't allow arbitrary functions such as:
-
-\ignore{
-\begin{code}
-foo = twice'
-\end{code}
-}
-
-\begin{code}
-twice' :: [a] -> [a]
-twice' []        = []
-twice' (x : xs)  = x : x : foo xs
-\end{code}
-
-Because |foo| might be referring literally to the [] and (:) constructors, and
-since |foo| is possibly defined in another module, we have no way to know or
-rewrite this.
-
+Strictly speaking, such non-recursive functions do not require |foldr|/|build|
+fusion to be optimized. They can also be optimized by inlining the 
+definition and then unfolding the catamorphism sufficiently to consume the
+whole list.
+\begin{spec}
+     sum f
+== {- inline |f| -}
+     sum (1 : 2 : 3 : [])
+== {- unfold |sum| -}
+     1 + sum (2 : 3 : [])
+== {- unfold |sum| three more times -}
+     1 + (2 + (3 + 0))
+\end{spec}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Implementation and evaluation}
+\section{Implementation}
+
+\begin{itemize}
+\item mutually recursive functions
+\item types
+\end{itemize}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1143,6 +1069,8 @@ represent function application and lambda abstraction respectively. |Let| is
 used to introduce new recursive or non-recursive binds, and |Case| is used for
 pattern matching -- the only kind of branching possible in GHC Core.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Evaluation}
 
 %-------------------------------------------------------------------------------
 \subsection{Identifying folds}
