@@ -238,7 +238,7 @@ die kunnen herschreven worden met behulp van de hogere orde functie |fold|. Deze
 blijken in vele packages aanwezig te zijn. Ook bekijken we de resultaten van
 enkele benchmarks na automatische |foldr/build-fusion|. Omdat
 |foldr/build-fusion| de compiler toelaat om tussentijdse allocatie te vermijden,
-zien we hier zeer grote speedups.
+zien we hier zeer grote versnellingen.
 
 \end{enumerate}
 
@@ -425,7 +425,7 @@ id x = x
 
 Behalve polymorfe functies bestaan er ook polymorfe datatypes. Een voorbeeld
 hiervan is de lijst: we kunnen voor elk mogelijk type een lijst maken met
-waarden van dit type door de dezelfde constructoren |:| en |[]| te gebruiken.
+waarden van dit type door de dezelfde constructoren |(:)| en |[]| te gebruiken.
 
 \begin{spec}
 data [a]
@@ -554,7 +554,7 @@ Om dit beter te verstaan, hebben we het concept van een \emph{algebra} nodig.
 Wanneer we een catamorfisme toepassen op een datatype, interpreteren we dit
 datatype in een bepaalde algebra, door elke constructor te vervangen door een
 operator uit deze algebra. Zo is |sum| als het ware een interpretatie in de
-som-algebra, die |:| en |[]| vervangt door respectievelijk |+| en |0|:
+som-algebra, die |(:)| en |[]| vervangt door respectievelijk |+| en |0|:
 
 \begin{spec}
 foldr (+) 0  (1  :  (2  :  (3  :  (4  :  []))))
@@ -707,7 +707,7 @@ mogelijk \emph{optimalisaties} door te voeren op basis van deze hogere-orde
 functions.
 
 Beschouw de volgende twee versies van een functie die de som van de kwadraten
-van de oneven nummers in een lijst berekenen:
+van de oneven nummers in een lijst berekent:
 
 \begin{code}
 sumOfSquaredOdds :: [Int] -> Int
@@ -726,18 +726,18 @@ Ervaren Haskell-programmeurs zullen steevast de tweede versie boven de eerste
 verkiezen. Het feit dat de tweede versie is opgebouwd uit kleinere, makkelijk te
 begrijpen functies maakt deze veel leesbaarder.
 
-De eerste versie lijkt echter effici\"enter: deze berkent rechtstreeks het
+De eerste versie is echter effici\"enter: deze berkent rechtstreeks het
 resultaat (een |Int|), terwijl de tweede versie twee tijdelijke |[Int]| lijsten
-aanmaakt: \'e\'en als resultaat van |filter odd|, en nog een tweede als
-resultaat van |map (^ 2)|.
+aanmaakt: een eerste als resultaat van |filter odd|, en een tweede als resultaat
+van |map (^ 2)|.
 
 In de ideale situatie willen we dus de effici\"entie van de eerste versie
 combineren met de leesbaarheid van de tweede versie. Dit wordt mogelijk gemaakt
 door \emph{fusion} \cite{wadler1990} \cite{gill1993}.
 
-We kunnen fusion best uitleggen door te starten met een eenvoudig voorbeeld:
-\emph{map/map-fusion}. Dit is een transformatie die gegeven wordt door
-stelling \ref{theorem:map-map-fusion}.
+We kunnen fusion best uitleggen aan de hand van een eenvoudig voorbeeld:
+\emph{map/map-fusion}. Dit is een transformatie die gegeven wordt door stelling
+\ref{theorem:map-map-fusion}.
 
 \newtheorem{theorem:map-map-fusion}{Stelling}[section]
 \begin{theorem:map-map-fusion}\label{theorem:map-map-fusion}
@@ -758,17 +758,10 @@ voor de lege lijst |[]|. Voor |map f . map g| krijgen we:
 == {- def |map []| -}
 
     []
-\end{spec}
-
-En voor |map (f . g)| krijgen we:
-
-\begin{spec}
-
-    map (f . g) []
 
 == {- def |map []| -}
 
-    []
+    map (f . g) []
 \end{spec}
 
 We nemen nu aan dat map/map-fusion correct is voor een willekeurige lijst |xs|
@@ -809,15 +802,15 @@ Het nadeel van deze aanpak is echter dat het aantal nodige rules kwadratisch
 stijgt in proportie tot het aantal hogere-orde functies dat op het datatype (in
 dit geval lijsten) werkt.
 
-Ter illustratie, als we bijvoorbeeld enkel de functies |map| en |filter|
-beschouwen, hebben we al vier rules nodig, en een additonele hulpfunctie
+Ter illustratie, als we bijvoorbeeld enkel de twee functies |map| en |filter|
+beschouwen, hebben al vier rules nodig, en een bijkomende hulpfunctie
 |mapFilter|:
 
 \begin{spec}
-map f . map g        = map (f . g)
-map f . filter g     = mapFilter f g
-filter f . map g     = filter (f . g)
-filter f . filter g  = filter (\x -> f x && g x)
+map f . map g        == map (f . g)
+map f . filter g     == mapFilter f g
+filter f . map g     == filter (f . g)
+filter f . filter g  == filter (\x -> f x && g x)
 
 mapFilter :: (a -> b) -> (a -> Bool) -> [a] -> [b]
 mapFilter _ _ []  = []
@@ -826,7 +819,12 @@ mapFilter f g (x : xs)
     | otherwise   = mapFilter f g xs
 \end{spec}
 
-Voor sommige modules ligt het aantal hogere-orde functies zeer hoog, dus wordt
+Maar als we nu een langere expressie |map f . map g . filter h| hebben, kunnen
+we iets krijgen als |map f . mapFilter g h|, en dienen we weer nieuwe
+fusion-regels toe te voegen om deze expressie te kunnen fusen. Het aantal nodige
+regels stijgt dus zeer snel.
+
+Voor sommige modules ligt het aantal hogere-orde functies erg hoog, dus wordt
 deze aanpak onhaalbaar.
 
 \subsection{Foldr/build-fusion}
@@ -840,7 +838,7 @@ build :: (forall b. (a -> b -> b) -> b -> b) -> [a]
 build g = g (:) []
 \end{code}
 
-We kunnen nu bijvoorbeeld |map| en |filter| met behulp van |build|:
+We kunnen nu bijvoorbeeld |map| en |filter| met behulp van |build| defini\"eren:
 
 \begin{spec}
 map :: (a -> b) -> [a] -> [b]
@@ -853,11 +851,11 @@ filter f ls = build $ \cons nil ->
 \end{spec}
 
 Het nut van |build| wordt nu duidelijk: we gebruiken deze functie om te
-\emph{abstraheren} over de concrete constructoren: in plaats van |:| en |[]|
-gebruiken we nu de abstracte |cons| en |nil|.
+\emph{abstraheren} over de concrete constructoren: in plaats van |(:)| en |[]|
+gebruiken we nu de abstracte |cons| en |nil| parameters.
 
-De type-signatuur van |build| met het expliciet gequantificeerde type |b| is
-cruciaal. Stel dat dit niet het geval zou zijn, en dat we |build| zouden
+De type-signatuur van |build| met het expliciet universeel gekwantificeerde type
+|b| is cruciaal. Stel dat dit niet het geval zou zijn, en dat we |build| zouden
 defini\"eren met de meest algemene type-signatuur:
 
 \begin{code}
@@ -874,16 +872,16 @@ list123 = build' $ \cons nil -> 1 : cons 2 (cons 3 [])
 
 We krijgen een lijst die zowel gebruikt maakt van de concrete constructoren als
 de abstracte versies. Dit leidt tot problemen: intu\"itief laten de abstracte
-versies ons toe om de constructoren |:| en |[]| te \emph{vervangen} door andere
-functies -- en zoals we in Sectie \ref{section:universal-fold} zagen, kunnen we
-het toepassen van |foldr| net beschouwen als het vervangen van de constructoren
-door de argumenten van |foldr|!
+versies ons toe om de constructoren |(:)| en |[]| te \emph{vervangen} door
+andere functies -- en zoals we in Sectie \ref{section:universal-fold} zagen,
+kunnen we het toepassen van |foldr| net beschouwen als het vervangen van de
+constructoren door de argumenten van |foldr|!
 
-Als we echter ook nog letterlijk verwijzen naar |:| en |[]|, is deze vervanging
-onmogelijk. Het gequantificeerde type |b| lost dit probleem op. De programmeur
-is verplicht een |g| mee te geven die werkt voor \emph{elke} |b|, en hij weet
-niet welk type uiteindelijk geconstrueerd zal worden. Bijgevolg en kan hij dus
-ook geen concrete constructoren gebruiken.
+Als we echter ook nog letterlijk verwijzen naar |(:)| en |[]|, is deze
+vervanging onmogelijk. Het universeel gekwantificeerde type |b| lost dit
+probleem op. De programmeur is verplicht een |g| mee te geven die werkt voor
+\emph{elke} |b|, en hij weet niet welk type uiteindelijk geconstrueerd zal
+worden. Bijgevolg en kan hij dus ook geen concrete constructoren gebruiken.
 
 Nu we vastgesteld hebben dat enkel de abstracte versies van de constructoren
 gebruikt worden, laat dit idee ons toe om de productie en consumatie van een
@@ -894,7 +892,7 @@ werken dit nu formeel uit.
 \begin{theorem:foldr-build-fusion}\label{theorem:foldr-build-fusion}
 Als
 
-\[ |g :: forall b. (a -> b -> b) -> b -> b| \]
+\[ |g :: forall b. (A -> b -> b) -> b -> b| \]
 
 dan
 
@@ -1004,22 +1002,21 @@ performante versie.
 
 \end{spec}
 
-Finaal is |sumOfSquaredOdds'| dus volledig gereduceerd tot \'e\'en enkele
+Uiteindelijk is |sumOfSquaredOdds'| dus volledig gereduceerd tot \'e\'en enkele
 |foldr| over een lijst: het is niet meer nodig om tijdelijke lijsten te
 alloceren om het resultaat te berekenen. In \TODO{Cite results chapter} tonen we
-aan dat dit leid tot significante speedups.
+aan dat dit leidt tot significante versnellingen.
 
 We krijgen dus als het ware het beste van beide werelden: we kunnen elegante
 definities gebruiken voor de functies, die eenvoudiger leesbaar zijn en
 makkelijker onderhoudbaar; maar tevens worden deze vertaald door de compiler tot
 snelle, geoptimaliseerde versies.
 
-\subsection{Foldr/build for algebra\"ische datatypes}
+\subsection{Foldr/build voor algebra\"ische datatypes}
 
-In Sectie \ref{section:universal-fold} toonden we reeds aan dat we een |fold|
-kunnen defini\"eren voor om het even welk algebra\"isch datatype. Dit is ook
-mogelijk voor |build|. Beschouw bijvoorbeeld een |build| voor ons
-|Tree|-datatype:
+In Sectie \ref{section:universal-fold} toonden we aan dat we een |fold| kunnen
+defini\"eren voor om het even welk algebra\"isch datatype. Dit is ook mogelijk
+voor |build|. Beschouw bijvoorbeeld een |build| voor ons |Tree|-datatype:
 
 \begin{code}
 buildTree :: (forall b. (a -> b) -> (b -> b -> b) -> b) -> Tree a
@@ -1054,8 +1051,8 @@ treeUpTo n m = buildTree $ \leaf branch ->
     in g n m
 \end{code}
 
-Nu kunnen we bestuderen wat gebeurd met een expressie als |sumTree (treeUpTo
-n m)|, die normaliter een tijdelijke boom moet aanmaken.
+Nu kunnen we bestuderen wat er door fusie gebeurt met een expressie als |sumTree
+(treeUpTo n m)|, die een tijdelijke boom aanmaakt.
 
 \begin{spec}
     sumTree (treeUpTo n m)
@@ -1096,8 +1093,8 @@ n m)|, die normaliter een tijdelijke boom moet aanmaken.
 \end{spec}
 
 We krijgen een expressie die rechtstreeks de som uitrekent zonder ooit een
-constructor te gebruiken. Opnieuw zal dit voor een significante speedup zorgen
-\TODO{Cite results chapter}.
+constructor te gebruiken. Opnieuw zal dit voor een significante versnelling
+zorgen \TODO{Cite results chapter}.
 
 Omdat naast |fold| ook |build| functies eenvoudig af te leiden zijn vanuit de
 definitie van een datatype, hebben we dit ook geautomatiseerd. De programmeur
@@ -1110,12 +1107,12 @@ $(deriveBuild quote Tree "buildTree")
 \end{spec}
 %}
 
-Het algoritme om een |build| werkt als volgt:
+Het algoritme om een |build| te genereren werkt als volgt:
 
 \begin{enumerate}
 
-\item De fold gebruikt een gequantificeerd type |b| in een functie |g| en geeft
-een waarde terug van het opgegeven type.
+\item De fold gebruikt een universeel gekwantificeerd type |b| in een functie
+|g| en geeft een waarde terug van het opgegeven type.
 
 \begin{spec}
 buildTree :: (forall b. ... -> b) -> Tree a
@@ -1138,8 +1135,8 @@ buildList  :: (forall b. (a -> b -> b) -> b -> b) -> [a]
 buildList g = ...
 \end{spec}
 
-\item De implementatie bestaat er vervolgens gewoon uit het toepassen van |g| op
-de concrete constructoren.
+\item De implementatie bestaat vervolgens uit het toepassen van |g| op de
+concrete constructoren.
 
 \begin{spec}
 buildTree :: (forall b. (a -> b) -> (b -> b -> b) -> b) -> Tree a
