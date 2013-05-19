@@ -1182,9 +1182,197 @@ buildList g = g (:) []
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Implementatie \& evaluatie}
 
-\begin{itemize}
-\item Meer detail
+\section{GHC Core}
+
+Eerder beschreven we al \TODO{backreference} dat we voor deze thesis werken met
+GHC \cite{ghc}, de de-facto standaard Haskell compiler.
+
+GHC werkt met een \emph{kerneltaal}. Een kerneltaal is een sterk gereduceerd
+subset van de programmeertaal (in dit geval Haskell). Het is natuurlijk wel
+mogelijk om elk Haskell-programma uit te drukken in de kerneltaal, al is dit
+meestal veel minder beknopt.
+
+De compiler zet na het parsen het programma om naar een equivalent programma in
+deze kerneltaal. Dit proces heet \emph{desugaring}.
+
+Het gebruik van een dergelijke kerneltaal heeft verschillende voordelen:
+
+\begin{itemize}[topsep=0.00cm]
+
+\item De syntax van de kerneltaal is zeer eenvoudig. Hierdoor kunnen de
+programmeur en de compiler op een simpelere manier redeneren over expressies,
+zonder rekening te houden met op dat moment oninteressante syntactische details.
+
+\item Om nieuwe syntax toe te voegen, dient men enkel het
+\emph{desugaring}-proces aan te passen en hoeft men geen aanpassingen te doen in
+de rest van de compiler.
+
+\item Verschillende programmeertalen kunnen dezelfde kerneltaal delen. Dit laat
+toe om bepaalde tools en optimalisaties \'e\'enmaal te schrijven en vervolgens
+toe te passen voor programmas geschreven in verschillende programmeertalen. Dit
+voordeel is echter niet van toepassing voor GHC, omdat deze een eigen kerneltaal
+gebruikt.
+
 \end{itemize}
+
+De kerneltaal van Haskell heet GHC Core \cite{tolmach2009}.
+
+Om onze fold- en build-detectie te implementeren hebben we dus twee keuzes. We
+kunnen ofwel de Haskell-code direct manipuleren. Er bestaan reeds verschillende
+libraries om deze taak eenvoudiger te maken, zoals bijvoorbeeld
+\emph{haskell-src-exts} \cite{haskell-src-exts}.
+
+We kunnen echter ook werken met de GHC Core. Dit heeft voor ons een groot aandal
+voordelen.
+
+\begin{itemize}[topsep=0.00cm]
+
+\item Zoals we eerder al vermeldden, is het expressietype veel eenvoudiger. Ter
+illustratie: het |Expr|-type dat in \emph{haskell-src-exts} gebruikt wordt heeft
+46 verschillende constructoren, terwijl het |Expr|-type van GHC Core er slechts
+10 heeft.
+
+\item De GHC Core gaat door verschillende optimalisatie-passes. Veel van deze
+passes vereenvoudigen de expressies, wat op zijn beurt de analyse weer vooruit
+helpt. Beschouw bijvoorbeeld de volgende functie |jibble|:
+
+\begin{code}
+jibble :: [Int] -> Int
+jibble []        = 1
+jibble (x : xs)  = wiggle x xs
+
+wiggle :: Int -> [Int] -> Int
+wiggle x xs = x * jibble xs + 1
+\end{code}
+
+Hier is het praktisch onhaalbaar om een |foldr|-patroon te herkennen door het
+gebruik van de hulpfunctie |wiggle|. Maar, eens deze functie ge-inlined is,
+krijgen we de functie:
+
+\begin{spec}
+jibble :: [Int] -> Int
+jibble []        = 1
+jibble (x : xs)  = x * jibble xs + 1
+\end{spec}
+
+Onze detector kan de laatste versie onmiddelijk herkennen.
+
+\item Tenslotte beschikken we ook over type-informatie: de GHC API laat ons toe
+types van onder meer variabelen en functies op te vragen. Dit is in principe
+niet essentieel voor onze detector, maar kan wel zeer nuttig zijn. Beschouw
+bijvoorbeeld:
+
+\begin{spec}
+add :: Int -> Int -> Int
+add x y = ...
+\end{spec}
+
+We kunnen, zonder de definitie van |add| te bekijken, al uit de type-signatuur
+opmaken dat |add| geen |fold| noch |build| zal zijn. Het is immers niet mogelijk
+te folden over een |Int| of er \'e\'en aan te maken met build: |Int| valt niet
+in de klasse van de algebra\"ische datatypes.
+
+\end{itemize}
+
+We dienen wel op te merken dat er ook een belangrijk gekoppeld is aan het werken
+met GHC Core in plaats van Haskell code. Het wordt namelijk veel moeilijker om
+de resultaten van onze analyse te gebruiken voor \emph{refactoren}: in dit
+geval, de originele Haskell code te herschrijven als toepassing van een |fold|
+of |build|. Als we dit willen mogelijk maken, zouden we een soort geannoteerd
+expressie-type nodig hebben, zodanig dat we de expressies in GHC Core kunnen
+terugkoppelen aan Haskell-expresssies. Wanneer we dan de GHC Core expressies
+automatisch herschrijven, moet de Haskell code ook geupdate worden. Dit zou ons
+echter te ver voeren.
+
+Om bovenstaande redenen kiezen we er dus voor om met GHC Core te werken. In
+Figuur \ref{figure:haskell-to-ghc-core} geven we een kort overzicht van hoe
+Haskell-expressies worden omgezet naar GHC Core-expressies.
+
+\begin{figure}[h]
+  \begin{tabular}{ll}
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    "Jan"
+    \end{spec}
+    \end{minipage} &
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    ((:) 'J' ((:) 'a' ((:) 'n' )))
+    \end{spec}
+    \end{minipage} \\
+
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    head []       = undefined
+    head (x : _)  = x
+    \end{spec}
+    \end{minipage} &
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    head = \xs -> case xs of
+        []       -> undefined
+        (:) x _  -> x
+    \end{spec}
+    \end{minipage} \\
+
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    let  x  = 3
+         y  = 4
+    in x + y + z
+    where z = 5
+    \end{spec}
+    \end{minipage} &
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    let z = 5
+    in  let x = 3
+        in  let y = 4
+            in (+) x ((+) y z)
+    \end{spec}
+    \end{minipage} \\
+
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    compare a b
+      | a > b      = GT
+      | a == b     = EQ
+      | otherwise  = LT
+    \end{spec}
+    \end{minipage} &
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    compare = \a -> \b ->
+      case (>) a b of
+        True   -> GT
+        False  -> case (==) a b of
+          True   -> EQ
+          False  -> LT
+    \end{spec}
+    \end{minipage} \\
+
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    foldM f a []        = return a
+    foldM f a (x : xs)  = do
+      a' <- f a x
+      foldM f a' xs
+    \end{spec}
+    \end{minipage} &
+    \begin{minipage}{0.4\textwidth}
+    \begin{spec}
+    foldM = \f a ls -> case ls of
+      []        -> return a
+      (:) x xs  ->
+        f a x >>= \a' -> foldM f a' xs
+    \end{spec}
+    \end{minipage} \\
+  \end{tabular}
+  \caption{Een overzicht van hoe Haskell-expressies worden omgezet naar
+  GHC Core-expressies. Links ziet u de Haskell-expressies, en rechts de
+  overeenkomstige GHC Core-expressies}
+  \label{figure:haskell-to-ghc-core}
+\end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
