@@ -673,6 +673,76 @@ The term |E[e]| denotes the expression obtained by replacing the hole by |e|.
 \subsection{Discovering Folds}
 \label{subsection:identifying-folds}
 
+%format triangle = "\triangle"
+\begin{figure*}[t]
+\[\begin{array}{lcl}
+|E| & ::=  & |x| \\
+    & \mid & |E x| \\
+    & \mid & |E box| \\
+    & \mid & |E triangle|
+\end{array}\]
+\[\begin{array}{lcl}
+|x|[;|e|]                   & =  & |x| \\
+(|E x|)[|many e|;|e|]         & =  & |E|[|many e|;|e|]\, |x| \\
+(|E box|)[|many e|,|e1|;|e|]  & =  & |E|[|many e|;|e|]\, |e1| \\
+(|E triangle|)[|many e|;|e|]  & =  & |E|[|many e|;|e|]\, |e| \\
+\end{array}\]
+\begin{center}
+\fbox{
+\begin{minipage}{0.95\textwidth}
+\[\begin{array}{c}
+\myruleform{\inferrule{}{b \leadsto b'}} \hspace{2cm}
+
+\inferrule*[left=(\textsc{F-Bind})]
+  { |e'1| = |\many u ->|[|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
+    |E|[|many u|;|y|] = |f (many x) y (many z)| \\ |ws|~\textit{fresh} \\\\ 
+    |e2| \stackrel{E}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+  }
+  {
+|f = \(many x) y (many z) -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
+    \leadsto |f = \(many x) y (many z) -> foldr (\v ws (many u) -> e'2) (\many u -> e'1) x (many u)| 
+  } \\
+\\
+\myruleform{\inferrule*{}{e~{}_x\!\!\stackrel{E}{\leadsto}_y~e'}} \hspace{2cm}
+\inferrule*[left=(\textsc{F-Rec})]
+  { e_i~{}_x\!\!\stackrel{E}{\leadsto}_y~e_i' \quad (\forall i)
+  }
+  { |E|[|many e|;|x|] ~{}_x\!\!\stackrel{E}{\leadsto}_y~|y (many e')|
+  }
+  \hspace{1cm}
+\inferrule*[left=(\textsc{F-Refl})]
+  { 
+  }
+  { e~{}_x\!\!\stackrel{E}{\leadsto}_y~e
+  }
+ \\
+\\
+\inferrule*[left=(\textsc{F-Abs})]
+  { |e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'|
+  }
+  { |\z -> e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|\z -> e'|
+  }
+  \hspace{0.5cm}
+\inferrule*[left=(\textsc{F-App})]
+  { |e1|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'1| \\
+    |e2|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'2|
+  }
+  { |e1 e2|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'1 e'2|
+  }
+ \\
+\\
+\inferrule*[left=(\textsc{F-Case})]
+  { |e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'| \\ e_i~{}_x\!\!\stackrel{E}{\leadsto}_y~e_i' \quad (\forall i)
+  }
+  { |case e of many (p -> e)|~{}_x\!\!\stackrel{E}{\leadsto}_y~|case e' of many (p -> e')|
+  } \\
+\end{array} \]
+\end{minipage}
+}
+\end{center}
+\caption{Fold discovery rules}\label{fig:foldspec}
+\end{figure*}
+
 \begin{figure}[t]
 \begin{center}
 \fbox{
@@ -842,7 +912,7 @@ recursive functions.
 \[\begin{array}{c}
 \myruleform{\inferrule*{}{|b| \rightarrowtail |b'|;|b''|}} \quad\quad
 \inferrule*[left=(\textsc{B-Bind})]
-        { |c|, |n|, |g|~\text{fresh} \\ f \not\in e' \\\\
+        { |c|, |n|, |g|~\text{fresh}\\\\
           e ~{}_f\!\stackrel{c,n}{\rightarrowtail}_g~ e' }
         {|f = \many x -> e| ~~\rightarrowtail \\\\ 
           |f = \many x -> build (g (many x))|; \\\\
@@ -862,6 +932,10 @@ recursive functions.
 \inferrule*[left=(\textsc{B-Cons})]
         { |e2| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'2| }
         { |(e1:e2)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |c e1 e'2| }  \\
+\\
+\inferrule*[left=(\textsc{B-Build})]
+        {  }
+        { |build e| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e c n| }  \\
 \\
 %format e_i = "e'_i"
 %format ei = "\Varid{e}_i"
@@ -897,9 +971,9 @@ Only the |f| parameter is constant. The |l| parameter changes in inductive calls
 
 The toplevel judgement is defined in terms of the auxiliary judgement \[|e| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'|\]
 that yields the body of the generator function.
-This judgement is defined by four different rules, the last of which, (\textsc{B-Case}), is merely
+This judgement is defined by five different rules, the last of which, (\textsc{B-Case}), is merely
 a congruence rule that performs the rewriting in the branches of a |case| expression.
-The first three rules distinguish the three ways in which the function body can yield a list.
+The first four rules distinguish four ways in which the function body can yield a list.
 \begin{enumerate}
 \item Rule (\textsc{B-Nil}) captures the simplest way for producing a list, namely with |[]|,
       which is rewritten to the new parameter |n|.
@@ -907,13 +981,29 @@ The first three rules distinguish the three ways in which the function body can 
       rewrites the tail of the list.
 \item Rule (\textsc{B-Rec}) replaces recursive calls to the original function |f| by recursive
       calls to the generator function |g|.
+\item Rule (\textsc{B-Build}) deals with the case where a list is produced by a call
+      to |build|. It could have dynamically introduced the abstract |c| and |n| list constructors 
+      by means of |foldr c n (build e)|. However, this expression can be statically fused to |e c n|.
 \end{enumerate}
-In the |map| example, all four of the rules are used.
-
+In the |map| example, all rules but (\textsc{B-Build}) of the rules are used.
+Here is an example that does use rule (\textsc{B-Build}).
+\begin{spec}
+toFront :: Eq a => a -> [a] -> [a]
+toFront x xs = x : filter (/= x) xs
+\end{spec}
+After inlining |filter|, this function becomes.
+\begin{spec}
+toFront = \x -> \xs -> x : build (g (/= x) xs)
+\end{spec}
+which can be transformed into:
+\begin{spec}
+toFront = \x -> \xs -> build (g' x xs)
+g'  = \x -> \xs -> \c -> \n ->  c x (g' (/= x) xs c n)
+\end{spec}
 %-------------------------------------------------------------------------------
 \subsection{Degenerate Builds}
 
-Just like we called non-recursive catamorphisms, degerate |folds|,
+Just like we called non-recursive catamorphisms, degenerate |folds|,
 we can also call non-recursive builds degenerate.
 For instance,
 \begin{spec}
@@ -940,6 +1030,9 @@ whole list.
 == {- unfold |sum| three more times -}
      1 + (2 + (3 + 0))
 \end{spec}
+However, in practice, GHC does not peform such aggressive inlining by default.
+Hence, |foldr|/|build| fusion is still a good way of getting rid of the
+intermediate datastructure.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
