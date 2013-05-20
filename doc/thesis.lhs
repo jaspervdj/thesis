@@ -32,17 +32,29 @@
 \begin{code}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Rank2Types      #-}
-import Data.Char (toUpper)
-import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
+import Data.Char  (toUpper)
+import Data.List  (intersperse)
+import GhcPlugins
+import Prelude    hiding (filter, foldr, head, id, map, sum, product,
+                          replicate)
+
+elapsed :: a
+elapsed = undefined
 \end{code}
 }
 
+%format e1 = e"_1"
+%format e2 = e"_2"
 %format f1 = f"_1"
 %format f2 = f"_2"
 %format B1 = B"_1"
 %format B2 = B"_2"
+%format x1 = x"_1"
+%format x2 = x"_2"
 %format xs1 = xs"_1"
 %format xs2 = xs"_2"
+%format elapsed = "\ldots"
+%format subst (term) (v) (e) = [v "\mapsto" e] term
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Style
@@ -1138,10 +1150,10 @@ Het algoritme om een |build| te genereren werkt als volgt:
 
 \begin{spec}
 buildTree :: (forall b. ... -> b) -> Tree a
-buildTree g = ...
+buildTree g = elapsed
 
 buildList  :: (forall b. ... -> b) -> [a]
-buildList g = ...
+buildList g = elapsed
 \end{spec}
 
 \item Opnieuw krijgen we voor elke constructor een functieparameter, ditmaal
@@ -1151,10 +1163,10 @@ manier als in het algoritme voor |deriveFold| (zie Sectie
 
 \begin{spec}
 buildTree :: (forall b. (a -> b) -> (b -> b -> b) -> b) -> Tree a
-buildTree g = ...
+buildTree g = elapsed
 
 buildList  :: (forall b. (a -> b -> b) -> b -> b) -> [a]
-buildList g = ...
+buildList g = elapsed
 \end{spec}
 
 \item De implementatie bestaat vervolgens uit het toepassen van |g| op de
@@ -1262,10 +1274,10 @@ types van onder meer variabelen en functies op te vragen. Dit is in principe
 niet essentieel voor onze detector, maar kan wel zeer nuttig zijn. Beschouw
 bijvoorbeeld:
 
-\begin{spec}
+\begin{code}
 add :: Int -> Int -> Int
-add x y = ...
-\end{spec}
+add x y = elapsed
+\end{code}
 
 We kunnen, zonder de definitie van |add| te bekijken, al uit de type-signatuur
 opmaken dat |add| geen |fold| noch |build| zal zijn. Het is immers niet mogelijk
@@ -1373,6 +1385,159 @@ Haskell-expressies worden omgezet naar GHC Core-expressies.
   overeenkomstige GHC Core-expressies}
   \label{figure:haskell-to-ghc-core}
 \end{figure}
+
+\section{Het GHC Plugins systeem}
+
+De vraag is nu hoe we deze GHC Core kunnen manipuleren. Tot recentelijk was dit
+enkel mogelijk door de source code van GHC direct aan te passen. Gelukkig werd
+in GHC 7.2.1 een nieuw plugin systeem ge\"introduceerd \cite{ghc-plugins} dat
+dit sterk vereenvoudigd.
+
+Meer bepaald is het nu mogelijk om Core-naar-Core tranformaties te implementeren
+in aparte modules, en deze vervolgens mee te geven aan GHC via commmand-line
+argumenten.
+
+De module moet een |plugin :: Plugin| definitie bevatten.
+
+\begin{code}
+plugin :: Plugin
+plugin = defaultPlugin {installCoreToDos = install}
+\end{code}
+
+De |installCoreToDos| laat toe om de lijst van passes aan te passen. Dit is een
+standaard Haskell-lijst en bevat initi\"eel alle passes die GHC traditioneel
+uitvoert. Met |intersperse| kunnen we bijvoorbeeld onze pass laten uitvoeren
+tussen elke twee GHC-passes.
+
+\begin{code}
+install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
+install _options passes = return $ intersperse myPlugin passes
+  where
+    myPlugin = CoreDoPluginPass "My plugin" (bindsOnlyPass myPass)
+\end{code}
+
+De implementatie van de effectieve pass heeft typisch de type-signatuur
+|CoreProgram -> CoreM CoreProgram|. Hierin kunnen we dus gemakkelijk de
+expressies bewerken: deze worden voorgesteld als een algebra\"isch datatype.
+
+\begin{code}
+myPass :: CoreProgram -> CoreM CoreProgram
+myPass = elapsed
+\end{code}
+
+We illustreren hier een vereenvoudigde versie van het algebra\"isch datatype dat
+door GHC gebruikt wordt:
+
+\begin{spec}
+type CoreProgram = [Bind Var]
+
+data Bind b
+    =  NonRec b Expr
+    |  Rec [(b, Expr)]
+
+data Expr b
+    =  Var Id
+    |  Lit Literal
+    |  App (Expr b) (Expr b)
+    |  Lam b (Expr b)
+    |  Let (Bind b) (Expr b)
+    |  Case (Expr b) b Type [Alt b]
+    |  Cast (Expr b) Coercion
+    |  Tick (Tickish Id) (Expr b)
+    |  Type Type
+    |  Coercion Coercion
+
+type Alt b = (AltCon, [Id], Expr b)
+\end{spec}
+
+|Var| stelt eenvoudigweg variabelen voor, en literals worden door |Lit|
+geconstrueerd. |App| en |Lam| zijn lambda-applicatie en lambda-abstractie
+respectievelijk, concepten waarmee we bekend zijn uit de lambda-calculus. |Let|
+stelt |let|-expressies voor, zowel recursief als niet-recursief. |Case| stelt
+|case|-expressies voor maar heeft meerdere parameters: een extra binder voor de
+expressie die onderzocht wordt door de |case|-expressie (ook de \emph{scrutinee}
+genoemd), en het type van de resulterende alternatieven. |Cast|, |Tick|, |Type|
+en |Coercion| worden gebruikt voor expressies die weinig relevantie hebben met
+deze thesis. We vermelden deze dus zonder verdere uitleg.
+
+Haskell-programma's worden dus door de compiler voorgesteld in deze abstracte
+syntaxboom, en plugins kunnen deze bomen naar willekeur transformeren. Figuur
+\ref{figure:ghc-core-ast} toont hoe GHC-Core expressies eruitzien in deze
+syntaxboom.
+
+\begin{figure}[h]
+  \begin{tabular}{ll}
+    |x| \hspace{0.40\textwidth} &
+    |Var "x"| \\
+
+    |2| &
+    |Lit 2| \\
+
+    |e1 e2| &
+    |App e1 e2| \\
+
+    |\x -> e| &
+    |Lam x e| \\
+
+    |let x = e1 in e2| &
+    |Let (NonRec x e1) e2| \\
+
+    |case e1 of C x1 x2 -> e2| &
+    |Case e1 _ _ [(DataCon C, [x1, x2], e2)]| \\
+  \end{tabular}
+  \caption{Een overzicht van hoe GHC-Core expressies worden voorgesteld in de
+  abstracte syntaxboom.}
+  \label{figure:ghc-core-ast}
+\end{figure}
+
+Ter illustratie geven we hier een kleine pass die niet-recursieve binds inlined,
+dit is, |let x = e1 in e2| omzet naar |subst e2 x e1|.
+
+\begin{code}
+simpleBetaReduction :: [Bind Var] -> [Bind Var]
+simpleBetaReduction = map (goBind [])
+  where
+    goBind :: [(Var, Expr Var)] -> Bind Var -> Bind Var
+    goBind env (NonRec x e)  = NonRec x (go ((x, e) : env) e)
+    goBind env (Rec bs)      = Rec [(x, go env e) | (x, e) <- bs]
+
+    go :: [(Var, Expr Var)] -> Expr Var -> Expr Var
+    go env (Var x)                 =
+        case lookup x env of Nothing -> Var x; Just e -> e
+    go env (Lit x)                 = Lit x
+    go env (App e1 e2)             = App (go env e1) (go env e2)
+    go env (Lam x e)               = Lam x (go env e)
+    go env (Let (NonRec x e1) e2)  = go ((x, e1) : env) e2
+    go env (Let (Rec bs) e2)       =
+        Let (Rec [(x, go env e1) | (x, e1) <- bs]) (go env e2)
+    go env (Case e1 x1 ty alts)    =
+        Case (go env e1) x1 ty
+            [(ac, bnds, go env e2) | (ac, bnds, e2) <- alts]
+    go env (Cast e c)              = Cast (go env e) c
+    go env (Tick t e)              = Tick t (go env e)
+    go env (Type t)                = Type t
+    go env (Coercion c)            = Coercion c
+\end{code}
+
+E\'ens een dergelijke plugin geschreven is, kan deze eenvoudig gebruikt worden.
+De code dient \emph{gepackaged} te worden met \emph{cabal} \cite{cabal} en
+vervolgens kan men deze plugin installeren:
+
+\begin{lstlisting}
+cabal install my-plugin
+\end{lstlisting}
+
+Men kan nu door slechts enkele commandolijn-argumenten mee te geven GHC opdragen
+dat deze plugin geladen en uitgevoerd moet worden tijdens de compilatie:
+
+\begin{lstlisting}
+ghc --make -package my-plugin -fplugin MyPlugin test.hs
+\end{lstlisting}
+
+Waarbij |MyPlugin| de naam van de module is die |plugin :: Plugin| bevat, en
+\texttt{my-plugin} de naam van het ge\"installeerde cabal-package. We kunnen dus
+concluderen dat met dit systeem het zeer eenvoudig is om GHC uit te breiden of
+te wijzigen, zonder dat de code van GHC moet aangepast worden.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
