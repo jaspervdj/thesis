@@ -1154,9 +1154,7 @@ data Bind
 type Alt = (AltCon, [Id], Expr)
 \end{code}
 
-|Id| is the type used for different kinds of identifiers. The |Id|s used in this
-phase of the compilation are guaranteed to be unique. This means we don not have
-to take scoping into account for many transformations. |Lit| is any kind of
+|Id| is the type used for different kinds of identifiers. |Lit| is any kind of
 literal. |App| and |Lam| are well-known from the $\lambda$-calculus and
 represent function application and lambda abstraction respectively. |Let| is
 used to introduce new recursive or non-recursive binds, and |Case| is used for
