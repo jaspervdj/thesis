@@ -9,7 +9,8 @@ draft.pdf: draft.tex references.bib
 	pdflatex draft.tex
 	pdflatex draft.tex
 
-thesis.pdf: thesis.tex references.bib
+thesis.pdf: thesis.tex references.bib plots
+	cd plots; make
 	xelatex thesis.tex
 	bibtex thesis.aux
 	xelatex thesis.tex

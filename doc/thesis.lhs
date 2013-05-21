@@ -1813,54 +1813,110 @@ de programmeur hoeft hier dus niet over na te denken.
 
 \section{Tijdsmetingen}
 
-We voerden enkele tijdsmetingen uit op twee simpele programmas om de impact van
-foldr/build-fusion te kunnen meten.
+We onderzoeken nu de tijdswinsten die we kunnen behalen door foldr/build-fusion
+uit te voeren. Hiertoe maken we een lijst kleine programmas die fusable
+pijnlijnen van verschillende lengtes bevatten.
 
-We beschouwden de volgende twee programma's:
+We beginnen met een aantal hulpfuncties voor lijsten te defini\"eren op
+expliciet recursieve wijze:
 
 \begin{code}
-mkTreeResult :: Int -> Int
-mkTreeResult n = treeSum (treeMap (+ 1) (1 `treeUpTo` n))
+suml :: [Int] -> Int
+suml []        = 0
+suml (x : xs)  = x + suml xs
+
+mapl :: (a -> b) -> [a] -> [b]
+mapl f = go
   where
-    treeSum :: Tree Int -> Int
-    treeSum (Leaf x)      = x
-    treeSum (Branch l r)  = treeSum l + treeSum r
+    go []        = []
+    go (x : xs)  = f x : go xs
 
-    treeMap :: (a -> b) -> Tree a -> Tree b
-    treeMap f = go
-      where
-        go (Leaf x)      = Leaf (f x)
-        go (Branch l r)  = Branch (go l) (go r)
+uptol :: Int -> Int -> [Int]
+uptol lo up = go lo
+  where
+    go i
+        | i > up     = []
+        | otherwise  = i : uptol (i + 1) up
+\end{code}
 
-    treeUpTo :: Int -> Int -> Tree Int
-    treeUpTo lo hi
-        | lo >= hi   = Leaf lo
-        | otherwise  =
-            let mid = (lo + hi) `div` 2
-            in Branch (treeUpTo lo mid) (treeUpTo (mid + 1) hi)
+We kunnen deze hulpfuncties ook defini\"eren voor ons |Tree|-type, opnieuw op
+expliciet recursieve wijze:
+
+\begin{code}
+sumt :: Tree Int -> Int
+sumt (Leaf x)      = x
+sumt (Branch l r)  = sumt l + sumt r
+
+mapt :: (a -> b) -> Tree a -> Tree b
+mapt f = go
+  where
+    go (Leaf x)      = Leaf (f x)
+    go (Branch l r)  = Branch (go l) (go r)
+
+uptot :: Int -> Int -> Tree Int
+uptot lo hi
+    | lo >= hi   = Leaf lo
+    | otherwise  =
+        let mid = (lo + hi) `div` 2
+        in Branch (uptot lo mid) (uptot (mid + 1) hi)
+\end{code}
+
+Met deze hulpfuncties ter beschikking kunnen we een aantal pijplijnfuncties
+maken voor zowel lijsten als bomen, van vari\"erende lengte:
+
+\begin{code}
+l1, l2, l3, l4, l5 :: Int -> Int
+l1 n = suml (1 `uptol` n)
+l2 n = suml (mapl (+ 1) (1 `uptol` n))
+l3 n = suml (mapl (+ 1) (mapl (+ 1) (1 `uptol` n)))
+l4 n = elapsed
+l5 n = elapsed
 \end{code}
 
 \begin{code}
-mkListResult :: Int -> Int
-mkListResult n = listSum (listMap (+ 1) (1 `listUpTo` n))
-  where
-    listSum :: [Int] -> Int
-    listSum []        = 0
-    listSum (x : xs)  = x + listSum xs
-
-    listMap :: (a -> b) -> [a] -> [b]
-    listMap f = go
-      where
-        go []        = []
-        go (x : xs)  = f x : go xs
-
-    listUpTo :: Int -> Int -> [Int]
-    listUpTo lo up = go lo
-      where
-        go i
-            | i > up     = []
-            | otherwise  = i : go (i + 1)
+t1, t2, t3, t4, t5 :: Int -> Int
+t1 n = sumt (1 `uptot` n)
+t2 n = sumt (mapt (+ 1) (1 `uptot` n))
+t3 n = sumt (mapt (+ 1) (mapt (+ 1) (1 `uptot` n)))
+t4 n = elapsed
+t5 n = elapsed
 \end{code}
+
+Deze functies zijn eenvoudig te benchmarken met behulp van de Criterion library
+\cite{criterion}. We gebruiken inputgrootte |n = 100000| en voeren de benchmarks
+tweemaal uit: enerzijds met enkel de \texttt{-O2} compilatievlag, en anderzijds
+met de compilatievlaggen \texttt{-O2 -package what-morphism -fplugin
+WhatMorphism}.
+
+De resultaten zijn te zien in Figuur \ref{figure:list-tree} en Figuur
+\ref{figure:list-tree-speedups}. We zijn telkens ge\"interesseerd in de
+versnelling, die we kunnen berekenen als:
+
+\begin{equation*}
+versnelling = \frac{t_2 - t_1}{t_2}
+\end{equation*}
+
+Met $t_2$ de tijdsmeting als we compileerden met \emph{what-morphism} en $t_1$
+de tijdsmeting met enkel de \texttt{-O2} vlag.
+
+We zien dat we direct grote speedups krijgen bij |l0| en |t0|. Dit toont aan dat
+foldr/build-fusion zelfs voor heel kleine pipelines de moeite loont. Eveneens
+kunnen we uit de grafiek me relatieve resultaten afleiden dat de versnelling
+steeds dichter bij 100\% zal komen naarmate de pijplijn langer wordt.
+
+\begin{figure}[h]
+\includegraphics[width=0.50\textwidth]{plots/list.pdf}
+\includegraphics[width=0.50\textwidth]{plots/tree.pdf}
+\caption{De absolute resultaten van de tijdsmetingen voor lijsten (links) en
+bomen (rechts).}
+\label{figure:list-tree}
+
+\includegraphics[width=0.50\textwidth]{plots/list-speedups.pdf}
+\includegraphics[width=0.50\textwidth]{plots/tree-speedups.pdf}
+\caption{De relatieve resultaten van de tijdsmetingen voor lijsten (links) en
+bomen (rechts).}
+\label{figure:list-tree-speedups}
+\end{figure}
 
 \begin{itemize}
 \item \TODO{Mutually recursive functions}
