@@ -1918,6 +1918,28 @@ bomen (rechts).}
 \label{figure:list-tree-speedups}
 \end{figure}
 
+\section{Detectie van folds}
+
+\begin{table}
+\begin{tabular}{l||l}
+\textbf{Package}  & \textbf{Aantal gevonden folds} \\
+\hline
+Cabal-1.16.0.3    & 20  \\
+HTTP-4000.2.8     & 6   \\
+darcs-2.8.4       & 66  \\
+ghc-7.6.3         & 327 \\
+hakyll-4.2.2.0    & 5   \\
+hlint-1.8.44      & 6   \\
+hmatrix-0.14.1.0  & 1   \\
+hscolour-1.20.3   & 4   \\
+pandoc-1.11.1     & 15  \\
+parsec-3.1.3      & 3   \\
+snap-core-0.9.3.1 & 4   \\
+\end{tabular}
+\caption{Een overzicht van het aantal gevonden folds in een aantal bekende
+packages.}
+\end{table}
+
 \begin{itemize}
 \item \TODO{Mutually recursive functions}
 \end{itemize}
