@@ -33,6 +33,9 @@
 %format e'1 = "e^{\prime}_1"
 %format e'2 = "e^{\prime}_2"
 %format forall (x) = "\mathopen{}\forall" x "\mathclose{}"
+%format box = "\Box"
+%format triangle = "\triangle"
+%format (many (x)) = "\overline{" x "}"
 \def\commentbegin{\quad$[\![\enskip$}
 \def\commentend{$\enskip]\!]$}
 
@@ -654,39 +657,34 @@ expression  & |e| & ::=  & |x| \\
 The extension to GHC's full core syntax, including
 types, is relatively straightforward. 
 
-%format box = "\Box"
-%format (many (x)) = "\overline{" x "}"
-We will also need a simple form of \emph{(expression) context}:
-%{
-\begin{center}
-\begin{tabular}{llcl}
-context & |E| & ::=  & |box|  \\
-            &     & $\mid$ & |E e| \\
-            &     & $\mid$ & |e E|
-\end{tabular}
-\end{center}
-%}
-A context |E| denotes an expression with a hole, denoted by |box|.
-The term |E[e]| denotes the expression obtained by replacing the hole by |e|.
-
-%-------------------------------------------------------------------------------
-\subsection{Discovering Folds}
-\label{subsection:identifying-folds}
-
-%format triangle = "\triangle"
-\begin{figure*}[t]
+We will also need an advanced form of \emph{(expression) context}:
 \[\begin{array}{lcl}
 |E| & ::=  & |x| \\
     & \mid & |E x| \\
     & \mid & |E box| \\
     & \mid & |E triangle|
 \end{array}\]
+A context |E| denotes a function applied to a number of arguments. The function
+itself and some of its arguments are given (as variables), while there are holes for the other
+arguments. In fact, there are two kinds of holes: boxes |box| and triangles
+|triangle|. The former is used for a sequence of unimportant arguments, while
+the latter marks an argument of significance. The function
+$|E|[|many e|;e]$ turns a context |E| into an expression by filling in the holes
+with the given expressions.
 \[\begin{array}{lcl}
-|x|[;|e|]                   & =  & |x| \\
+|x|[\epsilon;|e|]                   & =  & |x| \\
 (|E x|)[|many e|;|e|]         & =  & |E|[|many e|;|e|]\, |x| \\
 (|E box|)[|many e|,|e1|;|e|]  & =  & |E|[|many e|;|e|]\, |e1| \\
 (|E triangle|)[|many e|;|e|]  & =  & |E|[|many e|;|e|]\, |e| \\
 \end{array}\]
+Note that this function is partial; it is undefined if the number
+of expressions |many e| does not match the number of box holes.
+
+%-------------------------------------------------------------------------------
+\subsection{Discovering Folds}
+\label{subsection:identifying-folds}
+
+\begin{figure*}[t]
 \begin{center}
 \fbox{
 \begin{minipage}{0.95\textwidth}
@@ -694,13 +692,13 @@ The term |E[e]| denotes the expression obtained by replacing the hole by |e|.
 \myruleform{\inferrule{}{b \leadsto b'}} \hspace{2cm}
 
 \inferrule*[left=(\textsc{F-Bind})]
-  { |e'1| = |\many u ->|[|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
+  { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
     |E|[|many u|;|y|] = |f (many x) y (many z)| \\ |ws|~\textit{fresh} \\\\ 
     |e2| \stackrel{E}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
   }
   {
 |f = \(many x) y (many z) -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
-    \leadsto |f = \(many x) y (many z) -> foldr (\v ws (many u) -> e'2) (\many u -> e'1) x (many u)| 
+    \leadsto |f = \(many x) y (many z) -> foldr (\v ws (many u) -> e'2) (\many u -> e'1) y (many u)| 
   } \\
 \\
 \myruleform{\inferrule*{}{e~{}_x\!\!\stackrel{E}{\leadsto}_y~e'}} \hspace{2cm}
@@ -743,83 +741,70 @@ The term |E[e]| denotes the expression obtained by replacing the hole by |e|.
 \caption{Fold discovery rules}\label{fig:foldspec}
 \end{figure*}
 
-\begin{figure}[t]
-\begin{center}
-\fbox{
-\begin{minipage}{0.95\columnwidth}
-\[\begin{array}{c}
-\myruleform{\inferrule*{}{b \leadsto b'}} \hspace{2cm}
-\inferrule*[left=(\textsc{F-Bind})]{e \stackrel{f}{\leadsto}_{f\,\Box} e'}
-        {f = e \leadsto f = e'} \\
-\\
-\myruleform{\inferrule*{}{e \stackrel{f}{\leadsto}_E e'}} \hspace{2cm}
-\inferrule*[left=(\textsc{F-Abs})]
-  {e \stackrel{f}{\leadsto}_{E[x]\,\Box} e'}
-  {\lambda x \rightarrow e \stackrel{f}{\leadsto}_E \lambda x \rightarrow e'} \\
-\\
-\inferrule*[left=(\textsc{F-SwapAbs})]
-  {\lambda x \rightarrow e \stackrel{f}{\leadsto}_{E\,y} \lambda x \rightarrow e'}
-  {\lambda x \rightarrow \lambda y \rightarrow e \stackrel{f}{\leadsto}_E \lambda x \rightarrow \lambda y \rightarrow e'} \\
-\\
-\inferrule*[left=(\textsc{F-AbsCase})]
-  { [|x| \mapsto |[]|]|e1| = |e'1| \quad\quad |z|,|zs|~\textit{fresh} \\\\
-    [|x| \mapsto |(y:ys)|]|e2| = [|z| \mapsto |y|][|zs| \mapsto E[|ys|]]|e'2| \\
-    f \not\in |e'2|  \\
-   \{|y|,|ys|\} \cap \textit{fv}(|e'2|) = \emptyset }
-  {
-|\x -> case x of { [] -> e1 ; (y:ys) -> e2 }| \\
-    \stackrel{f}{\leadsto}_E |\x -> foldr (\z zs -> e'2) e'1 x| 
-  } 
-\end{array}\]
-\end{minipage}
-}
-\end{center}
-\caption{Fold discovery rules}\label{fig:foldspec}
-\end{figure}
 
 Figure~\ref{fig:foldspec} shows our non-deterministic algorithm for rewriting 
 function bindings in terms of folds. To keep the exposition simple, the algorithm
 is specialized to folds over lists; we discuss the generalization to other
-algebraic datatypes later on.
+algebraic datatypes later on.\tom{Where?}
 
-The top-level judgement is of the form $|b| \leadsto |b'|$, which denotes the rewriting
-of a function binding |b| to |b'|. It is defined by one rule, (\textsc{F-Bind}), that rewrites
-the body of the binding with the help of the actual worker judgement: \[|e| \stackrel{f}{\leadsto}_E |e|'\]
-This judgement denotes that expression |e| can be rewritten to |e'| within the
-body of the binding for |f|, where recursive calls over a subterm |t| have the
-form $|E|[|t|]$.
-
-The core rule of the worker judgement is (\textsc{F-AbsCase}), which rewrites a case analysis
-into a fold. For instance, for the |sum| function and |E = sum box|, it rewrites
-\begin{center}
-\begin{minipage}{5cm}
+\paragraph{Single-Argument Functions}
+The top-level judgement is of the form $|b| \leadsto |b'|$, which denotes the
+rewriting of a function binding |b| to |b'|.  The judgement is defined by a
+single rule \textsc(F-Bind), but we first explain a specialized rule for single
+argument functions:
+\[
+\inferrule*[left=(\textsc{F-Bind'})]
+  { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e1|) \\ |ws|~\textit{fresh} \\\\ 
+    |e2| \stackrel{|f triangle|}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+  }
+  {
+|f = \y -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
+    \leadsto |f = \y -> foldr (\v ws -> e'2) e'1 y| 
+  }
+\]
+This rule rewrites a binding like
 \begin{spec}
-     \x -> case x of
-             []        -> 0
-             (y,ys)    -> (+) y (sum ys)
+sum = \y -> case y of
+              []      -> 0
+              (v:vs)  -> (+) v (sum vs)
 \end{spec}
-\end{minipage}
-\end{center}
 into
-\[ |\x -> foldr (\z zs -> (+) z zs) 0 x| \]
-Note that the recursive call |sum ys| takes the form $|E|[|ys|]$ and is replaced
-by a fresh variable |zs| in the invocation of |foldr|. The side-conditions
-on the rule make sure that the function being rewritten is a proper catamorphism.
+\begin{spec}
+sum = \y -> foldr (\v ws -> (+) v ws) 0 y
+\end{spec}
+mostly by simple pattern matching and replacement. The
+main work is to replace all recursive calls in |e2|, which
+is handled by the auxiliary judgement of the form
+\[ e~{}_x\!\!\stackrel{E}{\leadsto}_y~e' \]
+which is defined by five rewriting rules: rule \textsc{(F-Rec)} takes care of
+the actual rewriting of recursive calls, while rule \textsc{F-Refl} provides
+the reflexive closure and the other three rules provide congruence closure.
+In the restricted setting of single argument functions rule \textsc({F-Rec}) takes the simplified
+form
+\[
+\inferrule*[left=(\textsc{F-Rec'})]
+  { 
+  }
+  { |f x| ~{}_x\!\!\stackrel{|f triangle|}{\leadsto}_y~ |y|
+  }
+\]
+Hence, we have $|sum vs| ~{}_\mathit{vs}\!\!\!\!\!\!\stackrel{|sum triangle|}{\leadsto}\!\!\!\!\!\!_\mathit{ws}~ |ws|$.
+
+The side-conditions on the \textsc{(F-Bind')} rule make sure that the function being rewritten is
+a proper catamorphism.
 \begin{enumerate}
-\item If |y| appears in |e'2|, this indicates that it has not been properly replaced
-      by |z|.
-\item If |ys| appears in |e'2|, then, if it appears as $|E|[|ys|]$, the latter
-      has not been properly replaced by |zs|. If it appears in any other capacity,
+\item If |vs| appears in |e'2| as part of $|f vs|$, the latter
+      has not been properly replaced by |ws|. If |vs| appears in any other capacity,
       then the function is not a catamorphism, but a \emph{paramorphism}. An example of such a
       function, is the function |suff|.
 \begin{spec}
-suff = \x -> case x of
-            []      -> []
-            (y:ys)  -> ys : tails ys
+suff = \y -> case y of
+              []      -> []
+              (v:vs)  -> vs : suff vs
 \end{spec}
 This function can be written as 
 \begin{spec}
-suff = para (\z zs r -> zs : r) []
+suff = para (\v vs ws -> vs : ws) []
 \end{spec}
 where the higher-order pattern of paramorphisms is
 \begin{spec}
@@ -827,55 +812,70 @@ para :: (a -> [a] -> b -> b) -> b -> [a] -> b
 para f z []      = z
 para f z (x:xs)  = f x xs (para f z xs)
 \end{spec}
-\item If |f| appears in any other form than as part of recursive calls of the form $|E|[|ys|]$, then
-      again the function is not a proper paramorphism. An example of that case
+\item If |f| appears in any other form than as part of recursive calls of the form $|f vs|$, then
+      again the function is not a proper catamorphism. An example of that case
       is the following non-terminating function:
 \begin{spec}
-f = \x -> case x of
+f = \x -> case y of
             []      -> 0
-            (x:xs)  -> x + f xs + f [1,2,3]
+            (v:vs)  -> v + f vs + f [1,2,3]
 \end{spec}
 \end{enumerate}
 Note that we know in the branches |e1| and |e2| the variable |x| is an alias
-for respectively |[]| or |(y:ys)|. The rule exploits this property
-to eliminate |x| in |e'1| and |e'2|. In the latter case it may reveal an improper
-catamorphism, where |ys| appears
-outside of a recursive call (issue 2 above).
+for respectively |[]| or |(y:ys)|. Rule (\textsc{F-Bind'}) exploits the former
+case to eliminate |x| in |e'1|. The latter case reveals an improper
+catamorphism, where |ys| appears outside of a recursive call (issue 2 above);
+hence, rule \textsc{(F-Bind')} does not allow it.
 
-The other two rules of the algorithm deal with additional constant arguments.
-In particular, rule (\textsc{F-Abs}) deals with extra arguments that 
-preceed the scrutinee. Consider for instance the well-known |map| function.
+\paragraph{Multi-Argument Functions}
+Rule \textsc{(F-Bind)} generalizes rule \textsc{(F-Bind')} by supporting
+additional arguments |many x| and |many z| before and after the scrutinee
+argument |y|. We distinguish two kinds of additional arguments.
+The first kind are arguments that are \emph{invariant} in the recursion. An
+example of that is the |f| parameter in the |map| function.
 \begin{spec}
-map :: (a -> b) -> [a] -> [b]
-map = \f -> \l -> case l of
-                    []      -> []
-                    (y:ys)  -> f y : map f ys
+map = \f y -> case y of
+                []      -> []
+                (v:vs)  -> (:) (f v) (map f vs)
 \end{spec}
-It is not possible to express |map| itself as a |foldr|.
-\begin{spec}
-map = \l -> foldr ? ?  l
-\end{spec}
-However, it is possible to express |map f| as a |foldr|.
-\begin{spec}
-map = \f -> \l -> foldr (\z zs -> f z : zs) []  l
-\end{spec}
-Hence, rule (\textsc{F-Abs}) performs the rewriting under a binder and
-extends the context for recursive calls to include the new bound variable.
-In the case of the |map| example, the context for recursive calls is |map f box|.
+Rule \textsc{(F-Bind)} does not explicitly name these invariant arguments, but
+captures them instead in the recursive call context |E|. For instance, for |map|
+the context has the form |map f triangle|.
 
-Rule (\textsc{F-AbsSwap}) deals with additional constant arguments that come
-after the scrutinee argument by temporarily duplicating the first binder after
-the second one. An example that is handled by this rule is the |horner| function,
+The second kind of additional arguments are \emph{variant} in the recursion.
+Catamorphisms with an accumulating parameter are typical examples of these. E.g.,
 \begin{spec}
-horner :: [Int] -> Int -> Int
-horner = \l -> \x -> case l of
-                       []      -> 0
-                       (y:ys)  -> y + x * horner ys x
+sum' = \y acc -> case y of
+                   []      -> acc
+                   (v:vs)  -> sum' vs (v + acc)
 \end{spec}
-which is turned into
+Rule \textsc({F-Bind)} names these variant arguments |many u| and leaves |box|
+holes in the context |E| for them. For instance, the context of |sum'| is |sum'
+triangle box|.  Because the |many u| arguments vary throughout the iteration,
+their current and new values need to be bound, respectively supplied, at every
+step. The binding of the current values is taken care of by the binders |\many
+u ->| in the two first parameters of |foldr|. Also the initial values for |many
+u| are supplied as extra parameters to |foldr|.
+
+Rule \textsc{(F-Rec)} captures the new values |many e| for the variant
+arguments with the help of the context |E|; a recursive call takes the form
+$|E|[|many e|;|vs|]$. The rule passes these variant arguments explicitly to the
+recursive result |ws|. For instance, after rewriting |sum'| we get
 \begin{spec}
-horner :: [Int] -> Int -> Int
-horner = \l -> \x -> foldr (\z zs -> z + x * zs) 0 l
+sum' = \y acc -> foldr  (\v ws acc -> ws (v + acc)) 
+                        (\acc -> acc) y acc
+\end{spec}
+Note that rule \textsc{(F-Rec)} recursively rewrites the variant arguments
+|many e| because they may harbor further recursive calls. For instance,
+\begin{spec}
+f = \y acc -> case y of
+               []      -> acc
+               (v:vs)  -> f vs (f vs (v+acc))
+\end{spec}
+is rewritten to
+\begin{spec}
+f = \y acc -> foldr (\v ws acc -> ws (ws (v+acc)))
+                    (\acc -> acc) y acc
 \end{spec}
 
 %-------------------------------------------------------------------------------
@@ -900,8 +900,9 @@ are much more easily understood as they are than as a fold. Moreover, they can
 easily be optimized without 
 fold/build fusion: by simple inlining and specialization. 
 Fortunately we can easily avoid introducing degenerate folds by only rewriting
-recursive functions.
-
+recursive functions. In other words, the algorithm must use 
+the rule \textsc{(F-Rec)} at least once.
+ 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Discovering Builds}
 
