@@ -32,17 +32,29 @@
 \begin{code}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Rank2Types      #-}
-import Data.Char (toUpper)
-import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
+import Data.Char  (toUpper)
+import Data.List  (intersperse)
+import GhcPlugins
+import Prelude    hiding (filter, foldr, head, id, map, sum, product,
+                          replicate)
+
+elapsed :: a
+elapsed = undefined
 \end{code}
 }
 
+%format e1 = e"_1"
+%format e2 = e"_2"
 %format f1 = f"_1"
 %format f2 = f"_2"
 %format B1 = B"_1"
 %format B2 = B"_2"
+%format x1 = x"_1"
+%format x2 = x"_2"
 %format xs1 = xs"_1"
 %format xs2 = xs"_2"
+%format elapsed = "\ldots"
+%format subst (term) (v) (e) = [v "\mapsto" e] term
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Style
@@ -91,6 +103,10 @@ import Prelude   hiding (filter, foldr, head, id, map, sum, product, replicate)
 
 \setlength{\parindent}{0.00cm}
 \setlength{\parskip}{0.50cm}
+
+% We have \checkmark, but we don't have \cross...
+\def\tick{\checkmark}
+\def\cross{$\times$}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -639,7 +655,7 @@ foldList  :: ... -> [a] -> b
 \item Per constructor wordt er een extra argument meegeven.
 
 \begin{spec}
-foldTree  :: <LeafArg> -> <NodeArg> -> Tree a -> b
+foldTree  :: <LeafArg> -> <BranchArg> -> Tree a -> b
 foldList  :: <ConsArg> -> <NilArg> -> [a] -> b
 \end{spec}
 
@@ -647,8 +663,8 @@ foldList  :: <ConsArg> -> <NilArg> -> [a] -> b
 van de constructoren beschouwen:
 
 \begin{spec}
-Leaf  :: a -> Tree a
-Node  :: Tree a -> Tree a -> Tree a
+Leaf    :: a -> Tree a
+Branch  :: Tree a -> Tree a -> Tree a
 
 (:)   :: a -> [a] -> [a]
 []    :: [a]
@@ -660,8 +676,8 @@ functie, en dus is elke recursieve subterm al gereduceerd tot een waarde van het
 type |b|. Eveneens is |b| het type van het resultaat. We vinden:
 
 \begin{spec}
-<LeafArg>  = a -> b
-<NodeArg>  = b -> b -> b
+<LeafArg>    = a -> b
+<BranchArg>  = b -> b -> b
 
 <ConsArg>  = a -> b -> b
 <NilArg>   = b
@@ -683,8 +699,8 @@ Argument Transformation (zie \TODO{Cite SAT}).
 foldTree :: (a -> b) -> (b -> b -> b) -> Tree a -> b
 foldTree leaf branch = go
   where
-    go (Leaf x)    = leaf x
-    go (Node x y)  = branch (go x) (go y)
+    go (Leaf x)      = leaf x
+    go (Branch x y)  = branch (go x) (go y)
 
 foldList :: (a -> b -> b) -> b -> [a] -> b
 foldList cons nil = go
@@ -791,7 +807,7 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 \end{proof}
 
 GHC beschikt over een mechanisme om dit soort transformaties uit te voeren
-tijdens de compilatie, door middel van het \texttt{RULES} pragmas
+tijdens de compilatie, door middel van het \verb|{-# RULES -#}| pragmas
 \cite{jones2001}. Zo kunnen we bijvoorbeeld map/map-fusion implementeren door
 eenvodigweg het volgende pragma te vermelden:
 
@@ -1073,8 +1089,8 @@ treeUpTo n m = buildTree $ \leaf branch ->
     in g n m
 \end{code}
 
-Nu kunnen we bestuderen wat er door fusie gebeurt met een expressie als |sumTree
-(treeUpTo n m)|, die een tijdelijke boom aanmaakt.
+Nu kunnen we bestuderen wat er door fusion gebeurt met een expressie als
+|sumTree (treeUpTo n m)|, die een tijdelijke boom aanmaakt.
 
 \begin{spec}
     sumTree (treeUpTo n m)
@@ -1138,10 +1154,10 @@ Het algoritme om een |build| te genereren werkt als volgt:
 
 \begin{spec}
 buildTree :: (forall b. ... -> b) -> Tree a
-buildTree g = ...
+buildTree g = elapsed
 
 buildList  :: (forall b. ... -> b) -> [a]
-buildList g = ...
+buildList g = elapsed
 \end{spec}
 
 \item Opnieuw krijgen we voor elke constructor een functieparameter, ditmaal
@@ -1151,10 +1167,10 @@ manier als in het algoritme voor |deriveFold| (zie Sectie
 
 \begin{spec}
 buildTree :: (forall b. (a -> b) -> (b -> b -> b) -> b) -> Tree a
-buildTree g = ...
+buildTree g = elapsed
 
 buildList  :: (forall b. (a -> b -> b) -> b -> b) -> [a]
-buildList g = ...
+buildList g = elapsed
 \end{spec}
 
 \item De implementatie bestaat vervolgens uit het toepassen van |g| op de
@@ -1262,10 +1278,10 @@ types van onder meer variabelen en functies op te vragen. Dit is in principe
 niet essentieel voor onze detector, maar kan wel zeer nuttig zijn. Beschouw
 bijvoorbeeld:
 
-\begin{spec}
+\begin{code}
 add :: Int -> Int -> Int
-add x y = ...
-\end{spec}
+add x y = elapsed
+\end{code}
 
 We kunnen, zonder de definitie van |add| te bekijken, al uit de type-signatuur
 opmaken dat |add| geen |fold| noch |build| zal zijn. Het is immers niet mogelijk
@@ -1373,6 +1389,482 @@ Haskell-expressies worden omgezet naar GHC Core-expressies.
   overeenkomstige GHC Core-expressies}
   \label{figure:haskell-to-ghc-core}
 \end{figure}
+
+\section{Het GHC Plugins systeem}
+\label{section:ghc-plugins-system}
+
+De vraag is nu hoe we deze GHC Core kunnen manipuleren. Tot recentelijk was dit
+enkel mogelijk door de source code van GHC direct aan te passen. Gelukkig werd
+in GHC 7.2.1 een nieuw plugin systeem ge\"introduceerd \cite{ghc-plugins} dat
+dit sterk vereenvoudigd.
+
+Meer bepaald is het nu mogelijk om Core-naar-Core tranformaties te implementeren
+in aparte modules, en deze vervolgens mee te geven aan GHC via commmand-line
+argumenten.
+
+De module moet een |plugin :: Plugin| definitie bevatten.
+
+\begin{code}
+plugin :: Plugin
+plugin = defaultPlugin {installCoreToDos = install}
+\end{code}
+
+De |installCoreToDos| laat toe om de lijst van passes aan te passen. Dit is een
+standaard Haskell-lijst en bevat initi\"eel alle passes die GHC traditioneel
+uitvoert. Met |intersperse| kunnen we bijvoorbeeld onze pass laten uitvoeren
+tussen elke twee GHC-passes.
+
+\begin{code}
+install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
+install _options passes = return $ intersperse myPlugin passes
+  where
+    myPlugin = CoreDoPluginPass "My plugin" (bindsOnlyPass myPass)
+\end{code}
+
+De implementatie van de effectieve pass heeft typisch de type-signatuur
+|CoreProgram -> CoreM CoreProgram|. Hierin kunnen we dus gemakkelijk de
+expressies bewerken: deze worden voorgesteld als een algebra\"isch datatype.
+
+\begin{code}
+myPass :: CoreProgram -> CoreM CoreProgram
+myPass = elapsed
+\end{code}
+
+We illustreren hier een vereenvoudigde versie van het algebra\"isch datatype dat
+door GHC gebruikt wordt:
+
+\begin{spec}
+type CoreProgram = [Bind Var]
+
+data Bind b
+    =  NonRec b Expr
+    |  Rec [(b, Expr)]
+
+data Expr b
+    =  Var Id
+    |  Lit Literal
+    |  App (Expr b) (Expr b)
+    |  Lam b (Expr b)
+    |  Let (Bind b) (Expr b)
+    |  Case (Expr b) b Type [Alt b]
+    |  Cast (Expr b) Coercion
+    |  Tick (Tickish Id) (Expr b)
+    |  Type Type
+    |  Coercion Coercion
+
+type Alt b = (AltCon, [Id], Expr b)
+\end{spec}
+
+|Var| stelt eenvoudigweg variabelen voor, en literals worden door |Lit|
+geconstrueerd. |App| en |Lam| zijn lambda-applicatie en lambda-abstractie
+respectievelijk, concepten waarmee we bekend zijn uit de lambda-calculus. |Let|
+stelt |let|-expressies voor, zowel recursief als niet-recursief. |Case| stelt
+|case|-expressies voor maar heeft meerdere parameters: een extra binder voor de
+expressie die onderzocht wordt door de |case|-expressie (ook de \emph{scrutinee}
+genoemd), en het type van de resulterende alternatieven. |Cast|, |Tick|, |Type|
+en |Coercion| worden gebruikt voor expressies die weinig relevantie hebben met
+deze thesis. We vermelden deze dus zonder verdere uitleg.
+
+Haskell-programma's worden dus door de compiler voorgesteld in deze abstracte
+syntaxboom, en plugins kunnen deze bomen naar willekeur transformeren. Figuur
+\ref{figure:ghc-core-ast} toont hoe GHC-Core expressies eruitzien in deze
+syntaxboom.
+
+\begin{figure}[h]
+  \begin{tabular}{ll}
+    |x| \hspace{0.40\textwidth} &
+    |Var "x"| \\
+
+    |2| &
+    |Lit 2| \\
+
+    |e1 e2| &
+    |App e1 e2| \\
+
+    |\x -> e| &
+    |Lam x e| \\
+
+    |let x = e1 in e2| &
+    |Let (NonRec x e1) e2| \\
+
+    |case e1 of C x1 x2 -> e2| &
+    |Case e1 _ _ [(DataCon C, [x1, x2], e2)]| \\
+  \end{tabular}
+  \caption{Een overzicht van hoe GHC-Core expressies worden voorgesteld in de
+  abstracte syntaxboom.}
+  \label{figure:ghc-core-ast}
+\end{figure}
+
+Ter illustratie geven we hier een kleine pass die niet-recursieve binds inlined,
+dit is, |let x = e1 in e2| omzet naar |subst e2 x e1|.
+
+\begin{code}
+simpleBetaReduction :: CoreProgram -> CoreM CoreProgram
+simpleBetaReduction = return . map (goBind [])
+  where
+    goBind :: [(Var, Expr Var)] -> Bind Var -> Bind Var
+    goBind env (NonRec x e)  = NonRec x (go ((x, e) : env) e)
+    goBind env (Rec bs)      = Rec [(x, go env e) | (x, e) <- bs]
+
+    go :: [(Var, Expr Var)] -> Expr Var -> Expr Var
+    go env (Var x)                 =
+        case lookup x env of Nothing -> Var x; Just e -> (go env e)
+    go env (Lit x)                 = Lit x
+    go env (App e1 e2)             = App (go env e1) (go env e2)
+    go env (Lam x e)               = Lam x (go env e)
+    go env (Let (NonRec x e1) e2)  = go ((x, e1) : env) e2
+    go env (Let (Rec bs) e2)       =
+        Let (Rec [(x, go env e1) | (x, e1) <- bs]) (go env e2)
+    go env (Case e1 x1 ty alts)    =
+        Case (go env e1) x1 ty
+            [(ac, bnds, go env e2) | (ac, bnds, e2) <- alts]
+    go env (Cast e c)              = Cast (go env e) c
+    go env (Tick t e)              = Tick t (go env e)
+    go env (Type t)                = Type t
+    go env (Coercion c)            = Coercion c
+\end{code}
+
+E\'ens een dergelijke plugin geschreven is, kan deze eenvoudig gebruikt worden.
+De code dient \emph{gepackaged} te worden met \emph{cabal} \cite{cabal} en
+vervolgens kan men deze plugin installeren:
+
+\begin{lstlisting}
+cabal install my-plugin
+\end{lstlisting}
+
+Men kan nu door slechts enkele commandolijn-argumenten mee te geven GHC opdragen
+dat deze plugin geladen en uitgevoerd moet worden tijdens de compilatie:
+
+\begin{lstlisting}
+ghc --make -package my-plugin -fplugin MyPlugin test.hs
+\end{lstlisting}
+
+Waarbij |MyPlugin| de naam van de module is die |plugin :: Plugin| bevat, en
+\texttt{my-plugin} de naam van het ge\"installeerde cabal-package. We kunnen dus
+concluderen dat met dit systeem het zeer eenvoudig is om GHC uit te breiden of
+te wijzigen, zonder dat de code van GHC moet aangepast worden.
+
+\section{De what-morphism plugin}
+
+Voor deze thesis ontwikkelden we een GHC plugin genaamd \emph{what-morphism}
+\cite{what-morphism}. Er zijn vier passes ge\"implementeerd in deze plugin,
+alhoewel ze niet alle vier gebruikt worden.
+
+\begin{itemize}[topsep=0.00cm]
+
+\item |WhatMorphism.Fold|: deze pass probeert functies die expliciete
+recursie gebruiken om te zetten naar functies die een |fold| gebruiken;
+
+\item |WhatMorphism.Build|: deze pass herschrijft functies die gebruik maken van
+expliciete constructoren, om een call naar |build| te gebruiken, indien
+mogelijk;
+
+\item |WhatMorphism.Inliner|: een extra inliner waarover we iets meer controle
+hebben dan over de GHC inliner;
+
+\item |WhatMorphism.Fusion|: een implementatie van de foldr/build-fusion die
+werkt voor alle datatypes zonder dat er extra \verb|{-# RULES #-}| pragmas nodig
+zijn.
+
+\end{itemize}
+
+\subsection{WhatMorphism.Fold}
+
+De deze pass is een meer deterministische implementatie van de regels in
+\TODO{Cite regels}.
+
+We gebruiken de volgende functie ter illustratie (hier voorgesteld als
+Core-expressie):
+
+\begin{code}
+foldlTree :: (a -> b -> a) -> a -> Tree b -> a
+foldlTree = \f z0 tree ->
+    let go = \z -> \t -> case t of
+            Leaf x      -> f z x
+            Branch l r  -> let z' = go z l in go z' r
+    in go z0 tree
+\end{code}
+
+Dit is een \emph{left fold} over een |Tree|. Voor lijsten kan |foldl| uitgedrukt
+worden in termen van |foldr|, en voor bomen is dit niet minder zo.
+
+Om folds te detecteren, bekijken we elke |Bind| in het programma: op die manier
+kunnen we folds vinden zowel in \emph{top-level} binds alsook in lokale |let|-
+of |where|-binds. In dit geval kunnen we de |go| uit de |let|-bind omvormen tot
+een |fold|.
+
+\begin{enumerate}[topsep=0.00cm]
+
+\item We beginnen met alle argumenten van de bind te verzamelen in een lijst en
+we kijken of er dan een |Case| volgt in de syntaxboom. We kunnen nu de
+argumenten rangschikken als volgt: het \emph{scrutinee}-argument (het argument
+dat wordt afgebroken door de |Case|, type-argumenten, en bijkomende argumenten.
+
+We behandelen de type argumenten op een andere manier aangezien we niet toelaten
+dat deze veranderen doorheen de |fold|. Voor andere argumenten is dit wel
+toegelaten.
+
+In ons voorbeeld vinden we dat de boom |t| het scrutinee-argument en |z| een
+bijkomend argument.
+
+\item In de |fold| zal het niet meer mogelijk zijn om rechtstreeks te verwijzen
+naar |t|. Daarom vervangen we in de rechterhandzijden van de
+|Case|-alternatieven telkens |t| door de linkherhandzijde van het alternatief.
+Voor |go| hebben we dus bijvoorbeeld voor het eerste alternatief |subst ((f z
+x)) t (Leaf x)|.
+
+\item Vervolgens herschrijven we de expressies in de rechterhandzijden van de
+|Case|-alternatieven naar anonieme functies. De argumenten voor deze lambda zijn
+de binders van het alternatief gevolgd door de bijkomende argumenten. Zo krijgen
+we in ons voorbeeld |\x z -> elapsed| en |\l_rec r_rec z -> elapsed|
+\footnote{Het |_rec|-suffix duidt hier op het feit dat dit niet de originele
+binders zijn, aangezien het type veranderde. Dit is iets waarbij we rekening
+moesten houden bij de implementatie, maar niet bijzonder belangrijk voor deze
+uiteenzetting van het algoritme.}.
+
+We construeren dan verder deze lambas door te vertrekken vanuit de
+rechterhandzijdes van de alternatieven en hierin expliciete recursie te
+elimineren. Wanneer we zo'n expliciete recursie vinden, kijken we welk argument
+er op de plaats van de scrutinee staat.
+
+Als onze functie daadwerkelijk een |fold| is, zal dit altijd een recursieve
+subterm van het datatype zijn: een |fold| zal altijd de recursieve subtermen op
+een recursieve manier reduceren. Als er dus een ander argument op de plaats van
+de scrutinee staat, kunnen we het algoritme stopzetten, omdat de functie geen
+fold is. Anders herschrijven we de recursieve oproep als de nieuwe binder voor
+de recursieve subterm toegepast op de bijkomende argumenten.
+
+We krijgen dus |\x z -> f z x| en |\l_rec r_rec z -> let z' = l_rec z in r_rec
+z'|. Op deze manier kunnen verandelijke bijkomende argumenten als |z| worden
+doorgegeven.
+
+\item Tenslotte dienen we de anonieme functies aan de argumenten van de |fold|
+te koppelen: dat doen we in de implementatie simpelweg door de volgorde van de
+constructoren op te vragen en te herordenen naar de volgorde van de argumenten
+van de |fold| (|foldTree| in dit geval). We geven natuurlijk ook de scrutinee
+mee als laatste argument voor deze |fold|, gevolgd door de bijkomende
+argumenten, zodat deze kunnen worden doorgegeven aan verdere oproepen.
+
+We krijgen dus:
+
+\begin{code}
+foldlTree' :: (a -> b -> a) -> a -> Tree b -> a
+foldlTree' = \f z0 tree ->
+    foldTree
+        (\x z -> f z x)
+        (\l_rec r_rec z -> let z' = l_rec z in r_rec z')
+        tree
+        z0
+\end{code}
+
+\end{enumerate}
+
+\subsection{WhatMorphism.Build}
+
+\subsection{WhatMorphism.Inliner}
+
+\subsection{WhatMorphism.Fusion}
+
+\section{Aanpassen van de compilatie-passes}
+
+\subsection{Volgorde van de passes}
+
+Zoals eerder besproken in sectie \ref{section:ghc-plugins-system}, kan onze
+plugin, op het moment dat deze geladen wordt, de passes die GHC zal uitvoeren
+wijzigen. We kunnen natuurlijk bijvoorbeeld na\"ief onze plugins als eerste
+runnen, maar om goede resultaten te boeken, blijkt het uitermate belangrijk de
+plugins optimaal te laten samenwerken met GHC.
+
+Ten eerste willen we geen enkele GHC-fase verwijderen: anders beginnen we
+onmiddelijk met een nadeel tegenover de standaard lijst van passes. Om maximaal
+resultaat te boeken, runnen we onze reeks plugins telkens tussen elke twee GHC
+passes, en wel in deze volgorde:
+
+\begin{enumerate}[topsep=0.00cm]
+
+\item Eerst voeren we |WhatMorphism.Build| uit. Het is belangrijk dat we eerst
+functies naar builds omzetten en vervolgens pas naar folds. Beschouw het
+volgende voorbeeld om dit te illustreren:
+
+\begin{spec}
+upper :: String -> String
+upper []        = []
+upper (x : xs)  = toUpper x : upper xs
+\end{spec}
+
+We kunnen dit eerst naar een build omzetten met ons algoritme:
+
+\begin{spec}
+upper :: String -> String
+upper str = build $ \cons nil ->
+    let g str' = case str' of
+            []        -> nil
+            (x : xs)  -> cons (toUpper x) (g xs)
+    in g str
+\end{spec}
+
+En vervolgens naar een fold:
+
+\begin{spec}
+upper :: String -> String
+upper str = build $ \cons nil ->
+    let g str' = foldr (\x xs -> cons (toUpper x) xs) nil str'
+    in g str
+\end{spec}
+
+Beide omzettingen zijn succesvol en nu kan de functie |upper| zowel als
+producent als consument van een lijst van foldr/build-fusion genieten.
+
+Stel dat we echter eerst |WhatMorphism.Fold| zouden uitvoeren:
+
+\begin{spec}
+upper :: String -> String
+upper = foldr (\x xs -> toUpper x : xs) []
+\end{spec}
+
+Dit werkt, maar vervolgens zal |WhatMorphism.Build| dit niet meer kunnen
+omzetten naar een build: ons algoritme is niet in staat om te zien dat |foldr|
+enkel de constructoren |(:)| en |[]| zal gebruiken. In dit geval kan |upper| dus
+enkel als consument van een lijst van foldr/build-fusion genieten.
+
+Daaruit kunnen we concluderen dat het voordelig is om eerst |WhatMorphism.Build|
+uit te voeren en daarna pas |WhatMorphism.Fold|.
+
+\item Vervolgens voeren we |WhatMorphism.Fold| uit, vanwege de bovenstaande
+redenen.
+
+\item Voor functies die we succesvol omzetten naar folds em builds, passen we de
+\emph{inliner-info} aan. Dit zorgt ervoor dat GHC deze agressief zal proberen
+inlinen. Dit is nodig om aan foldr/build-fusion te doen, aangezien deze pass
+enkel de fold- en build-functies herkent, en niet bijvoorbeeld functies
+geschreven in termen van fold en build.
+
+Het is dus geen goed idee om nu al |WhatMorphism.Fusion| uit te voeren,
+aangezien het zeer onwaarschijnlijk is dat deze iets zal kunnen herkennen.
+
+In plaats daarvan voeren we nu dus een bijkomende |Simplifier| pass uit met
+|sm_inline = True|: dit geeft een goede kans om nodige functies te inlinen.
+
+\item Tenslotte kunnen we de |WhatMorphism.Fusion| pass uitvoeren.
+
+\end{enumerate}
+
+\subsection{Inlinen of niet inlinen?}
+
+Een andere belangrijke vraag is of we de functies |foldr| en |build| (en
+natuurlijk de andere folds en builds die we genereren voor bijkomende
+algebra\"ische datatypes) willen inlinen. Het antwoord is geen eenvoudige ja of
+nee, aangezien beide keuzes voordelen en nadelen hebben.
+
+Indien we de functies niet zouden inlinen, met een \verb|{-# NOINLINE #-}|
+pragma, kunnen we meer foldr/build-fusion instanties detecteren: zodra \'e\'en
+van deze functies ge-inlined wordt, voldoen ze immers niet meer aan het patroon
+dat we herkennen.
+
+Inlinen met een \verb|{-# INLINE #-}| pragma zorgt echter wel voor snellere code
+omdat de functiecall-overhead vermeden wordt.
+
+Het is dus best om te zoeken naar een middenweg hier. Gelukkig laat GHC voor
+\verb|{-# INLINE #-}| pragmas \emph{fase control} toe, wat wil zeggen dat we
+meer specifiek kunnen opgeven wanneer GHC moet (of mag) proberen een functie te
+inlinen. Om dit te doen, gebruikt GHC een nummering van fasen: deze loopt af
+naar 0 (de laatste fase). In een \verb|{-# INLINE #-}| pragma kan men vervolgens
+dergelijke faces specificeren: Tabel \ref{tabular:inline-pragmas} geeft een
+overzicht van de verschillende mogelijkheden.
+
+\begin{table}[h]
+\begin{center}
+{\renewcommand{\arraystretch}{1.20} % Slightly more spacing
+\begin{tabular}{l||cc}
+& \textbf{Voor fase |n|} & \textbf{Fase |n| en later} \\
+\hline
+Geen pragma                    & ?      & ?      \\
+\verb|{-# INLINE   f #-}|      & \tick  & \tick  \\
+\verb|{-# NOINLINE f #-}|      & \cross & \cross \\
+\verb|{-# INLINE   [n]  f #-}| & \cross & \tick  \\
+\verb|{-# INLINE   [~n] f #-}| & \tick  & \cross \\
+\verb|{-# NOINLINE [n]  f #-}| & \cross & ?      \\
+\verb|{-# NOINLINE [~n] f #-}| & ?      & \cross \\
+\end{tabular}
+}
+\end{center}
+\caption{Een overzicht van de verschillende \verb|{-# INLINE #-}| pragmas en of
+ze de functie |f| wel dan niet inlinen. Bij een ? beslist GHC zelf op basis van
+een groot aantal heuristieken.}
+\label{tabular:inline-pragmas}
+\end{table}
+
+We kiezen dus voor de volgende pragmas voor elke fold en build, zowel voor
+lijsten als andere algebra\"ische datatypes:
+
+\begin{lstlisting}
+{-# INLINE [0] fold  #-}
+{-# INLINE [0] build #-}
+\end{lstlisting}
+
+Aangezien fase 0 de laatste fase is, krijgen we zo beide voordelen: voor de
+laatste fase worden deze functies nooit ge-inlined, wat foldr/build-fusion
+haalbaarder maakt. In de laatste fase worden ze wel ge-inlined, en dus wordt ook
+de functiecall-overhead vermeden als er geen mogelijkheid werd gevonden tot
+foldr/build-fusion.
+
+Deze pragmas wordt ook automatisch gegenereerd door onze Template Haskell code,
+de programmeur hoeft hier dus niet over na te denken.
+
+\section{Tijdsmetingen}
+
+We voerden enkele tijdsmetingen uit op twee simpele programmas om de impact van
+foldr/build-fusion te kunnen meten.
+
+We beschouwden de volgende twee programma's:
+
+\begin{code}
+mkTreeResult :: Int -> Int
+mkTreeResult n = treeSum (treeMap (+ 1) (1 `treeUpTo` n))
+  where
+    treeSum :: Tree Int -> Int
+    treeSum (Leaf x)      = x
+    treeSum (Branch l r)  = treeSum l + treeSum r
+
+    treeMap :: (a -> b) -> Tree a -> Tree b
+    treeMap f = go
+      where
+        go (Leaf x)      = Leaf (f x)
+        go (Branch l r)  = Branch (go l) (go r)
+
+    treeUpTo :: Int -> Int -> Tree Int
+    treeUpTo lo hi
+        | lo >= hi   = Leaf lo
+        | otherwise  =
+            let mid = (lo + hi) `div` 2
+            in Branch (treeUpTo lo mid) (treeUpTo (mid + 1) hi)
+\end{code}
+
+\begin{code}
+mkListResult :: Int -> Int
+mkListResult n = listSum (listMap (+ 1) (1 `listUpTo` n))
+  where
+    listSum :: [Int] -> Int
+    listSum []        = 0
+    listSum (x : xs)  = x + listSum xs
+
+    listMap :: (a -> b) -> [a] -> [b]
+    listMap f = go
+      where
+        go []        = []
+        go (x : xs)  = f x : go xs
+
+    listUpTo :: Int -> Int -> [Int]
+    listUpTo lo up = go lo
+      where
+        go i
+            | i > up     = []
+            | otherwise  = i : go (i + 1)
+\end{code}
+
+\begin{itemize}
+\item \TODO{Mutually recursive functions}
+\end{itemize}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
