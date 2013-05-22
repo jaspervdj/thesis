@@ -847,6 +847,7 @@ Voor sommige modules ligt het aantal hogere-orde functies erg hoog, dus wordt
 deze aanpak onhaalbaar.
 
 \subsection{Foldr/build-fusion}
+\label{subsection:foldr-build-fusion}
 
 Dit probleem wordt opgelost met \emph{foldr/build-fusion}. We kunnen |foldr|
 beschouwen als een algemene manier om lijsten te \emph{consumeren}. Hiervan is
@@ -1582,6 +1583,8 @@ zijn.
 
 \subsection{WhatMorphism.Fold}
 
+\TODO{Deze sectie kan een rewrite gebruiken.}
+
 De deze pass is een meer deterministische implementatie van de regels in
 \TODO{Cite regels}.
 
@@ -1793,7 +1796,97 @@ genieten van foldr/build-fusion.
 
 \subsection{WhatMorphism.Inliner}
 
+Zoals we later ook in subsectie \ref{subsection:to-inline-or-not-to-inline}
+zullen zien, is het niet altijd eenvoudig om te beslissen of een functie wel
+dan niet moet worden ge-inlined.
+
+Daarom implementeerden we eerst een eigen inliner die alle functies die we reeds
+omgezet hebben altijd inlinet. Dit bleek echter niet altijd tot goede resultaten
+te leiden, zoals ook in subsectie \ref{subsection:to-inline-or-not-to-inline} te
+lezen is. Uiteindelijk kozen we er dus voor om zo goed mogelijk te proberen
+samenwerken met de GHC inliner via de pragmas die beschikbaar zijn.
+
 \subsection{WhatMorphism.Fusion}
+
+Zoals we reeds in subsectie \ref{subsection:foldr-build-fusion} zagen, bestaat
+foldr/build-fusion eruit door met de volgende regel het patroon in de
+linkerhandzijde van de stelling te vervangen door het patroon in de
+rechterhandzijde:
+
+\[ |foldr cons nil (build g) == g cons nil| \]
+
+We kunnen dit doen met behulp van een \verb|{-# RULES #-}| pragma. Dit ziet er
+dan als volgt uit:
+
+\begin{lstlisting}
+{-# RULES "foldr/build-fusion"
+    forall c n (g :: forall b. (a -> b -> b) b -> -> b).
+    foldHaskellList c n (buildHaskellList g) = g c n #-}
+\end{lstlisting}
+
+Een dergelijke regel moet worden toegevoegd voor \emph{elk} datatype waarvoor we
+fusion willen:
+
+\begin{lstlisting}
+{-# RULES "foldTree/buildTree-fusion"
+    forall l n (g :: forall b. (a -> b) -> (b -> b -> b) -> b) .
+    foldTree l n (buildTree g) = g l n #-}
+\end{lstlisting}
+
+Door het expliciet gekwantificeerde type van |g| zijn deze regels erg verboos.
+Om dit te verhinderen stellen we twee mogelijkheden voor:
+
+\begin{itemize}[topsep=0.00cm]
+
+\item Een Template Haskell functie die de \verb|{-# RULES #-}| pragma genereerd;
+
+\item Een extra pass, |WhatMorphism.Fusion|, die het fusion-patroon op een
+generieke manier implementeerd.
+
+\end{itemize}
+
+We implementeerden beide oplossingen. De Template Haskell functie kan als volgt
+aangeroepen worden:
+
+%{
+%format quote = "~ ``"
+\begin{spec}
+$(deriveFold quote Tree "foldTree" "buildTree")
+\end{spec}
+%}
+
+En deze genereerd dan de bovenstaande |"foldTree/buildTree-fusion"| regel.
+
+De |WhatMorphism.Fusion| pass neemt een andere aanpak. Door gebruik te maken van
+de reeds aanwezige annotaties (zie subsectie \ref{subsection:annotations}),
+kunnen we voor elke variabele die gebruikt wordt eenvoudig nagaan of dit al dan
+niet een fold of een build is voor een bepaald algebra\"isch datatype.
+
+Het concrete algoritme gaat als volgt:
+
+\begin{enumerate}[topsep=0.0cm]
+
+\item We doorzoeken alle expressies naar variabelen waarvan we weten dat ze een
+|fold| zijn voor een bepaald algebra\"isch datatype.
+
+\item Vervolgens kunnen we de nodige informatie ophalen over dit datatype. Zo
+dienen we te weten hoeveel constructor-argumenten de fold heeft. De
+constructor-argumenten worden gevolgd door de waarde waarover de fold loopt. Als
+we niet genoeg argumenten hebben, stoppen we op dit moment met het algoritme.
+
+\item We kijken of het laatste argument van de fold (de waarde waarover de fold
+loopt) een build is voor hetzelfde datatype. Als dit het geval is, hoeven we nu
+slechts het |g|-argument van de build te nemen, en dit vervolgens toepassen op
+de constructor-argumenten van de fold.
+
+\end{enumerate}
+
+Alhoewel beide aanpakken min of meer hetzelfde doen, kiezen we er voor om de
+tweede aanpak, een |WhatMorphism.Fusion| pass te gebruiken. Hierover hebben we
+immers iets meer controle, zo breidden we deze pass al uit zodanig dat er door
+|let|-bindings kan gekeken worden. Ook kunnen we op deze manier voor iets meer
+debug-output zorgen waardoor we eenvoudiger kunnen zien waarom de fusion wel of
+niet wordt toegepast.
 
 \section{Aanpassen van de compilatie-passes}
 
@@ -1880,6 +1973,7 @@ In plaats daarvan voeren we nu dus een bijkomende |Simplifier| pass uit met
 \end{enumerate}
 
 \subsection{Inlinen of niet inlinen?}
+\label{subsection:to-inline-or-not-to-inline}
 
 Een andere belangrijke vraag is of we de functies |foldr| en |build| (en
 natuurlijk de andere folds en builds die we genereren voor bijkomende
@@ -2129,7 +2223,7 @@ bomen (rechts).}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\bibliographystyle{abbrvnat}
+\bibliographystyle{unsrtnat}
 \bibliography{references}
 
 \end{document}
