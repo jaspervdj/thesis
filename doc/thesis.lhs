@@ -295,6 +295,7 @@ In dit hoofdstuk geven we een zeer beknopt overzicht van Haskell, en lichten we
 ook enkele relevante hogere-orde functies toe.
 
 \section{Haskell: types en functies}
+\label{section:haskell-types-and-functions}
 
 Haskell is gebaseerd op de lambda-calculus. Dit is een formeel, doch eenvoudig
 systeem, om aan logisch redeneren te doen. Het beschikt over een zeer beperkt
@@ -1568,6 +1569,15 @@ zijn.
 
 \end{itemize}
 
+\subsection{Annotaties}
+\label{subsection:annotations}
+
+\TODO{write here}
+
+\begin{lstlisting}
+{-# ANN type Tree (RegisterFoldBuild "foldTree" "buildTree") #-}
+\end{lstlisting}
+
 \subsection{WhatMorphism.Fold}
 
 De deze pass is een meer deterministische implementatie van de regels in
@@ -1660,6 +1670,124 @@ foldlTree' = \f z0 tree ->
 \end{enumerate}
 
 \subsection{WhatMorphism.Build}
+
+|WhatMorphism.Build| is de pass die ervoor verantwoordelijk is om functies die
+waarden construeren met concrete constructoren, om te zetten naar functies die
+gebruik maken van de build voor het corresponderende datatype.
+
+We gebruiken ook hier ook meer determintisch algoritme dan de
+niet-deterministische regels voorgesteld in \TODO{backref}. Als voorbeeld
+gebruiken we de functie |infiniteTree|:
+
+\begin{code}
+infiniteTree :: Tree Int
+infiniteTree =
+    let go = \n -> Branch (Leaf n) (go (n + 1))
+    in go 1
+\end{code}
+
+We zoeken overal naar functies die we kunnen omzoeken, dus zowel in top-level
+definities (|infiniteTree|) als lokale definities (|go|). In dit geval kan |go|
+geschreven worden in termen van |buildTree|. Het algoritme verloopt als volgt:
+
+\begin{enumerate}[topsep=0.00cm]
+
+\item We kijken naar het type van de functie in kwestie en bepalen aan hand
+daarvan het return-type. In dit geval krijgen hebben we |go :: Int -> Tree Int|
+en dus is |Tree Int| ons return-type.
+
+Let erop dat zoals we in sectie \ref{section:haskell-types-and-functions}
+opmerkten, Haskell type-signaturen op verschillende manieren kunnen gelezen
+worden. Bij een functie als |f :: Int -> Int -> Tree Int| kunnen we zowel |Int
+-> Tree Int|, |Tree Int| (en in principe ook |Int -> Int -> Tree Int|) als
+type-signatuur beschouwen. Dit vormt echter geen probleem: aangezien er geen
+build bestaat voor functietypes (deze types hebben geen constructoren) dienen we
+altijd voor |Tree Int| te kiezen.
+
+\item In subsectie \ref{subsection:annotations} bespraken we de annotaties die
+GHC toelaat voor types. Hierdoor is het op dit moment mogelijk om, naast
+allerlei info over het datatype (welke constructoren zijn er?) ook de bijhorende
+build-functie op te vragen.
+
+We maken nu een nieuwe functie |g| aan die dezelfde argumenten neemt als de
+functie in kwestie maar een meer generiek return-type heeft: een vrije variabele
+|b|. In ons voorbeeld:
+
+\begin{spec}
+go  :: Int -> Tree Int
+g   :: Int -> b
+\end{spec}
+
+Uit de type-signatuur van de build kunnen we vervolgens de verschillende
+argumenten afleiden:
+
+\begin{spec}
+leaf    :: a -> b
+branch  :: b -> b -> b
+\end{spec}
+
+Op dit moment hebben we dus genoeg informatie om een skelet-functie te
+construeren die er voor ons voorbeeld uitziet als:
+
+\begin{spec}
+infiniteTree :: Tree Int
+infiniteTree =
+    let go = \n -> buildTree $ \leaf branch ->
+            let g = \n' -> elapsed
+            in g n
+    in go 1
+\end{spec}
+
+\item We kunnen nu afdalen in de definitie van |go| en deze herschrijven naar de
+functie |g|. Om dit te doen bestuderen we de return-waarde van |go|. We
+onderscheiden drie gevallen:
+
+\begin{itemize}[topsep=0.00cm]
+
+\item Er is sprake van directe recursie naar |go|. Dit kunnen we toelaten, al
+moeten we dit natuurlijk herschrijven naar directe recursie naar |g| zodat de
+functie well-typed blijft.
+
+\item De return-waarde is een oproep naar de build-functie. Dit is uiteraard
+toegelaten, aangezien deze return-waarde ook de abstracte versies van de
+constructoren zal gebruiken. We dienen er wel voor te zorgen dat dezelfde
+variabelen gebruikt worden, hiertoe geven we ze gewoon als argumenten aan de
+|g'| van de geneste build. M.a.w., we herschrijven bijvoorbeeld:
+
+\begin{spec}
+build $ \leaf branch -> build g'
+\end{spec}
+
+Naar:
+
+\begin{spec}
+build $ \leaf branch -> g' leaf branch
+\end{spec}
+
+\item Tenslotte is het uiteraard ook toegelaten de return-waarde te construeren
+met de concrete constructoren (in ons voorbeeld |Leaf| en |Branch|). Deze
+vervangen we dan door de abstracte versies (in ons voorbeeld |leaf| en
+|branch|). We moeten echter wel opletten als een constructor direct recursieve
+subtermen bevat (bijvoorbeeld |Branch|): daarbij passen we dezelfde drie
+gevallen opnieuw toe, maar dan op de subterm.
+
+\end{itemize}
+
+Na toepassing van deze regels krijgen we:
+
+\begin{spec}
+infiniteTree :: Tree Int
+infiniteTree =
+    let go = \n -> buildTree $ \leaf branch ->
+            let g = \n' -> branch (leaf n') (g (n' + 1))
+            in g n
+    in go 1
+\end{spec}
+
+Met |go| een functie die herschreven is zodanig dat deze eventueel later kan
+genieten van foldr/build-fusion.
+
+\end{enumerate}
 
 \subsection{WhatMorphism.Inliner}
 
@@ -1921,13 +2049,15 @@ bomen (rechts).}
 \section{Detectie van folds}
 
 \begin{table}
-\begin{tabular}{l||l||l}
+\begin{center}
+{\renewcommand{\arraystretch}{1.20} % Slightly more spacing
+\begin{tabular}{l||l||l||l}
 \textbf{Package}  & \textbf{List} & \textbf{ADT} & \textbf{hlint} \\
 \hline
 Cabal-1.16.0.3    & 11            & 9            & 9 \\
 HTTP-4000.2.8     & 0             & 6            & 3 \\
 darcs-2.8.4       & 65            & 1            & 6 \\
-ghc-7.6.3         & 216           & 111          & \\
+ghc-7.6.3         & 216           & 111          & ? \\
 hakyll-4.2.2.0    & 1             & 4            & 0 \\
 hlint-1.8.44      & 3             & 3            & 0 \\
 hscolour-1.20.3   & 4             & 0            & 2 \\
@@ -1935,8 +2065,10 @@ pandoc-1.11.1     & 15            & 0            & 2 \\
 parsec-3.1.3      & 3             & 0            & 0 \\
 snap-core-0.9.3.1 & 3             & 1            & 0 \\
 \end{tabular}
+}
 \caption{Een overzicht van het aantal gevonden folds in een aantal bekende
 packages.}
+\end{center}
 \end{table}
 
 \begin{itemize}
