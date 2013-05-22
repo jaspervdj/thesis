@@ -2054,16 +2054,16 @@ bomen (rechts).}
 \begin{tabular}{l||l||l||l}
 \textbf{Package}  & \textbf{List} & \textbf{ADT} & \textbf{hlint} \\
 \hline
-Cabal-1.16.0.3    & 11            & 9            & 9 \\
-HTTP-4000.2.8     & 0             & 6            & 3 \\
-darcs-2.8.4       & 65            & 1            & 6 \\
-ghc-7.6.3         & 216           & 111          & ? \\
-hakyll-4.2.2.0    & 1             & 4            & 0 \\
-hlint-1.8.44      & 3             & 3            & 0 \\
-hscolour-1.20.3   & 4             & 0            & 2 \\
-pandoc-1.11.1     & 15            & 0            & 2 \\
-parsec-3.1.3      & 3             & 0            & 0 \\
-snap-core-0.9.3.1 & 3             & 1            & 0 \\
+Cabal-1.16.0.3    & 11            & 9            & 9  \\
+HTTP-4000.2.8     & 0             & 6            & 3  \\
+darcs-2.8.4       & 65            & 1            & 6  \\
+ghc-7.6.3         & 216           & 111          & 26 \\
+hakyll-4.2.2.0    & 1             & 4            & 0  \\
+hlint-1.8.44      & 3             & 3            & 0  \\
+hscolour-1.20.3   & 4             & 0            & 2  \\
+pandoc-1.11.1     & 15            & 0            & 2  \\
+parsec-3.1.3      & 3             & 0            & 0  \\
+snap-core-0.9.3.1 & 3             & 1            & 0  \\
 \end{tabular}
 }
 \caption{Een overzicht van het aantal gevonden folds in een aantal bekende
