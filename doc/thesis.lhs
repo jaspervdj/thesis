@@ -1190,6 +1190,7 @@ buildList g = g (:) []
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Detectie folds}
+\label{chapter:fold-detection}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1200,6 +1201,7 @@ buildList g = g (:) []
 \chapter{Implementatie \& evaluatie}
 
 \section{GHC Core}
+\label{section:ghc-core}
 
 Eerder beschreven we al \TODO{backreference} dat we voor deze thesis werken met
 GHC \cite{ghc}, de de-facto standaard Haskell compiler.
@@ -1939,6 +1941,67 @@ foldr/build-fusion.
 Deze pragmas wordt ook automatisch gegenereerd door onze Template Haskell code,
 de programmeur hoeft hier dus niet over na te denken.
 
+\section{Detectie van folds}
+
+Een eerste aspect dat we kunnen bekijken is hoe goed de detectie van folds (zie
+hoofdstuk \ref{chapter:fold-detection}) werkt. We bespraken reeds dat onze tool
+niet alle mogelijk folds kan detecteren. Helaas is het ook zeer intensief werk
+om een exacte telling te doen van het aantal folds in codebase, aangezien dit
+manueel zou moeten gebeuren. Het lijkt dus niet mogelijk om valse negatieven te
+vinden.
+
+We kunnen wel vergelijken met andere tools. Hiervan is \emph{HLint} \cite{hlint}
+een voorbeeld. HLint is een tool dat Haskell-packages leest en suggesties geeft
+over de gebruikte code-stijl. Het focust dus op refactoring in plaats van
+optimalisaties en werkt rechtstreeks op de Haskell-code, waar wij kozen met de
+GHC Core te werken (zie sectie \ref{section:ghc-core}). E\'en van de suggesties
+die HLint kan geven is het gebruik van |map|, |foldl| of |foldr| in plaats van
+expliciete recursie.
+
+We toonden eerder al aan \TODO{backref} dat zowel |map| en |foldl| in termen van
+|foldr| uitgredrukt kunnen. Als we dus de som nemen van het aantal functies die
+herschreven kunnen worden als |map|, |foldl| of |foldr| volgens HLint, krijgen
+we dus het aantal folds over lijsten gedetecteerd door HLint.
+
+We kunnen dit natuurlijk niet rechtstreeks vergelijken met het aantal folds dat
+wij detecteren in een Haskell-package: wij detecteren immers folds over alle
+algebra\"ische datatypes. We maken dus een onderscheid tussen folds over lijsten
+en folds over andere algebra\"ische datatypes.
+
+Een overzicht van de resultaten is te zien in tabel
+\ref{tabular:fold-detection-results}. We zien duidelijk dat we meer folds vinden
+dan HLint. Bovendien probeerden we onze tool ook uit op de testcases die
+meegeleverd worden -- en deze worden allemaal herkent als folds. Dit duidt aan
+dat wij een strikte subset van mogelijk folds detecteren.
+
+Het feit dat HLint geen enkele mogelijke fold kan vinden in sommige packages
+suggereert ook de auteurs van deze packages misschien HLint gebruiken.
+
+\begin{table}
+\begin{center}
+{\renewcommand{\arraystretch}{1.20} % Slightly more spacing
+\begin{tabular}{l||r||r||r}
+\textbf{Package}   & \textbf{List} & \textbf{ADT} & \textbf{HLint} \\
+\hline
+Cabal-1.16.0.3     & 11            & 9            & 9  \\
+containers-0.5.2.1 & 11            & 89           & 1  \\
+darcs-2.8.4        & 65            & 1            & 6  \\
+ghc-7.6.3          & 216           & 111          & 26 \\
+hakyll-4.2.2.0     & 1             & 4            & 0  \\
+hlint-1.8.44       & 3             & 3            & 0  \\
+hscolour-1.20.3    & 4             & 0            & 2  \\
+HTTP-4000.2.8      & 6             & 0            & 3  \\
+pandoc-1.11.1      & 15            & 0            & 2  \\
+parsec-3.1.3       & 3             & 0            & 0  \\
+snap-core-0.9.3.1  & 3             & 1            & 0  \\
+\end{tabular}
+}
+\caption{Een overzicht van het aantal gevonden folds in een aantal bekende
+packages.}
+\label{tabular:fold-detection-results}
+\end{center}
+\end{table}
+
 \section{Tijdsmetingen}
 
 We onderzoeken nu de tijdswinsten die we kunnen behalen door foldr/build-fusion
@@ -2045,31 +2108,6 @@ bomen (rechts).}
 bomen (rechts).}
 \label{figure:list-tree-speedups}
 \end{figure}
-
-\section{Detectie van folds}
-
-\begin{table}
-\begin{center}
-{\renewcommand{\arraystretch}{1.20} % Slightly more spacing
-\begin{tabular}{l||l||l||l}
-\textbf{Package}  & \textbf{List} & \textbf{ADT} & \textbf{hlint} \\
-\hline
-Cabal-1.16.0.3    & 11            & 9            & 9  \\
-HTTP-4000.2.8     & 0             & 6            & 3  \\
-darcs-2.8.4       & 65            & 1            & 6  \\
-ghc-7.6.3         & 216           & 111          & 26 \\
-hakyll-4.2.2.0    & 1             & 4            & 0  \\
-hlint-1.8.44      & 3             & 3            & 0  \\
-hscolour-1.20.3   & 4             & 0            & 2  \\
-pandoc-1.11.1     & 15            & 0            & 2  \\
-parsec-3.1.3      & 3             & 0            & 0  \\
-snap-core-0.9.3.1 & 3             & 1            & 0  \\
-\end{tabular}
-}
-\caption{Een overzicht van het aantal gevonden folds in een aantal bekende
-packages.}
-\end{center}
-\end{table}
 
 \begin{itemize}
 \item \TODO{Mutually recursive functions}
