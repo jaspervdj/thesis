@@ -259,12 +259,12 @@ We hanteren hiervoor de volgende concrete aanpak:
 \item We tonen aan hoe functies die expliciete recursie gebruiken maar wel een
 specifiek soort patroon (meer bepaald \emph{catamorfismes} \TODO{citatie?})
 volgen kunnen gedetecteerd worden, en vertaald naar een versie die een
-hogere-orde |fold| functie gebruikt in plaats van expliciete recursie.
+hogere-orde fold functie gebruikt in plaats van expliciete recursie.
 
 \item Tevens leggen we ook uit hoe we functies die geschreven kunnen worden als
-een toepassing van |build| kunnen detecteren en vertalen naar een versie die
-effectief gebruikt maakt van |build|. Merk op dat |build| op zich geen
-hogere-orde functie is, maar dat we zowel |fold| als |build| nodig hebben om
+een toepassing van build kunnen detecteren en vertalen naar een versie die
+effectief gebruikt maakt van build. Merk op dat build op zich geen
+hogere-orde functie is, maar dat we zowel fold als build nodig hebben om
 \emph{foldr/build-fusion} toe te passen, een bekende optimalisatie.
 
 \item We implementeerden een GHC Compiler Plugin die deze detecties en
@@ -274,11 +274,11 @@ in Haskell (|[a]|), maar ook voor andere (direct) recursieve datatypes,
 gedefini\"eerd door de gebruiker.
 
 \item We onderzochten het aantal functies in enkele bekende Haskell programma's
-die kunnen herschreven worden met behulp van de hogere orde functie |fold|. Deze
+die kunnen herschreven worden met behulp van een hogere orde fold-functie. Deze
 blijken in vele packages aanwezig te zijn. Ook bekijken we de resultaten van
-enkele benchmarks na automatische |foldr/build-fusion|. Omdat
-|foldr/build-fusion| de compiler toelaat om tussentijdse allocatie te vermijden,
-zien we hier zeer grote versnellingen.
+enkele benchmarks na automatische foldr/build-fusion. Omdat foldr/build-fusion
+de compiler toelaat om tussentijdse allocatie te vermijden, zien we hier zeer
+grote versnellingen.
 
 \end{enumerate}
 
@@ -694,7 +694,7 @@ Branch  :: Tree a -> Tree a -> Tree a
 \end{spec}
 
 \item Deze constructoren geven de subtermen aan en corresponderen dus met de
-verschillende argumenten. De recursie wordt echter afgehandeld door de |fold|
+verschillende argumenten. De recursie wordt echter afgehandeld door de fold
 functie, en dus is elke recursieve subterm al gereduceerd tot een waarde van het
 type |b|. Eveneens is |b| het type van het resultaat. We vinden:
 
@@ -1076,17 +1076,17 @@ snelle, geoptimaliseerde versies.
 
 \subsection{Foldr/build-fusion voor algebra\"ische datatypes}
 
-In Sectie \ref{section:universal-fold} toonden we aan dat we een |fold| kunnen
+In Sectie \ref{section:universal-fold} toonden we aan dat we een fold kunnen
 defini\"eren voor om het even welk algebra\"isch datatype. Dit is ook mogelijk
-voor |build|. Beschouw bijvoorbeeld een |build| voor ons |Tree|-datatype:
+voor |build|. Beschouw bijvoorbeeld een build voor ons |Tree|-datatype:
 
 \begin{code}
 buildTree :: (forall b. (a -> b) -> (b -> b -> b) -> b) -> Tree a
 buildTree g = g Leaf Branch
 \end{code}
 
-Zodra we beschikken over een |fold| en een |build| voor een algebra\"isch
-datatype, is het mogelijk om fusion toe te passen. Voor het type |Tree| wordt de
+Zodra we beschikken over een fold en een build voor een algebra\"isch datatype,
+is het mogelijk om fusion toe te passen. Voor het type |Tree| wordt de
 fusion-regel gegeven in definitie \ref{theorem:foldr-build-tree-fusion}.
 
 \newtheorem{theorem:foldr-build-tree-fusion}{Definitie}[section]
@@ -1158,7 +1158,7 @@ We krijgen een expressie die rechtstreeks de som uitrekent zonder ooit een
 constructor te gebruiken. Opnieuw zal dit voor een significante versnelling
 zorgen \TODO{Cite results chapter}.
 
-Omdat naast |fold| ook |build| functies eenvoudig af te leiden zijn vanuit de
+Omdat naast fold- ook build-functies eenvoudig af te leiden zijn vanuit de
 definitie van een datatype, hebben we dit ook geautomatiseerd. De programmeur
 dient enkel nog |deriveBuild| op te roepen:
 
@@ -1169,7 +1169,7 @@ $(deriveBuild quote Tree "buildTree")
 \end{spec}
 %}
 
-Het algoritme om een |build| te genereren werkt als volgt:
+Het algoritme om een build te genereren werkt als volgt:
 
 \begin{enumerate}
 
@@ -1426,9 +1426,9 @@ add x y = elapsed
 \end{code}
 
 We kunnen, zonder de definitie van |add| te bekijken, al uit de type-signatuur
-opmaken dat |add| geen |fold| noch |build| zal zijn. Het is immers niet mogelijk
-te folden over een |Int| of er \'e\'en aan te maken met build: |Int| valt niet
-in de klasse van de algebra\"ische datatypes.
+opmaken dat |add| geen fold noch build zal zijn. Het is immers niet mogelijk te
+folden over een |Int| of er \'e\'en aan te maken met build: |Int| valt niet in
+de klasse van de algebra\"ische datatypes.
 
 \end{itemize}
 
@@ -1715,7 +1715,7 @@ alhoewel ze niet alle vier gebruikt worden.
 termen van een fold.
 
 \item |WhatMorphism.Build|: herschrijven van functies die gebruik maken van
-expliciete constructoren, naar functies die |build| te gebruiken.
+expliciete constructoren, naar functies die een build te gebruiken.
 
 \item |WhatMorphism.Inliner|: een extra inliner die beter aanstuurbaar is in
 vergelijking met de GHC inliner.
@@ -1785,7 +1785,7 @@ ook op een andere manier te behandelen, maar hier gaan we niet dieper op in.
 In ons voorbeeld vinden we dat de boom |t| het scrutinee-argument is, en |z| een
 veranderlijk bijkomend argument.
 
-\item In de |fold| zal het niet meer mogelijk zijn om rechtstreeks te verwijzen
+\item In de fold zal het niet meer mogelijk zijn om rechtstreeks te verwijzen
 naar |t|. Daarom vervangen we in de rechterleden van de |Case|-alternatieven
 telkens |t| door de linkherhandzijde van het alternatief.  Voor |go| hebben we
 dus bijvoorbeeld voor het eerste alternatief |subst ((f z x)) t (Leaf x)|.
@@ -1807,8 +1807,8 @@ rechterleden van de alternatieven en hierin expliciete recursie te elimineren.
 Wanneer we zo'n expliciete recursie vinden, kijken we welk argument er op de
 plaats van de scrutinee staat.
 
-Als onze functie daadwerkelijk een |fold| is, zal dit altijd een recursieve
-subterm van het datatype zijn: een |fold| zal altijd de recursieve subtermen op
+Als onze functie daadwerkelijk een fold is, zal dit altijd een recursieve
+subterm van het datatype zijn: een fold zal altijd de recursieve subtermen op
 een recursieve manier reduceren. Indien er een ander argument op de plaats van
 de scrutinee staat, kunnen we het algoritme stopzetten, omdat de functie geen
 fold is. Anders herschrijven we de recursieve oproep als de nieuwe binder voor
@@ -1836,12 +1836,12 @@ $\Leftrightarrow$
 We zien aldus hoe op deze manier verandelijke bijkomende argumenten als |z|
 worden doorgegeven.
 
-\item Tenslotte dienen we de anonieme functies aan de argumenten van de |fold|
-te koppelen: dat doen we in de implementatie simpelweg door de volgorde van de
+\item Tenslotte dienen we de anonieme functies aan de argumenten van de fold te
+koppelen: dat doen we in de implementatie simpelweg door de volgorde van de
 constructoren op te vragen en te herordenen naar de volgorde van de argumenten
-van de |fold| (|foldTree| in dit geval). We geven natuurlijk ook de scrutinee
-mee als laatste argument voor deze |fold|, gevolgd door de bijkomende
-argumenten, zodat deze kunnen worden doorgegeven aan verdere oproepen.
+van de fold (|foldTree| in dit geval). We geven natuurlijk ook de scrutinee mee
+als laatste argument voor deze fold, gevolgd door de bijkomende argumenten,
+zodat deze kunnen worden doorgegeven aan verdere oproepen.
 
 We krijgen dus:
 
@@ -2049,7 +2049,7 @@ Het concrete algoritme gaat als volgt:
 \begin{enumerate}[topsep=0.0cm]
 
 \item We doorzoeken alle expressies naar variabelen waarvan we weten dat ze een
-|fold| zijn voor een bepaald algebra\"isch datatype.
+fold zijn voor een bepaald algebra\"isch datatype.
 
 \item Vervolgens kunnen we de nodige informatie ophalen over dit datatype. Zo
 dienen we te weten hoeveel constructor-argumenten de fold heeft. De
