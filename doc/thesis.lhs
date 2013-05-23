@@ -1235,7 +1235,7 @@ gebruikt.
 
 \end{itemize}
 
-De kerneltaal van Haskell heet GHC Core \cite{tolmach2009}.
+De kerneltaal van die GHC gebruikt heet GHC Core \cite{tolmach2009}.
 
 Om onze fold- en build-detectie te implementeren hebben we dus twee keuzes. We
 kunnen ofwel de Haskell-code direct manipuleren. Er bestaan reeds verschillende
