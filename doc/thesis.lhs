@@ -1221,7 +1221,7 @@ buildList g = g (:) []
 
 \section{Notatie}
 
-Om de tekst en regels in dit hoofdstuk en hoofdstuk
+Om de uitleg en regels in dit hoofdstuk en hoofdstuk
 \ref{chapter:build-detection} eenvoudiger te maken, maken we geen gebruik van de
 normale Haskell-syntax, noch GHC Core (zie sectie \ref{section:ghc-core}). In
 plaats daarvan gebruiken we de simpele, ongetypeerde lambda-calculus, uitgebreid
@@ -1258,7 +1258,28 @@ Eveneens hebben we een \emph{context} nodig:
 \end{center}
 
 Een dergelijke context |E| doelt op een functie die toegepast wordt op een
-aantal argumenten. De functie en 
+aantal argumenten. De functie en een aantal argumenten zijn reeds bekend. Voor
+de andere argumenten zijn er \emph{gaten} die nog kunnen worden ingevuld door
+expressies. We onderscheiden twee soorten gaten, aangegeven met de symbolen
+|box| en |triangle|. Een |box| geeft een onbelangrijk argument aan, en een
+|triangle| duidt op een argument dat in het bijzonder de aandacht verdient
+(concreet zal dit in ons geval de waarde zijn waarover we folden).
+
+De functie $|E|[|many e|; |e|]$ past deze context |E| toe door de gaten op te
+vullen met de gegeven expressies.
+
+\[\begin{array}{lcl}
+|x|[\epsilon;|e|]                   & =  & |x| \\
+(|E x|)[|many e|;|e|]         & =  & |E|[|many e|;|e|]\, |x| \\
+(|E box|)[|many e|,|e1|;|e|]  & =  & |E|[|many e|;|e|]\, |e1| \\
+(|E triangle|)[|many e|;|e|]  & =  & |E|[|many e|;|e|]\, |e| \\
+\end{array}\]
+
+Merk hierbij op dat we er vanuit gaan dat het aantal |box| gaten precies gelijk
+is aan het aantal meegegeven expressies |many e|.
+
+\section{Regels voor de detectie van folds}
+\label{subsection:fold-detection-rules}
 
 % This figure is mostly copy-pasted from `draft.lhs` so we should update it
 % accordingly. Changes:
@@ -1324,6 +1345,105 @@ aantal argumenten. De functie en
 ontdekken en te herschrijven.}
 \label{figure:fold-detection-rules}
 \end{figure}
+
+De regels die we gebruiken zijn te zien in Figuur
+\ref{figure:fold-detection-rules}. We hebben ons hier gespecialiseerd tot folds
+over lijsten, m.a.w. |foldr|, om de uitleg zo simpel mogelijk te houden. In
+\TODO{blah} zien we hoe dit kan worden uitgebreid tot andere algebra\"ische
+datatypes.
+
+\paragraph{Functies met \'e\'en enkel argument} De stelling $|b| \leadsto |b'|$
+is de bepaalt of we binds kunnen herschrijven.  Deze maakt gebruik van de enkele
+regel \textsc{F-Bind}. Om deze regel te verduidelijken kijken we eerst naar een
+gespecialiseerde regel, \textsc{F-Bind'}. Deze gespecialiseerde regel is enkel
+van toepassing op functies met \'e\'en enkel argument.
+
+\[
+\inferrule*[left=(\textsc{F-Bind'})]
+  { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e1|) \\ |ws|~\textit{fresh} \\\\ 
+    |e2| \stackrel{|f triangle|}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+  }
+  {
+|f = \y -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
+    \leadsto |f = \y -> foldr (\v ws -> e'2) e'1 y| 
+  }
+\]
+
+Deze regel zet een functie zoals:
+
+\begin{spec}
+sum = \y -> case y of
+    []      -> 0
+    (v:vs)  -> (+) v (sum vs)
+\end{spec}
+
+Om naar:
+
+\begin{spec}
+sum = \y -> foldr (\v ws -> (+) v ws) 0 y
+\end{spec}
+
+Deze omzetting verloopt door op een zeer eenvoudige manier de regels toe te
+passen. Het belangrijkste hierbij is de recursieve oproepen in |e2| te vervangen
+door de variabele |ws|. Dit wordt gedaan door de volgende stelling:
+
+\[ e~{}_x\!\!\stackrel{E}{\leadsto}_y~e' \]
+
+Deze stelling maakt gebruik van vijf verschillende regels. \textsc{F-Rec} is
+verantwoordelijk voor het effectieve herschrijven van recursieve oproepen.  Voor
+andere expressies gebruiken we ofwel \'e\'en van de drie herschrijfregels
+\textsc{F-Abs}, \textsc{F-App}, \textsc{F-Case}, ofwel de reflectieve regel
+\textsc{F-Refl}, die de expressie gewoon behoud. In het vereenvoudigde geval,
+waarbij we slechts \'e\'en argument hebben, kan \textsc{F-Rec} gereduceerd
+worden tot:
+
+\[
+\inferrule*[left=(\textsc{F-Rec'})]
+  { 
+  }
+  { |f x| ~{}_x\!\!\stackrel{|f triangle|}{\leadsto}_y~ |y|
+  }
+\]
+
+Bijgevolg krijgen we: $|sum vs| ~{}_\mathit{vs}\!\!\!\!\!\!\stackrel{|sum triangle|}{\leadsto}\!\!\!\!\!\!_\mathit{ws}~ |ws|$.
+
+We hebben ook een reeks belangrijke voorwaarden bij deze regel. Deze dienen
+ertoe te verzekeren dat de functie wel degelijk een catamorfisme is, zodanig dat
+de gegenereerde fold een geldige expressie is. We lichten het specifieke doel
+van de voorwaarden kort toe:
+
+\begin{itemize}[topsep=0.00cm]
+
+\item Indien |vs| nog voorkomt in |e'2|, kan dit niet onder de vorm |f vs| zijn
+-- dan zou dit namelijk vervangen geweest zijn door onze regels. Indien het in
+andere vorm voorkomt, dan is de functie geen catamorfisme, maar een
+\emph{paramorfisme}. Een voorbeeld van een dergelijk paramorfisme is de functie:
+
+\begin{code}
+suffixes = \y -> case y of
+    []        -> []
+    (v : vs)  -> vs : suffixes vs
+\end{code}
+
+Paramorfismen kunnen worden geschreven met behulp van de hogere-orde functie
+|para|:
+
+\begin{code}
+para :: (a -> [a] -> b -> b) -> b -> [a] -> b
+para f z []      = z
+para f z (x:xs)  = f x xs (para f z xs)
+\end{code}
+
+In het geval van |suffixes| krijgen we:
+
+\begin{code}
+suffixes' = para (\v vw ws -> vw : ws) []
+\end{code}
+
+\item Als |f| voorkomt in een andere vorm dan recursieve calls van de vorm |f
+vs|, dan is de functie \TODO{mogelijks} geen catamorfisme.
+
+\end{itemize}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
