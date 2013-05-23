@@ -7,6 +7,7 @@
 \usepackage[numbers]{natbib}  % For URLs in bibliography
 \usepackage[xetex]{graphicx}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{amsthm}
 \usepackage{enumitem}
 \usepackage{fontspec,xunicode}
@@ -43,23 +44,32 @@ elapsed = undefined
 \end{code}
 }
 
-%format e1 = e"_1"
-%format e2 = e"_2"
-%format f1 = f"_1"
-%format f2 = f"_2"
+%format a'1 = "a^{\prime}_1"
+%format a'2 = "a^{\prime}_2"
 %format B1 = B"_1"
 %format B2 = B"_2"
+%format e1 = e"_1"
+%format e'1 = "e^{\prime}_1"
+%format e2 = e"_2"
+%format e'2 = "e^{\prime}_2"
+%format f1 = f"_1"
+%format f2 = f"_2"
 %format x1 = x"_1"
 %format x2 = x"_2"
 %format xs1 = xs"_1"
 %format xs2 = xs"_2"
+
+%format (many (x)) = "\overline{" x "}"
+%format box = "\Box"
 %format elapsed = "\ldots"
 %format subst (term) (v) (e) = [v "\mapsto" e] term
+%format triangle = "\triangle"
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Style
 % \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
-\setmainfont[Ligatures=TeX]{DejaVu Serif}
+\setmainfont[SmallCapsFont={Latin Modern Roman Caps}, Ligatures=TeX]{DejaVu Serif}
 \setmonofont{Inconsolata}
 \newfontfamily{\futura}[Scale=1.30]{Futura Std}
 
@@ -88,6 +98,18 @@ elapsed = undefined
   [\normalfont]
 
 \lstset{basicstyle=\ttfamily, keywordstyle=\ttfamily\bf}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Infer rules
+
+\def\myruleform#1{
+\setlength{\fboxrule}{0.5pt}\fbox{\normalsize $#1$}
+}
+\newcommand{\myirule}[2]{{\renewcommand{\arraystretch}{1.2}\begin{array}{c} #1
+                      \\ \hline #2 \end{array}}}
+
+\usepackage{mathpartir}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -808,7 +830,7 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 \end{proof}
 
 GHC beschikt over een mechanisme om dit soort transformaties uit te voeren
-tijdens de compilatie, door middel van het \verb|{-# RULES -#}| pragmas
+tijdens de compilatie, door middel van het \verb|{-# RULES -#}| pragma's
 \cite{jones2001}. Zo kunnen we bijvoorbeeld map/map-fusion implementeren door
 eenvodigweg het volgende pragma te vermelden:
 
@@ -1052,7 +1074,7 @@ definities gebruiken voor de functies, die eenvoudiger leesbaar zijn en
 makkelijker onderhoudbaar; maar tevens worden deze vertaald door de compiler tot
 snelle, geoptimaliseerde versies.
 
-\subsection{Foldr/build voor algebra\"ische datatypes}
+\subsection{Foldr/build-fusion voor algebra\"ische datatypes}
 
 In Sectie \ref{section:universal-fold} toonden we aan dat we een |fold| kunnen
 defini\"eren voor om het even welk algebra\"isch datatype. Dit is ook mogelijk
@@ -1188,14 +1210,125 @@ buildList g = g (:) []
 
 \end{enumerate}
 
+\subsection{Foldr/foldr-fusion}
+
+\TODO{Write this subsection}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Detectie folds}
 \label{chapter:fold-detection}
 
+\section{Notatie}
+
+Om de tekst en regels in dit hoofdstuk en hoofdstuk
+\ref{chapter:build-detection} eenvoudiger te maken, maken we geen gebruik van de
+normale Haskell-syntax, noch GHC Core (zie sectie \ref{section:ghc-core}). In
+plaats daarvan gebruiken we de simpele, ongetypeerde lambda-calculus, uitgebreid
+met constructoren, pattern matching, en recursieve bindings.
+
+Deze syntax wordt gegeven door:
+
+% This table is copy-pasted from `draft.lhs`
+\begin{center}
+\begin{tabular}{llcl}
+binding     & |b| & ::=  & |x = e|  \\
+pattern     & |p| & ::=  & |K (many (x))| \\
+expression  & |e| & ::=  & |x| \\
+            &     & $\mid$ & |e e| \\
+            &     & $\mid$ & |\x -> e| \\
+            &     & $\mid$ & |K| \\
+            &     & $\mid$ & |case e of many (p -> e)|
+\end{tabular}
+\end{center}
+
+Het is eenvoudig te zien hoe we deze in de praktijk kunnen uitbreiden tot de
+volledige GHC Core syntax.
+
+Eveneens hebben we een \emph{context} nodig:
+
+% Copy-pasta...
+\begin{center}
+\begin{tabular}{lcl}
+|E| & ::=  & |x| \\
+    & $\mid$ & |E x| \\
+    & $\mid$ & |E box| \\
+    & $\mid$ & |E triangle|
+\end{tabular}
+\end{center}
+
+Een dergelijke context |E| doelt op een functie die toegepast wordt op een
+aantal argumenten. De functie en 
+
+% This figure is mostly copy-pasted from `draft.lhs` so we should update it
+% accordingly. Changes:
+%
+% - `\begin{figure*}` -> `\begin{figure}`
+% - Caption
+% - Label
+\begin{figure}[t]
+\begin{center}
+\fbox{
+\begin{minipage}{0.95\textwidth}
+\[\begin{array}{c}
+\myruleform{\inferrule{}{b \leadsto b'}} \hspace{2cm}
+
+\inferrule*[left=(\textsc{F-Bind})]
+  { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
+    |E|[|many u|;|y|] = |f (many x) y (many z)| \\ |ws|~\textit{fresh} \\\\ 
+    |e2| \stackrel{E}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+  }
+  {
+|f = \(many x) y (many z) -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
+    \leadsto |f = \(many x) y (many z) -> foldr (\v ws (many u) -> e'2) (\many u -> e'1) y (many u)| 
+  } \\
+\\
+\myruleform{\inferrule*{}{e~{}_x\!\!\stackrel{E}{\leadsto}_y~e'}} \hspace{2cm}
+\inferrule*[left=(\textsc{F-Rec})]
+  { e_i~{}_x\!\!\stackrel{E}{\leadsto}_y~e_i' \quad (\forall i)
+  }
+  { |E|[|many e|;|x|] ~{}_x\!\!\stackrel{E}{\leadsto}_y~|y (many e')|
+  }
+  \hspace{1cm}
+\inferrule*[left=(\textsc{F-Refl})]
+  {
+  }
+  { e~{}_x\!\!\stackrel{E}{\leadsto}_y~e
+  }
+ \\
+\\
+\inferrule*[left=(\textsc{F-Abs})]
+  { |e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'|
+  }
+  { |\z -> e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|\z -> e'|
+  }
+  \hspace{0.5cm}
+\inferrule*[left=(\textsc{F-App})]
+  { |e1|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'1| \\
+    |e2|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'2|
+  }
+  { |e1 e2|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'1 e'2|
+  }
+ \\
+\\
+\inferrule*[left=(\textsc{F-Case})]
+  { |e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'| \\ e_i~{}_x\!\!\stackrel{E}{\leadsto}_y~e_i' \quad (\forall i)
+  }
+  { |case e of many (p -> e)|~{}_x\!\!\stackrel{E}{\leadsto}_y~|case e' of many (p -> e')|
+  } \\
+\end{array} \]
+\end{minipage}
+}
+\end{center}
+\caption{De niet-deterministische regels die we gebruiken om mogelijke folds te
+ontdekken en te herschrijven.}
+\label{figure:fold-detection-rules}
+\end{figure}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Detectie builds}
+\label{chapter:build-detection}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1233,7 +1366,7 @@ de rest van de compiler.
 \item Verschillende programmeertalen kunnen dezelfde kerneltaal delen. Dit laat
 toe om bepaalde tools en optimalisaties \'e\'enmaal te schrijven en vervolgens
 toe te passen voor programma's geschreven in verschillende programmeertalen. Dit
-voordeel is echter niet van toepassing voor GHC, omdat deze een eigen kerneltaal
+voordeel is echter niet van toepassing op GHC, omdat deze een eigen kerneltaal
 gebruikt.
 
 \end{itemize}
@@ -1305,8 +1438,8 @@ moeilijker om de resultaten van onze analyse te gebruiken voor
 \emph{refactoring}.
 
 In dit geval zouden we de originele code willen herschrijven onder de vorm van
-een fold of een build. Dit vereist echter een soort geannoteerde abstracte
-syntaxboom die toelaat om expressies uit GHC Core terug te koppelen naar Haskell
+een fold of een build. Dit vereist echter een geannoteerde abstracte syntaxboom
+die toelaat om expressies uit GHC Core terug te koppelen naar Haskell
 expressies, inclusief alle syntactische sugar waar de programmeur gebruik van
 kan maken. Automatisch herschrijven van expressies in GHC Core zorgt dan voor
 een soortgelijke update van de corresponderende Haskell code. Deze stap valt
@@ -1546,6 +1679,8 @@ simpleBetaReduction = return . map (goBind [])
     go env (Coercion c)            = Coercion c
 \end{code}
 
+\TODO{Uitleg of update over shadowing}
+
 Eenmaal een dergelijke plugin geschreven is, kan ze eenvoudig gebruikt worden.
 Hiervoor gaan we als volgt te werk. Eerst \emph{packagen} we de plugin met
 \emph{cabal} \cite{cabal} en installeren we ze:
@@ -1576,21 +1711,24 @@ alhoewel ze niet alle vier gebruikt worden.
 
 \begin{itemize}[topsep=0.00cm]
 
-\item |WhatMorphism.Fold|: deze pass probeert functies die expliciete
-recursie gebruiken om te zetten naar functies die een |fold| gebruiken;
+\item |WhatMorphism.Fold|: conversie van expliciete recursie naar een functie in
+termen van een fold.
 
-\item |WhatMorphism.Build|: deze pass herschrijft functies die gebruik maken van
-expliciete constructoren, om een call naar |build| te gebruiken, indien
-mogelijk;
+\item |WhatMorphism.Build|: herschrijven van functies die gebruik maken van
+expliciete constructoren, naar functies die |build| te gebruiken.
 
-\item |WhatMorphism.Inliner|: een extra inliner waarover we iets meer controle
-hebben dan over de GHC inliner;
+\item |WhatMorphism.Inliner|: een extra inliner die beter aanstuurbaar is in
+vergelijking met de GHC inliner.
 
 \item |WhatMorphism.Fusion|: een implementatie van de foldr/build-fusion die
-werkt voor alle datatypes zonder dat er extra \verb|{-# RULES #-}| pragmas nodig
-zijn.
+werkt voor alle datatypes zonder dat er extra \verb|{-# RULES #-}| pragma's
+nodig zijn.
 
 \end{itemize}
+
+De passes werken op basis van een best-effort en kunnen dus falen voor bepaalde
+expressies. Dit betekent niet dat de compilatie wordt afgebroken, wel dat we de
+transformatie niet kunnen maken en dus de originele expressie behouden.
 
 \subsection{Annotaties}
 \label{subsection:annotations}
@@ -1603,10 +1741,8 @@ zijn.
 
 \subsection{WhatMorphism.Fold}
 
-\TODO{Deze sectie kan een rewrite gebruiken.}
-
-De deze pass is een meer deterministische implementatie van de regels in
-\TODO{Cite regels}.
+De |WhatMorphism.Fold| pass is een meer deterministische implementatie van de
+regels in \TODO{Cite regels}.
 
 We gebruiken de volgende functie ter illustratie (hier voorgesteld als
 Core-expressie):
@@ -1620,13 +1756,19 @@ foldlTree = \f z0 tree ->
     in go z0 tree
 \end{code}
 
-Dit is een \emph{left fold} over een |Tree|. Voor lijsten kan |foldl| uitgedrukt
-worden in termen van |foldr|, en voor bomen is dit niet minder zo.
+Dit is een \emph{left fold} over een |Tree| (gedefini\"eerd in sectie
+\ref{section:universal-fold}.
 
-Om folds te detecteren, bekijken we elke |Bind| in het programma: op die manier
-kunnen we folds vinden zowel in \emph{top-level} binds alsook in lokale |let|-
-of |where|-binds. In dit geval kunnen we de |go| uit de |let|-bind omvormen tot
-een |fold|.
+Net zoals een left fold over een lijst, |foldl| kan uitgedrukt worden in functie
+van |foldr|, kan dit ook voor andere algebra\'isch datatypes, zoals |Tree|.
+
+Om folds te detecteren, is het nuttig om elke |Bind| in het programma te
+bestuderen. Dit laat ons toe om mogelijke folds te vinden zowel in
+\emph{top-level} binds alsook in lokale |let|- of |where|-binds. In ons vorbeeld
+kunnen we de |go| uit de |let|-bind omvormen tot een fold.
+
+We volgen de volgende stappen om de recursieve |go| om te vormen tot een
+expressie die gebruikt maakt van een fold:
 
 \begin{enumerate}[topsep=0.00cm]
 
@@ -1635,43 +1777,64 @@ we kijken of er dan een |Case| volgt in de syntaxboom. We kunnen nu de
 argumenten rangschikken als volgt: het \emph{scrutinee}-argument (het argument
 dat wordt afgebroken door de |Case|, type-argumenten, en bijkomende argumenten.
 
-We behandelen de type argumenten op een andere manier aangezien we niet toelaten
-dat deze veranderen doorheen de |fold|. Voor andere argumenten is dit wel
-toegelaten.
+De bijkomende argumenten partitioneren we in twee klasses: verandelijke en
+statische argumenten. Een statisch argument is een argument dat hetzelfde is in
+elke oproep, zoals we eerder in \TODO{ref} bespraken.  Type-argumenten dienen we
+ook op een andere manier te behandelen, maar hier gaan we niet dieper op in.
 
-In ons voorbeeld vinden we dat de boom |t| het scrutinee-argument en |z| een
-bijkomend argument.
+In ons voorbeeld vinden we dat de boom |t| het scrutinee-argument is, en |z| een
+veranderlijk bijkomend argument.
 
 \item In de |fold| zal het niet meer mogelijk zijn om rechtstreeks te verwijzen
-naar |t|. Daarom vervangen we in de rechterhandzijden van de
-|Case|-alternatieven telkens |t| door de linkherhandzijde van het alternatief.
-Voor |go| hebben we dus bijvoorbeeld voor het eerste alternatief |subst ((f z
-x)) t (Leaf x)|.
+naar |t|. Daarom vervangen we in de rechterleden van de |Case|-alternatieven
+telkens |t| door de linkherhandzijde van het alternatief.  Voor |go| hebben we
+dus bijvoorbeeld voor het eerste alternatief |subst ((f z x)) t (Leaf x)|.
 
-\item Vervolgens herschrijven we de expressies in de rechterhandzijden van de
-|Case|-alternatieven naar anonieme functies. De argumenten voor deze lambda zijn
-de binders van het alternatief gevolgd door de bijkomende argumenten. Zo krijgen
-we in ons voorbeeld |\x z -> elapsed| en |\l_rec r_rec z -> elapsed|
-\footnote{Het |_rec|-suffix duidt hier op het feit dat dit niet de originele
-binders zijn, aangezien het type veranderde. Dit is iets waarbij we rekening
-moesten houden bij de implementatie, maar niet bijzonder belangrijk voor deze
-uiteenzetting van het algoritme.}.
+\item Vervolgens bestuderen we de expressies in de rechterleden van de
+verschillende |Case|-alternatieven. Het is de bedoeling deze alternatieven te
+herschrijven naar anonieme functies, zodat ze als argumenten voor de fold kunnen
+dienen.
 
-We construeren dan verder deze lambas door te vertrekken vanuit de
-rechterhandzijdes van de alternatieven en hierin expliciete recursie te
-elimineren. Wanneer we zo'n expliciete recursie vinden, kijken we welk argument
-er op de plaats van de scrutinee staat.
+De argumenten voor deze anonieme functies zijn de binders van het alternatief
+gevolgd door de verandelijke bijkomende argumenten. Zo krijgen we in ons
+voorbeeld |\x z -> elapsed| en |\l_rec r_rec z -> elapsed| \footnote{Het
+|_rec|-suffix duidt hier op het feit dat dit niet de originele binders zijn,
+aangezien het type veranderde. Dit is een implementatie-detail, dat verder geen
+invloed heeft op de essentie van het algoritme.}.
+
+We construeren dan verder deze anonieme functies door te vertrekken vanuit de
+rechterleden van de alternatieven en hierin expliciete recursie te elimineren.
+Wanneer we zo'n expliciete recursie vinden, kijken we welk argument er op de
+plaats van de scrutinee staat.
 
 Als onze functie daadwerkelijk een |fold| is, zal dit altijd een recursieve
 subterm van het datatype zijn: een |fold| zal altijd de recursieve subtermen op
-een recursieve manier reduceren. Als er dus een ander argument op de plaats van
+een recursieve manier reduceren. Indien er een ander argument op de plaats van
 de scrutinee staat, kunnen we het algoritme stopzetten, omdat de functie geen
 fold is. Anders herschrijven we de recursieve oproep als de nieuwe binder voor
-de recursieve subterm toegepast op de bijkomende argumenten.
+de recursieve subterm toegepast op de veranderlijke bijkomende argumenten.
 
-We krijgen dus |\x z -> f z x| en |\l_rec r_rec z -> let z' = l_rec z in r_rec
-z'|. Op deze manier kunnen verandelijke bijkomende argumenten als |z| worden
-doorgegeven.
+In ons voorbeeld krijgen we dus:
+
+\begin{minipage}[c]{0.40\textwidth}
+\begin{spec}
+    Leaf x      -> f z x
+    Branch l r  ->
+        let z' = go z l in go z' r
+\end{spec}
+\end{minipage}
+$\Leftrightarrow$
+\begin{minipage}[c]{0.40\textwidth}
+\begin{spec}
+
+\x z            -> f z x
+\l_rec r_rec z  ->
+    let z' = l_rec z in r_rec z'
+\end{spec}
+\end{minipage}
+
+We zien aldus hoe op deze manier verandelijke bijkomende argumenten als |z|
+worden doorgegeven.
 
 \item Tenslotte dienen we de anonieme functies aan de argumenten van de |fold|
 te koppelen: dat doen we in de implementatie simpelweg door de volgorde van de
@@ -1824,14 +1987,13 @@ Daarom implementeerden we eerst een eigen inliner die alle functies die we reeds
 omgezet hebben altijd inlinet. Dit bleek echter niet altijd tot goede resultaten
 te leiden, zoals ook in subsectie \ref{subsection:to-inline-or-not-to-inline} te
 lezen is. Uiteindelijk kozen we er dus voor om zo goed mogelijk te proberen
-samenwerken met de GHC inliner via de pragmas die beschikbaar zijn.
+samenwerken met de GHC inliner via de pragma's die beschikbaar zijn.
 
 \subsection{WhatMorphism.Fusion}
 
 Zoals we reeds in subsectie \ref{subsection:foldr-build-fusion} zagen, bestaat
-foldr/build-fusion eruit door met de volgende regel het patroon in de
-linkerhandzijde van de stelling te vervangen door het patroon in de
-rechterhandzijde:
+foldr/build-fusion eruit door met de volgende regel het patroon in de linkerlid
+van de stelling te vervangen door het patroon in het rechterlid:
 
 \[ |foldr cons nil (build g) == g cons nil| \]
 
@@ -1918,7 +2080,7 @@ wijzigen. We kunnen natuurlijk bijvoorbeeld na\"ief onze plugins als eerste
 runnen, maar om goede resultaten te boeken, blijkt het uitermate belangrijk de
 plugins optimaal te laten samenwerken met GHC.
 
-Ten eerste willen we geen enkele GHC-fase verwijderen: anders beginnen we
+Ten eerste willen we geen enkele GHC-phase verwijderen: anders beginnen we
 onmiddelijk met een nadeel tegenover de standaard lijst van passes. Om maximaal
 resultaat te boeken, runnen we onze reeks plugins telkens tussen elke twee GHC
 passes, en wel in deze volgorde:
@@ -1973,10 +2135,12 @@ enkel als consument van een lijst van foldr/build-fusion genieten.
 Daaruit kunnen we concluderen dat het voordelig is om eerst |WhatMorphism.Build|
 uit te voeren en daarna pas |WhatMorphism.Fold|.
 
+\TODO{Alternatief: fold-regel wanneer we naar build omzetten}
+
 \item Vervolgens voeren we |WhatMorphism.Fold| uit, vanwege de bovenstaande
 redenen.
 
-\item Voor functies die we succesvol omzetten naar folds em builds, passen we de
+\item Voor functies die we succesvol omzetten naar folds en builds, passen we de
 \emph{inliner-info} aan. Dit zorgt ervoor dat GHC deze agressief zal proberen
 inlinen. Dit is nodig om aan foldr/build-fusion te doen, aangezien deze pass
 enkel de fold- en build-functies herkent, en niet bijvoorbeeld functies
@@ -2009,18 +2173,18 @@ Inlinen met een \verb|{-# INLINE #-}| pragma zorgt echter wel voor snellere code
 omdat de functiecall-overhead vermeden wordt.
 
 Het is dus best om te zoeken naar een middenweg hier. Gelukkig laat GHC voor
-\verb|{-# INLINE #-}| pragmas \emph{fase control} toe, wat wil zeggen dat we
+\verb|{-# INLINE #-}| pragma's \emph{phase control} toe, wat wil zeggen dat we
 meer specifiek kunnen opgeven wanneer GHC moet (of mag) proberen een functie te
-inlinen. Om dit te doen, gebruikt GHC een nummering van fasen: deze loopt af
-naar 0 (de laatste fase). In een \verb|{-# INLINE #-}| pragma kan men vervolgens
-dergelijke faces specificeren: Tabel \ref{tabular:inline-pragmas} geeft een
-overzicht van de verschillende mogelijkheden.
+inlinen. Om dit te doen, gebruikt GHC een nummering van phases: deze loopt af
+naar 0 (de laatste phase). In een \verb|{-# INLINE #-}| pragma kan men
+vervolgens dergelijke phases specificeren: Tabel \ref{tabular:inline-pragmas}
+geeft een overzicht van de verschillende mogelijkheden.
 
 \begin{table}[h]
 \begin{center}
 {\renewcommand{\arraystretch}{1.20} % Slightly more spacing
 \begin{tabular}{l||cc}
-& \textbf{Voor fase |n|} & \textbf{Fase |n| en later} \\
+& \textbf{Voor phase |n|} & \textbf{Phase |n| en later} \\
 \hline
 Geen pragma                    & ?      & ?      \\
 \verb|{-# INLINE   f #-}|      & \tick  & \tick  \\
@@ -2032,13 +2196,13 @@ Geen pragma                    & ?      & ?      \\
 \end{tabular}
 }
 \end{center}
-\caption{Een overzicht van de verschillende \verb|{-# INLINE #-}| pragmas en of
+\caption{Een overzicht van de verschillende \verb|{-# INLINE #-}| pragma's en of
 ze de functie |f| wel dan niet inlinen. Bij een ? beslist GHC zelf op basis van
 een groot aantal heuristieken.}
 \label{tabular:inline-pragmas}
 \end{table}
 
-We kiezen dus voor de volgende pragmas voor elke fold en build, zowel voor
+We kiezen dus voor de volgende pragma's voor elke fold en build, zowel voor
 lijsten als andere algebra\"ische datatypes:
 
 \begin{lstlisting}
@@ -2046,14 +2210,14 @@ lijsten als andere algebra\"ische datatypes:
 {-# INLINE [0] build #-}
 \end{lstlisting}
 
-Aangezien fase 0 de laatste fase is, krijgen we zo beide voordelen: voor de
-laatste fase worden deze functies nooit ge-inlined, wat foldr/build-fusion
-haalbaarder maakt. In de laatste fase worden ze wel ge-inlined, en dus wordt ook
+Aangezien phase 0 de laatste phase is, krijgen we zo beide voordelen: voor de
+laatste phase worden deze functies nooit ge-inlined, wat foldr/build-fusion
+haalbaarder maakt. In de laatste phase worden ze wel ge-inlined, en dus wordt ook
 de functiecall-overhead vermeden als er geen mogelijkheid werd gevonden tot
 foldr/build-fusion.
 
-Deze pragmas wordt ook automatisch gegenereerd door onze Template Haskell code,
-de programmeur hoeft hier dus niet over na te denken.
+Deze pragma's wordt ook automatisch gegenereerd door onze Template Haskell code.
+De programmeur hoeft hier dus niet over na te denken.
 
 \section{Detectie van folds}
 
@@ -2225,6 +2389,7 @@ bomen (rechts).}
 
 \begin{itemize}
 \item \TODO{Mutually recursive functions}
+\item \TODO{Compilatie ies trager}
 \end{itemize}
 
 
