@@ -1220,6 +1220,7 @@ buildList g = g (:) []
 \label{chapter:fold-detection}
 
 \section{Notatie}
+\label{section:fold-detection-notation}
 
 Om de uitleg en regels in dit hoofdstuk en hoofdstuk
 \ref{chapter:build-detection} eenvoudiger te maken, maken we geen gebruik van de
@@ -1279,7 +1280,7 @@ Merk hierbij op dat we er vanuit gaan dat het aantal |box| gaten precies gelijk
 is aan het aantal meegegeven expressies |many e|.
 
 \section{Regels voor de detectie van folds}
-\label{subsection:fold-detection-rules}
+\label{section:fold-detection-rules}
 
 % This figure is mostly copy-pasted from `draft.lhs` so we should update it
 % accordingly. Changes:
@@ -1297,7 +1298,7 @@ is aan het aantal meegegeven expressies |many e|.
 \inferrule*[left=(\textsc{F-Bind})]
   { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
     |E|[|many u|;|y|] = |f (many x) y (many z)| \\ |ws|~\textit{fresh} \\\\ 
-    |e2| \stackrel{E}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+    |e2| \stackrel{E}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, y, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
   }
   {
 |f = \(many x) y (many z) -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
@@ -1440,10 +1441,145 @@ In het geval van |suffixes| krijgen we:
 suffixes' = para (\v vw ws -> vw : ws) []
 \end{code}
 
+Om dezelfde reden mag |y| niet voorkomen in |e'2|. In het geval van de (:)
+constructor, is |y| equivalent aan |(v : vs)|. Indien we dus nog een voorkomen
+van |y| hebben, impliceert dit een voorkomen van |vs| -- en we vermelden
+hierboven al waarom we dit niet kunnen toelaten voor catamorfismes.
+
+In het geval van de |[]| constructor, vervingen we reeds |y| door |[]| via de
+regel \textsc{F-Bind'}, en vormt dit dus geen probleem.
+
 \item Als |f| voorkomt in een andere vorm dan recursieve calls van de vorm |f
-vs|, dan is de functie \TODO{mogelijks} geen catamorfisme.
+vs|, dan is de functie \TODO{mogelijks} geen catamorfisme. Beschouw bijvoorbeeld
+de functie, die zal resulteren in oneindige recursie wanneer er een argument
+anders dan de lege lijst aan wordt meegegeven:
+
+\begin{spec}
+f = \x -> case x of
+    []      -> 0
+    (v:vs)  -> v + f vs + f [1,2,3]
+\end{spec}
 
 \end{itemize}
+
+\paragraph{Functies met meerdere argumenten} Nu de \textsc{F-Bind'} regel
+duidelijk is, kunnen we de meer uitgebreide regel \textsc{F-Bind} bespreken.
+Deze regel laat bijkomende argumenten toe, naast de waarde waarover we folden.
+Deze bijkomende argumenten kunnen zowel voorkomen voor als na het
+scrutinee-argument |y|.
+
+We onderscheiden hier twee klasses argumenten: statische en veranderlijke
+argumenten. Laat ons beginnen bij de eenvoudigste klasse, statische argumenten.
+
+Een voorbeeld hiervan is het argument |f| in de functie |map|:
+
+\begin{spec}
+map = \f y -> case y of
+    []      -> []
+    (v:vs)  -> (:) (f v) (map f vs)
+\end{spec}
+
+Deze parameter blijft dezelfde in elke recursieve oproep van map -- vandaar de
+naam statische argumenten. De regel \textsc{F-Bind} vermeldt deze veranderlijke
+argumenten niet rechtstreeks, maar ze worden bijgehouden in de context |E| (zie
+sectie \ref{section:fold-detection-notation}).
+
+Voor de |map|-functie hierboven is deze context bijvoorbeeld |map f triangle|.
+
+De tweede klasse, veranderlijke argumenten, dienen we op een andere manier aan
+te pakken. Een typisch voorbeeld van veranderlijke argumenten zijn catamorfismes
+die een accumulator-parameter gebruiken. Beschouw bijvoorbeeld de functie:
+
+\begin{spec}
+suml = \y acc -> case y of
+    []        -> acc
+    (v : vs)  -> suml vs (v + acc)
+\end{spec}
+
+De regel \textsc{F-Bind} verwijst naar deze argumenten als |many u| en maakt
+hiervoor |box| gaten in de context |E|. Voor de functie |suml| is deze context
+bijvoorbeeld |suml triangle box|.
+
+Het feit dat deze argumenten kunnen veranderen in elke recursiestap, betekend
+dat we deze telkens opnieuw moeten doorgeven. Dit doen we door ze in de anonieme
+functies door te geven als extra argumenten, in de regel aangegeven als |\many u
+-> elapsed|. De initi\"ele waarden hiervoor (de argumenten doorgegeven aan de
+oorspronkelijke functie) moeten vervolgens ook worden meegegeven aan het
+resultaat van |foldr|.
+
+Het is belangrijk dat we de veranderlijke argumenten correct updaten naar elke
+stap van de recursieve oproep. Hiertoe dient de regel \textsc{F-Rec}. De nieuwe
+waarden van de veranderlijke argumenten worden aangegeven door |many e|.  Met
+behulp van de context |E| kunnen we deze dan invullen in de de anonieme functie,
+waar geen expliciete recursie voorkomt. De recursieve oproep wordt herschreven
+naar $|E|[|many e|;|vs|]$. Op die manier worden de verandelijke argumenten
+meegegeven aan het resultaat van de (impliciete) recursieve oproep, |ws|.
+
+Als we opnieuw |suml| als voorbeeld nemen, krijgen we nu:
+
+\begin{spec}
+suml = \y acc -> foldr  (\v ws acc -> ws (v + acc))
+                        (\acc -> acc) y acc
+
+\end{spec}
+
+Een klein maar belangrijk detail is dat de regel \textsc{F-Rec} de veranderlijke
+argumenten |many e| ook zal herschrijven, door de regels toe te passen op een
+recursieve manier. De veranderlijke argumenten kunnen immers ook expliciet
+recursieve oproepen bevatten die we dienen om te zetten. Beschouw bijvoorbeeld
+de functie:
+
+\begin{spec}
+f = \y acc -> case y of
+    []      -> acc
+    (v:vs)  -> f vs (f vs (v + acc))
+\end{spec}
+
+Die aldus herschreven wordt als:
+
+\begin{spec}
+f = \y acc -> foldr (\v ws acc -> ws (ws (v + acc)))
+                    (\acc -> acc) y acc
+\end{spec}
+
+Waarbij we het geneste recursieve voorkomen van |ws| opmerken, wat overeenkomt
+met de geneste oproep van |f| in de oorspronkelijke functie.
+
+\section{Gedegenereerde folds}
+\label{section:degenerate-folds}
+
+De herschrijfregels die we bespraken in sectie
+\ref{section:fold-detection-rules} herschrijven ook bepaalde niet-recursieve
+functies als folds. Beschouw bijvoorbeeld de bekende functie |head|:
+
+\begin{code}
+head :: [a] -> a
+head = \l -> case l of
+    []      ->  error "empty list"
+    (x:xs)  ->  x
+\end{code}
+
+Door toepassing van de herschrijfregels krijgen we:
+
+\begin{spec}
+head :: [a] -> a
+head = \l -> foldr (\x xs -> x) (error "empty list") l
+\end{spec}
+
+Deze \emph{gedegenereerde} folds zijn niet relevant voor deze thesis. De
+expliete versie is immers leesbaarder dan de herschreven versie, aangezien
+programmeurs bekend met de |foldr| functie een recursie verwachten (die er hiet
+niet is). Bovendien is het niet interessant om deze functies te beschouwen voor
+foldr/build-fusie: andere eenvoudige technieken zoals inlining en \emph{case
+specialization} volstaan hier.
+
+Gelukkig kunnen we eenvoudig klasseren of een functie wel dan niet een
+gedegenereerde fold is. Als we regel \textsc{F-Rec} minstens \'e\'enmaal
+gebruikten, is er zeker sprake van recursie. Anders is de functie in kwestie een
+gedegenereerde en verkiezen we om de oorspronkelijke definitie te gebruiken in
+plaats van de herschreven definitie, die gebruikt maakt van |foldr|.
+
+\TODO{sectie over andere ADTs}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1897,7 +2033,7 @@ we kijken of er dan een |Case| volgt in de syntaxboom. We kunnen nu de
 argumenten rangschikken als volgt: het \emph{scrutinee}-argument (het argument
 dat wordt afgebroken door de |Case|, type-argumenten, en bijkomende argumenten.
 
-De bijkomende argumenten partitioneren we in twee klasses: verandelijke en
+De bijkomende argumenten partitioneren we in twee klasses: veranderlijke en
 statische argumenten. Een statisch argument is een argument dat hetzelfde is in
 elke oproep, zoals we eerder in \TODO{ref} bespraken.  Type-argumenten dienen we
 ook op een andere manier te behandelen, maar hier gaan we niet dieper op in.
@@ -1916,7 +2052,7 @@ herschrijven naar anonieme functies, zodat ze als argumenten voor de fold kunnen
 dienen.
 
 De argumenten voor deze anonieme functies zijn de binders van het alternatief
-gevolgd door de verandelijke bijkomende argumenten. Zo krijgen we in ons
+gevolgd door de veranderlijke bijkomende argumenten. Zo krijgen we in ons
 voorbeeld |\x z -> elapsed| en |\l_rec r_rec z -> elapsed| \footnote{Het
 |_rec|-suffix duidt hier op het feit dat dit niet de originele binders zijn,
 aangezien het type veranderde. Dit is een implementatie-detail, dat verder geen
@@ -1953,7 +2089,7 @@ $\Leftrightarrow$
 \end{spec}
 \end{minipage}
 
-We zien aldus hoe op deze manier verandelijke bijkomende argumenten als |z|
+We zien aldus hoe op deze manier veranderlijke bijkomende argumenten als |z|
 worden doorgegeven.
 
 \item Tenslotte dienen we de anonieme functies aan de argumenten van de fold te
@@ -2111,7 +2247,7 @@ samenwerken met de GHC inliner via de pragma's die beschikbaar zijn.
 
 \subsection{WhatMorphism.Fusion}
 
-Zoals we reeds in subsectie \ref{subsection:foldr-build-fusion} zagen, bestaat
+Zoals we reeds in subsectie \ref{section:foldr-build-fusion} zagen, bestaat
 foldr/build-fusion eruit door met de volgende regel het patroon in de linkerlid
 van de stelling te vervangen door het patroon in het rechterlid:
 
