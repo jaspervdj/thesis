@@ -275,8 +275,8 @@ omwille van verschillende redenen:
 
 \item Het Haskell Prelude \footnote{Het Prelude is de module die impliciet in
 elk Haskell-programma wordt ge\"importeerd. De functies hieruit zijn dus
-rechtstreeks te gebruiken zonder dat men een library moet importeren.} en de
-beschikbare libraries bieden een waaier aan hogere-orde functies aan.
+rechtstreeks te gebruiken zonder dat men een bibliotheek moet importeren.} en de
+beschikbare bibliotheken bieden een waaier aan hogere-orde functies aan.
 
 \item Haskell is een sterk getypeerde programmeertaal. Na het ini\"ele parsen en
 typechecken van de code is deze type-informatie is beschikbaar in elke stap van
@@ -286,7 +286,7 @@ de transformaties. Bovendien maakt Haskell gebruik van type inference
 opgeven.
 
 \item De de-facto standaard Haskell Compiler, GHC \cite{ghc}, laat via een
-plugin-systeem toe om code te manipuleren op een relatief eenvoudige manier
+pluginsysteem toe om code te manipuleren op een relatief eenvoudige manier
 \TODO{Cite het deel over GHC plugins/implementatie...}.
 
 \end{itemize}
@@ -691,10 +691,10 @@ foldTree  :: (a -> b) -> (b -> b -> b) -> Tree a -> b
 foldList  :: (a -> b -> b) -> b -> [a] -> b
 \end{spec}
 
-\item Eens de type-signaturen bepaald zijn is het genereren van de implementatie
-redelijk eenvoudig. Elke functieparameter krijgt een naam naar de constructor.
-Vervolgens genereren we een |go| functie. Dit is een toepassing van de Static
-Argument Transformation (zie \TODO{Cite SAT}).
+\item Eenmaal de type-signaturen bepaald zijn is het genereren van de
+implementatie redelijk eenvoudig. Elke functieparameter krijgt een naam naar de
+constructor.  Vervolgens genereren we een |go| functie. Dit is een toepassing
+van de Static Argument Transformation (zie \TODO{Cite SAT}).
 
 \begin{spec}
 foldTree :: (a -> b) -> (b -> b -> b) -> Tree a -> b
@@ -1207,21 +1207,24 @@ buildList g = g (:) []
 Eerder beschreven we al \TODO{backreference} dat we voor deze thesis werken met
 GHC \cite{ghc}, de de-facto standaard Haskell compiler.
 
-GHC werkt met een \emph{kerneltaal}. Een kerneltaal is een sterk gereduceerd
-subset van de programmeertaal (in dit geval Haskell). Het is natuurlijk wel
-mogelijk om elk Haskell-programma uit te drukken in de kerneltaal, al is dit
-meestal veel minder beknopt.
+GHC werkt met een \emph{kerneltaal}. Een kerneltaal is een gereduceerde subset
+van de programmeertaal (in dit geval Haskell). Bovendien is het mogelijk om
+elk Haskell-programma uit te drukken in de kerneltaal.
 
-De compiler zet na het parsen het programma om naar een equivalent programma in
-deze kerneltaal. Dit proces heet \emph{desugaring}.
+Een dergelijke vertaling gebeurt door de compiler en is beter bekend onder de
+naam desugaring \footnote{De vele syntactische structuren die in idiomatische
+Haskell-code gebruikt worden staan bekend als \emph{syntactic sugar}, vandaar
+deze naam.}. Programmas die uitgedrukt worden in de kerneltaal zijn meestal
+minder beknopt.
 
 Het gebruik van een dergelijke kerneltaal heeft verschillende voordelen:
 
 \begin{itemize}[topsep=0.00cm]
 
-\item De syntax van de kerneltaal is zeer eenvoudig. Hierdoor kunnen de
-programmeur en de compiler op een simpelere manier redeneren over expressies,
-zonder rekening te houden met op dat moment oninteressante syntactische details.
+\item De syntax van de kerneltaal is zeer beperkt. Hierdoor kunnen de
+programmeur en de compiler op een meer eenvoudige manier redeneren over
+expressies, zonder rekening te houden met op dat moment oninteressante
+syntactische details.
 
 \item Om nieuwe syntax toe te voegen, dient men enkel het
 \emph{desugaring}-proces aan te passen en hoeft men geen aanpassingen te doen in
@@ -1229,7 +1232,7 @@ de rest van de compiler.
 
 \item Verschillende programmeertalen kunnen dezelfde kerneltaal delen. Dit laat
 toe om bepaalde tools en optimalisaties \'e\'enmaal te schrijven en vervolgens
-toe te passen voor programmas geschreven in verschillende programmeertalen. Dit
+toe te passen voor programma's geschreven in verschillende programmeertalen. Dit
 voordeel is echter niet van toepassing voor GHC, omdat deze een eigen kerneltaal
 gebruikt.
 
@@ -1239,7 +1242,7 @@ De kerneltaal van die GHC gebruikt heet GHC Core \cite{tolmach2009}.
 
 Om onze fold- en build-detectie te implementeren hebben we dus twee keuzes. We
 kunnen ofwel de Haskell-code direct manipuleren. Er bestaan reeds verschillende
-libraries om deze taak eenvoudiger te maken, zoals bijvoorbeeld
+bibliotheken om deze taak eenvoudiger te maken, zoals bijvoorbeeld
 \emph{haskell-src-exts} \cite{haskell-src-exts}.
 
 We kunnen echter ook werken met de GHC Core. Dit heeft voor ons een groot aandal
@@ -1247,14 +1250,15 @@ voordelen.
 
 \begin{itemize}[topsep=0.00cm]
 
-\item Zoals we eerder al vermeldden, is het expressietype veel eenvoudiger. Ter
-illustratie: het |Expr|-type dat in \emph{haskell-src-exts} gebruikt wordt heeft
-46 verschillende constructoren, terwijl het |Expr|-type van GHC Core er slechts
-10 heeft.
+\item Zoals we eerder al vermeldden, is het syntax veel eenvoudiger. Dit drukt
+zich ook uit in de complexiteit van de abstracte syntaxboom: Ter illustratie:
+het |Expr|-type dat in \emph{haskell-src-exts} gebruikt wordt heeft 46
+verschillende constructoren, terwijl het |Expr|-type van GHC Core er slechts 10
+heeft.
 
 \item De GHC Core gaat door verschillende optimalisatie-passes. Veel van deze
-passes vereenvoudigen de expressies, wat op zijn beurt de analyse weer vooruit
-helpt. Beschouw bijvoorbeeld de volgende functie |jibble|:
+passes vereenvoudigen de expressies, wat op zijn beurt de analyse makkelijker
+maakt. Beschouw bijvoorbeeld de volgende functie |jibble|:
 
 \begin{code}
 jibble :: [Int] -> Int
@@ -1265,9 +1269,10 @@ wiggle :: Int -> [Int] -> Int
 wiggle x xs = x * jibble xs + 1
 \end{code}
 
-Hier is het praktisch onhaalbaar om een |foldr|-patroon te herkennen door het
-gebruik van de hulpfunctie |wiggle|. Maar, eens deze functie ge-inlined is,
-krijgen we de functie:
+Hier is het moeilijk om een |foldr|-patroon te herkennen door het gebruik van de
+hulpfunctie |wiggle|: onze implementatie gaat immers niet kijken wat de
+definitie van |wiggle| is. Maar, eens deze functie ge-inlined is, krijgen we de
+functie:
 
 \begin{spec}
 jibble :: [Int] -> Int
@@ -1294,19 +1299,24 @@ in de klasse van de algebra\"ische datatypes.
 
 \end{itemize}
 
-We dienen wel op te merken dat er ook een belangrijk gekoppeld is aan het werken
-met GHC Core in plaats van Haskell code. Het wordt namelijk veel moeilijker om
-de resultaten van onze analyse te gebruiken voor \emph{refactoren}: in dit
-geval, de originele Haskell code te herschrijven als toepassing van een |fold|
-of |build|. Als we dit willen mogelijk maken, zouden we een soort geannoteerd
-expressie-type nodig hebben, zodanig dat we de expressies in GHC Core kunnen
-terugkoppelen aan Haskell-expresssies. Wanneer we dan de GHC Core expressies
-automatisch herschrijven, moet de Haskell code ook geupdate worden. Dit zou ons
-echter te ver voeren.
+We dienen wel op te merken dat er ook een belangrijk nadeel gekoppeld is aan het
+werken met GHC Core in plaats van Haskell code. Het wordt namelijk veel
+moeilijker om de resultaten van onze analyse te gebruiken voor
+\emph{refactoring}.
+
+In dit geval zouden we de originele code willen herschrijven onder de vorm van
+een fold of een build. Dit vereist echter een soort geannoteerde abstracte
+syntaxboom die toelaat om expressies uit GHC Core terug te koppelen naar Haskell
+expressies, inclusief alle syntactische sugar waar de programmeur gebruik van
+kan maken. Automatisch herschrijven van expressies in GHC Core zorgt dan voor
+een soortgelijke update van de corresponderende Haskell code. Deze stap valt
+echter buiten het huidig bereik van deze thesis. We gaan hier iets dieper op in
+sectie \TODO{future work}.
 
 Om bovenstaande redenen kiezen we er dus voor om met GHC Core te werken. In
-Figuur \ref{figure:haskell-to-ghc-core} geven we een kort overzicht van hoe
-Haskell-expressies worden omgezet naar GHC Core-expressies.
+Figuur \ref{figure:haskell-to-ghc-core} geven we een kort overzicht van de
+omzetting van Haskell-expressies naar de corresponderende expressies in GHC
+Core.
 
 \begin{figure}[h]
   \begin{tabular}{ll}
@@ -1389,7 +1399,7 @@ Haskell-expressies worden omgezet naar GHC Core-expressies.
     \end{minipage} \\
   \end{tabular}
   \caption{Een overzicht van hoe Haskell-expressies worden omgezet naar
-  GHC Core-expressies. Links ziet u de Haskell-expressies, en rechts de
+  GHC Core-expressies. Links worden de Haskell-expressies getoond, en rechts de
   overeenkomstige GHC Core-expressies}
   \label{figure:haskell-to-ghc-core}
 \end{figure}
@@ -1397,10 +1407,15 @@ Haskell-expressies worden omgezet naar GHC Core-expressies.
 \section{Het GHC Plugins systeem}
 \label{section:ghc-plugins-system}
 
-De vraag is nu hoe we deze GHC Core kunnen manipuleren. Tot recentelijk was dit
-enkel mogelijk door de source code van GHC direct aan te passen. Gelukkig werd
-in GHC 7.2.1 een nieuw plugin systeem ge\"introduceerd \cite{ghc-plugins} dat
-dit sterk vereenvoudigd.
+Nu we beslist hebben op het niveau van GHC Core te werken, dringt zich de vraag
+op hoe we deze GHC Core-expressies kunnen manipuleren.
+
+De vraag is nu hoe we deze GHC Core kunnen manipuleren. Tot voor kort was dit
+enkel mogelijk door de source code van GHC direct aan te passen.
+
+Om aan dit probleem tegemoet te komen werd een nieuw pluginsysteem
+ge\"introduceerd \cite{ghc-plugins} in GHC 7.2.1, dat de praktische kant van een
+dergelijke manipulatie behoorlijk vereenvoudigt.
 
 Meer bepaald is het nu mogelijk om Core-naar-Core tranformaties te implementeren
 in aparte modules, en deze vervolgens mee te geven aan GHC via commmand-line
@@ -1415,7 +1430,7 @@ plugin = defaultPlugin {installCoreToDos = install}
 
 De |installCoreToDos| laat toe om de lijst van passes aan te passen. Dit is een
 standaard Haskell-lijst en bevat initi\"eel alle passes die GHC traditioneel
-uitvoert. Met |intersperse| kunnen we bijvoorbeeld onze pass laten uitvoeren
+uitvoert. Met |intersperse| kunnen we bijvoorbeeld onze passes laten uitvoeren
 tussen elke twee GHC-passes.
 
 \begin{code}
@@ -1427,7 +1442,8 @@ install _options passes = return $ intersperse myPlugin passes
 
 De implementatie van de effectieve pass heeft typisch de type-signatuur
 |CoreProgram -> CoreM CoreProgram|. Hierin kunnen we dus gemakkelijk de
-expressies bewerken: deze worden voorgesteld als een algebra\"isch datatype.
+expressies bewerken, gelet op het feit dat ze worden voorgesteld als een
+algebra\"isch datatype.
 
 \begin{code}
 myPass :: CoreProgram -> CoreM CoreProgram
@@ -1460,19 +1476,20 @@ type Alt b = (AltCon, [Id], Expr b)
 \end{spec}
 
 |Var| stelt eenvoudigweg variabelen voor, en literals worden door |Lit|
-geconstrueerd. |App| en |Lam| zijn lambda-applicatie en lambda-abstractie
-respectievelijk, concepten waarmee we bekend zijn uit de lambda-calculus. |Let|
-stelt |let|-expressies voor, zowel recursief als niet-recursief. |Case| stelt
-|case|-expressies voor maar heeft meerdere parameters: een extra binder voor de
-expressie die onderzocht wordt door de |case|-expressie (ook de \emph{scrutinee}
-genoemd), en het type van de resulterende alternatieven. |Cast|, |Tick|, |Type|
-en |Coercion| worden gebruikt voor expressies die weinig relevantie hebben met
-deze thesis. We vermelden deze dus zonder verdere uitleg.
+geconstrueerd. |App| en |Lam| zijn respectievelijk lambda-applicatie en
+lambda-abstractie, concepten waarmee we bekend zijn uit de lambda-calculus.
+|Let| stelt |let|-expressies voor, zowel recursief als niet-recursief. |Case|
+stelt |case|-expressies voor maar heeft meerdere parameters: een extra binder
+voor de expressie die onderzocht wordt door de |case|-expressie (ook de
+\emph{scrutinee} genoemd), en het type van de resulterende alternatieven.
+|Cast|, |Tick|, |Type| en |Coercion| worden gebruikt voor expressies die niet
+relevant zijn voor het onderwerp van deze thesis. We gaan hier dus niet dieper
+op in.
 
-Haskell-programma's worden dus door de compiler voorgesteld in deze abstracte
-syntaxboom, en plugins kunnen deze bomen naar willekeur transformeren. Figuur
-\ref{figure:ghc-core-ast} toont hoe GHC-Core expressies eruitzien in deze
-syntaxboom.
+Haskell-programma's worden door de compiler voorgesteld in een dergelijke
+abstracte syntaxboom, en plugins kunnen deze bomen manipuleren om de gewenste
+transformatie uit te voeren. De syntaxbomen voor de belangrijkste GHC
+Core-expressies worden getoond in Figuur \ref{figure:ghc-core-ast}.
 
 \begin{figure}[h]
   \begin{tabular}{ll}
@@ -1499,8 +1516,9 @@ syntaxboom.
   \label{figure:ghc-core-ast}
 \end{figure}
 
-Ter illustratie geven we hier een kleine pass die niet-recursieve binds inlined,
-dit is, |let x = e1 in e2| omzet naar |subst e2 x e1|.
+Ter illustratie beschouwen we een plugin pass die zorgt voor het inlinen van
+niet-recursieve binds. Een dergelijke pass zorgt dus voor een transformatie van
+|let x = e1 in e2| naar |subst e2 x e1|.
 
 \begin{code}
 simpleBetaReduction :: CoreProgram -> CoreM CoreProgram
@@ -1528,25 +1546,27 @@ simpleBetaReduction = return . map (goBind [])
     go env (Coercion c)            = Coercion c
 \end{code}
 
-E\'ens een dergelijke plugin geschreven is, kan deze eenvoudig gebruikt worden.
-De code dient \emph{gepackaged} te worden met \emph{cabal} \cite{cabal} en
-vervolgens kan men deze plugin installeren:
+Eenmaal een dergelijke plugin geschreven is, kan ze eenvoudig gebruikt worden.
+Hiervoor gaan we als volgt te werk. Eerst \emph{gepackagen} we de plugin met
+\emph{cabal} \cite{cabal} en installeren we ze:
 
 \begin{lstlisting}
 cabal install my-plugin
 \end{lstlisting}
 
-Men kan nu door slechts enkele commandolijn-argumenten mee te geven GHC opdragen
-dat deze plugin geladen en uitgevoerd moet worden tijdens de compilatie:
+Vervolgens kan men door slechts enkele commandolijn-argumenten mee te geven GHC
+opdragen dat deze plugin geladen en uitgevoerd moet worden tijdens de
+compilatie:
 
 \begin{lstlisting}
 ghc --make -package my-plugin -fplugin MyPlugin test.hs
 \end{lstlisting}
 
-Waarbij |MyPlugin| de naam van de module is die |plugin :: Plugin| bevat, en
-\texttt{my-plugin} de naam van het ge\"installeerde cabal-package. We kunnen dus
-concluderen dat met dit systeem het zeer eenvoudig is om GHC uit te breiden of
-te wijzigen, zonder dat de code van GHC moet aangepast worden.
+Waarbij |MyPlugin| de module is die |plugin :: Plugin| bevat. \texttt{my-plugin}
+is de naam van het ge\"installeerde cabal-package. Dit toont aan dat het
+relatiev eenvoudig is om GHC uit te breiden of aan te passen met behulp van het
+plugin framework. Bovendien hoeven we geen GHC code aan te passen, zolang de
+vereiste transformaties op de abstracte syntaxbomen kunnen uitgevoerd worden.
 
 \section{De what-morphism plugin}
 
@@ -2099,7 +2119,7 @@ packages.}
 \section{Tijdsmetingen}
 
 We onderzoeken nu de tijdswinsten die we kunnen behalen door foldr/build-fusion
-uit te voeren. Hiertoe maken we een lijst kleine programmas die fusable
+uit te voeren. Hiertoe maken we een lijst kleine programma's die fusable
 pijnlijnen van verschillende lengtes bevatten.
 
 We beginnen met een aantal hulpfuncties voor lijsten te defini\"eren op
@@ -2167,11 +2187,11 @@ t4 n = elapsed
 t5 n = elapsed
 \end{code}
 
-Deze functies zijn eenvoudig te benchmarken met behulp van de Criterion library
-\cite{criterion}. We gebruiken inputgrootte |n = 100000| en voeren de benchmarks
-tweemaal uit: enerzijds met enkel de \texttt{-O2} compilatievlag, en anderzijds
-met de compilatievlaggen \texttt{-O2 -package what-morphism -fplugin
-WhatMorphism}.
+Deze functies zijn eenvoudig te benchmarken met behulp van de Criterion
+bibliotheek \cite{criterion}. We gebruiken inputgrootte |n = 100000| en voeren
+de benchmarks tweemaal uit: enerzijds met enkel de \texttt{-O2} compilatievlag,
+en anderzijds met de compilatievlaggen \texttt{-O2 -package what-morphism
+-fplugin WhatMorphism}.
 
 De resultaten zijn te zien in Figuur \ref{figure:list-tree} en Figuur
 \ref{figure:list-tree-speedups}. We zijn telkens ge\"interesseerd in de
