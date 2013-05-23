@@ -1547,7 +1547,7 @@ simpleBetaReduction = return . map (goBind [])
 \end{code}
 
 Eenmaal een dergelijke plugin geschreven is, kan ze eenvoudig gebruikt worden.
-Hiervoor gaan we als volgt te werk. Eerst \emph{gepackagen} we de plugin met
+Hiervoor gaan we als volgt te werk. Eerst \emph{packagen} we de plugin met
 \emph{cabal} \cite{cabal} en installeren we ze:
 
 \begin{lstlisting}
