@@ -1227,7 +1227,7 @@ used hlint during development.
 \tom{We need to benchmark foldr/build examples from the literature.}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Related work}
+\section{Related Work}
 
 In ``A short cut to deforestation'' \cite{gill1993}, the foldr/build rule is
 discussed. The authors discuss the benefits of this approach, supported by many
@@ -1242,7 +1242,12 @@ uses of |concatMap|. |concatMap| is important because it represents the entire
 class of nested list computations, including list comprehensions
 \cite{coutts2010}.
 
-The \emph{hlint} \cite{hlint} tool is also able to recognise several
+The \emph{hlint}~\cite{hlint} tool is designed to recognize various
+code patterns and offer suggestions for improving them. In particular,
+it recognizes various forms of explicit recursion and suggests the
+use of appropriate higher-order functions that capture these recursion
+patterns.
+various is also able to recognise several
 higher-order functions, under which |foldr|. However, as we already showed in
 \ref{subsection:identifying-folds}, we are able to detect more instances of
 folds for Haskell lists. Additionally, detecting fold instances for arbitrary
