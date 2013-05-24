@@ -1242,16 +1242,35 @@ uses of |concatMap|. |concatMap| is important because it represents the entire
 class of nested list computations, including list comprehensions
 \cite{coutts2010}.
 
-The \emph{hlint}~\cite{hlint} tool is designed to recognize various
-code patterns and offer suggestions for improving them. In particular,
-it recognizes various forms of explicit recursion and suggests the
-use of appropriate higher-order functions that capture these recursion
-patterns.
-various is also able to recognise several
-higher-order functions, under which |foldr|. However, as we already showed in
+The \emph{hlint}~\cite{hlint} tool is designed to recognize various code
+patterns and offer suggestions for improving them. In particular, it recognizes
+various forms of explicit recursion and suggests the use of appropriate
+higher-order functions like |map|, |filter| and |foldr| that capture these
+recursion patterns.  As we already showed in Section
 \ref{subsection:identifying-folds}, we are able to detect more instances of
-folds for Haskell lists. Additionally, detecting fold instances for arbitrary
-algebraic datatypes is outside of the scope of hlint.
+folds for Haskell lists than hlint. Moreover, hlint makes no effort to detect
+folds for other algebraic datatypes.
+
+Gibbons~\cite{Gibbons2003:Origami} promotes explicit programming in terms of
+folds and unfolds, which he calls \emph{origami} programming. Unfolds are the dual
+of folds, and capture a special case of builds.
+
+Sittampalam and de Moor~\cite{mag} present a semi-automatic approach to |foldr|
+fusion based on the MAG system. In their approach, the programmer specifies the
+initial program, a specficiation of the target program and suitable rewrite
+rules. The latter includes a rule for |foldr| fusion: 
+%{
+%format . = "."
+\begin{spec}
+f (foldr c n l) = foldr c' n' l
+   if  f n = n'
+       forall x y. f (c x y) = c' x (f y) 
+\end{spec}
+%}
+Then the MAG system will attempt to derive the target implementation by
+applying the rewrite rules. Finally, the programmer needs to check whether MAG
+has only applied the fusion rule to strict functions |f|, a side condition of
+the fusion rule that cannot be specified in MAG.
 
 \begin{itemize}
 \item fold applications
