@@ -816,7 +816,7 @@ para f z (x:xs)  = f x xs (para f z xs)
       again the function is not a proper catamorphism. An example of that case
       is the following non-terminating function:
 \begin{spec}
-f = \x -> case y of
+f = \x -> case x of
             []      -> 0
             (v:vs)  -> v + f vs + f [1,2,3]
 \end{spec}

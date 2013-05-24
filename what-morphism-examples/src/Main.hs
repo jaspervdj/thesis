@@ -15,226 +15,85 @@ import           Lib
 
 
 --------------------------------------------------------------------------------
-testList :: List Int
-testList = buildList $ \c n ->
-    let g x | x > 100   = n
-            | otherwise = c x (g (x + 1))
-    in g 1
+sumt :: Tree Int -> Int
+sumt (Leaf x)   = x
+sumt (Node l r) = sumt l + sumt r
 
 
 --------------------------------------------------------------------------------
-listUpTo :: Int -> Int -> List Int
-listUpTo k n
-    | k >= n    = Cons k Empty
-    | otherwise = Cons k (listUpTo (k + 1) n)
-{-# INLINE [2] listUpTo #-}
+mapt :: (a -> b) -> Tree a -> Tree b
+mapt f = go
+  where
+    go (Leaf x)   = Leaf (f x)
+    go (Node l r) = Node (go l) (go r)
 
 
 --------------------------------------------------------------------------------
-listSum :: List Int -> Int
-listSum Empty       = 0
-listSum (Cons x xs) = x + listSum xs
-{-# INLINE [2] listSum #-}
+uptot :: Int -> Int -> Tree Int
+uptot = go
+  where
+    go lo hi
+        | lo >= hi  = Leaf lo
+        | otherwise =
+            let mid = (lo + hi) `div` 2
+            in Node (go lo mid) (go (mid + 1) hi)
+{-# INLINE uptot #-}
 
 
 --------------------------------------------------------------------------------
-listSumWith :: List Int -> Int -> Int
-listSumWith Empty       c = c
-listSumWith (Cons x xs) c = x + listSumWith xs c
+t1, t2, t3, t4, t5 :: Int -> Int
+t1 n = sumt (1 `uptot` n)
+t2 n = sumt (mapt (+ 1) (1 `uptot` n))
+t3 n = sumt (mapt (+ 1) (mapt (+ 1) (1 `uptot` n)))
+t4 n = sumt (mapt (+ 1) (mapt (+ 1) (mapt (+ 1) (1 `uptot` n))))
+t5 n = sumt (mapt (+ 1) (mapt (+ 1) (mapt (+ 1) (mapt (+ 1) (1 `uptot` n)))))
 
 
 --------------------------------------------------------------------------------
-listFilter :: (a -> Bool) -> List a -> List a
-listFilter _ Empty = Empty
-listFilter f (Cons x xs)
-    | f x          = Cons x (listFilter f xs)
-    | otherwise    = listFilter f xs
+suml :: [Int] -> Int
+suml []       = 0
+suml (x : xs) = x + suml xs
 
 
 --------------------------------------------------------------------------------
-listMap :: (a -> b) -> List a -> List b
-listMap _ Empty       = Empty
-listMap f (Cons x xs) = Cons (f x) (listMap f xs)
+mapl :: (a -> b) -> [a] -> [b]
+mapl f = go
+  where
+    go []       = []
+    go (x : xs) = f x : go xs
 
 
 --------------------------------------------------------------------------------
-testTree :: Tree Int
-testTree = buildTree $ \leaf node ->
-    let mkTree lo hi
-            | lo >= hi  = leaf lo
-            | otherwise =
-                let mid = (lo + hi) `div` 2
-                in node (mkTree lo mid) (mkTree (mid + 1) hi)
-    in mkTree 1 1024
-
-
---------------------------------------------------------------------------------
-treeUpTo :: Int -> Int -> Tree Int
-treeUpTo lo hi
-    | lo >= hi  = Leaf lo
-    | otherwise =
-        let mid = (lo + hi) `div` 2
-        in Node (treeUpTo lo mid) (treeUpTo (mid + 1) hi)
-
-
---------------------------------------------------------------------------------
-treeUpTo' :: Integral a => a -> a -> Tree [a]
-treeUpTo' lo hi
-    | lo >= hi  = Leaf [lo]
-    | otherwise =
-        let mid = (lo + hi) `div` 2
-        in Node (treeUpTo' lo mid) (treeUpTo' (mid + 1) hi)
-
-
---------------------------------------------------------------------------------
-treeUpTo'' :: Integral a => a -> a -> Tree [a]
-treeUpTo'' lo' hi' = buildTree (\leaf node ->
-    let g lo hi
-            | lo >= hi  = leaf [lo]
-            | otherwise =
-                let mid = (lo + hi) `div` 2
-                in node (g lo mid) (g (mid + 1) hi)
-    in g lo' hi')
-{-# NOINLINE treeUpTo'' #-}
-
-
---------------------------------------------------------------------------------
-treeSum :: Tree Int -> Double
-treeSum (Leaf x)   = fromIntegral x
-treeSum (Node l r) = treeSum l + treeSum r
-
-
---------------------------------------------------------------------------------
-treeMap :: (a -> b) -> Tree a -> Tree b
-treeMap f (Leaf x)   = Leaf (f x)
-treeMap f (Node l r) = Node (treeMap f l) (treeMap f r)
-
-
---------------------------------------------------------------------------------
-treeMapB :: forall a b. (a -> b) -> Tree a -> Tree b
-treeMapB f' tree' = buildTree (\(leaf :: b -> c) (node :: c -> c -> c) ->
-    let g :: (a -> b) -> Tree a -> c
-        g f (Leaf x)   = leaf (f x)
-        g f (Node l r) = node (g f l) (g f r)
-    in g f' tree')
-{-# NOINLINE treeMapB #-}
-
-
---------------------------------------------------------------------------------
-haskellUpTo :: Int -> Int -> [Int]
-haskellUpTo lo up = go lo
+uptol :: Int -> Int -> [Int]
+uptol lo up = go lo
   where
     go i
         | i > up    = []
         | otherwise = i : go (i + 1)
+{-# INLINE uptol #-}
 
 
 --------------------------------------------------------------------------------
-mkTreeBuild :: Int -> Tree Int
-mkTreeBuild = \n -> buildTree $ \leaf node ->
-    let g lo hi
-            | lo >= hi  = leaf lo
-            | otherwise =
-                let mid = (lo + hi) `div` 2
-                in node (g lo mid) (g (mid + 1) hi)
-    in g 1 n
-
-
---------------------------------------------------------------------------------
-treeSumFold :: Int -> Tree Int -> Int -> Double
-treeSumFold = \a t b -> foldTree (\x -> fromIntegral (x + a + b)) (+) t
-
-
---------------------------------------------------------------------------------
-foldBuild :: Double
-foldBuild =
-    ((\a t b -> foldTree (\x -> fromIntegral (x + a + b)) (+) t)
-        1
-        ((\n -> buildTree $ \leaf node ->
-            let g lo hi
-                    | lo >= hi  = leaf lo
-                    | otherwise =
-                        let mid = (lo + hi) `div` 2
-                        in node (g lo mid) (g (mid + 1) hi)
-            in g 1 n)
-            10)
-        5)
-
-
---------------------------------------------------------------------------------
-foldBuildFused :: Double
-foldBuildFused =
-    (\a t b ->
-        ((\n -> (\leaf node ->
-            let g lo hi
-                    | lo >= hi  = leaf lo
-                    | otherwise =
-                        let mid = (lo + hi) `div` 2
-                        in node (g lo mid) (g (mid + 1) hi)
-            in g 1 n))
-            10) (\x -> fromIntegral (x + a + b)) (+))
-        1
-        undefined
-        5
-
-
---------------------------------------------------------------------------------
-foldBuildInlined :: Double
-foldBuildInlined = (treeSumFold 1 (mkTreeBuild 10) 5)
-
-
---------------------------------------------------------------------------------
-mkTreeResult :: Int -> Double
-mkTreeResult n = treeSum (treeMap (+ 1) (1 `treeUpTo` n))
-
-
---------------------------------------------------------------------------------
-haskellFilter :: (a -> Bool) -> [a] -> [a]
-haskellFilter _ []   = []
-haskellFilter p (x : xs)
-    | p x            = x : haskellFilter p xs
-    | otherwise      = haskellFilter p xs
-
-
---------------------------------------------------------------------------------
-haskellMap :: (a -> b) -> [a] -> [b]
-haskellMap _ []       = []
-haskellMap f (x : xs) = f x : haskellMap f xs
-
-
---------------------------------------------------------------------------------
-haskellSum :: [Int] -> Int
-haskellSum []       = 0
-haskellSum (x : xs) = x + haskellSum xs
-
-
---------------------------------------------------------------------------------
-haskellSumSquaredOdds :: [Int] -> Int
-haskellSumSquaredOdds xs = haskellSum (haskellMap (^ 2) (haskellFilter odd xs))
-
-
---------------------------------------------------------------------------------
-mkHaskellResult :: Int -> Int
-mkHaskellResult x = haskellSumSquaredOdds [1 .. x]
-
-
---------------------------------------------------------------------------------
-hresult :: Int
-hresult = haskellSum (1 `haskellUpTo` 10)
+l1, l2, l3, l4, l5 :: Int -> Int
+l1 n = suml (1 `uptol` n)
+l2 n = suml (mapl (+ 1) (1 `uptol` n))
+l3 n = suml (mapl (+ 1) (mapl (+ 1) (1 `uptol` n)))
+l4 n = suml (mapl (+ 1) (mapl (+ 1) (mapl (+ 1) (1 `uptol` n))))
+l5 n = suml (mapl (+ 1) (mapl (+ 1) (mapl (+ 1) (mapl (+ 1) (1 `uptol` n)))))
 
 
 --------------------------------------------------------------------------------
 main :: IO ()
 main = defaultMain
-    [ bench "10 nodes"     $ nf mkTreeResult 10
-    , bench "100 nodes"    $ nf mkTreeResult 100
-    , bench "1000 nodes"   $ nf mkTreeResult 1000
-    , bench "10000 nodes"  $ nf mkTreeResult 10000
-    , bench "100000 nodes" $ nf mkTreeResult 100000
+    [ bench "t1" $ nf t1 100000
+    , bench "t2" $ nf t2 100000
+    , bench "t3" $ nf t3 100000
+    , bench "t4" $ nf t4 100000
+    , bench "t5" $ nf t5 100000
 
-    , bench "10 elems"     $ nf mkHaskellResult 10
-    , bench "100 elems"    $ nf mkHaskellResult 100
-    , bench "1000 elems"   $ nf mkHaskellResult 1000
-    , bench "10000 elems"  $ nf mkHaskellResult 10000
-    , bench "100000 elems" $ nf mkHaskellResult 100000
+    , bench "l1" $ nf l1 100000
+    , bench "l2" $ nf l2 100000
+    , bench "l3" $ nf l3 100000
+    , bench "l4" $ nf l4 100000
+    , bench "l5" $ nf l5 100000
     ]
