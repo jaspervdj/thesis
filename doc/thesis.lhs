@@ -2247,7 +2247,7 @@ samenwerken met de GHC inliner via de pragma's die beschikbaar zijn.
 
 \subsection{WhatMorphism.Fusion}
 
-Zoals we reeds in subsectie \ref{section:foldr-build-fusion} zagen, bestaat
+Zoals we reeds in subsectie \ref{subsection:foldr-build-fusion} zagen, bestaat
 foldr/build-fusion eruit door met de volgende regel het patroon in de linkerlid
 van de stelling te vervangen door het patroon in het rechterlid:
 
@@ -2514,20 +2514,23 @@ suggereert ook de auteurs van deze packages misschien HLint gebruiken.
 \begin{table}
 \begin{center}
 {\renewcommand{\arraystretch}{1.20} % Slightly more spacing
-\begin{tabular}{l||r||r||r}
-\textbf{Package}   & \textbf{List} & \textbf{ADT} & \textbf{HLint} \\
+\begin{tabular}{l||r||r||r||r||r||r}
+\textbf{Package} & \textbf{Totaal} & Lijst & ADT & V. arg. & N. rec. &
+\textbf{HLint} \\
 \hline
-Cabal-1.16.0.3     & 11            & 9            & 9  \\
-containers-0.5.2.1 & 11            & 89           & 1  \\
-darcs-2.8.4        & 65            & 1            & 6  \\
-ghc-7.6.3          & 216           & 111          & 26 \\
-hakyll-4.2.2.0     & 1             & 4            & 0  \\
-hlint-1.8.44       & 3             & 3            & 0  \\
-hscolour-1.20.3    & 4             & 0            & 2  \\
-HTTP-4000.2.8      & 6             & 0            & 3  \\
-pandoc-1.11.1      & 15            & 0            & 2  \\
-parsec-3.1.3       & 3             & 0            & 0  \\
-snap-core-0.9.3.1  & 3             & 1            & 0  \\
+Cabal-1.16.0.3          & 20  & 11  & 9   & 6   & 0   & 9  \\
+containers-0.5.2.1      & 100 & 11  & 89  & 41  & 11  & 1  \\
+darcs-2.8.4             & 66  & 65  & 8   & 1   & 0   & 6  \\
+ghc-7.6.3               & 327 & 216 & 111 & 127 & 9   & 26 \\
+hakyll-4.2.2.0          & 5   & 1   & 4   & 3   & 0   & 0  \\
+hlint-1.8.44            & 6   & 3   & 3   & 1   & 0   & 0  \\
+hscolour-1.20.3         & 4   & 4   & 0   & 0   & 0   & 2  \\
+HTTP-4000.2.8           & 6   & 6   & 0   & 2   & 0   & 3  \\
+pandoc-1.11.1           & 15  & 15  & 0   & 1   & 0   & 2  \\
+parsec-3.1.3            & 3   & 3   & 0   & 1   & 0   & 0  \\
+snap-core-0.9.3.1       & 4   & 3   & 1   & 1   & 0   & 0  \\
+cpphs-1.16              & 5   & 2   & 3   & 3   & 0   & 1  \\
+haskell-src-exts-1.13.5 & 37  & 11  & 26  & 15  & 0   & 2  \\
 \end{tabular}
 }
 \caption{Een overzicht van het aantal gevonden folds in een aantal bekende
