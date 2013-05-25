@@ -241,8 +241,10 @@ Enkele redenen hiervoor zijn bijvoorbeeld dat de programmeur niet bekend is met
 de hogere-orde functie, of dat er geen tijd is om zijn zelfgeschreven functie te
 herschrijven op basis van bestaande hogere-orde functies. We zien zelfs dat we
 voorbeelden terugvinden van expliciete recursie in code geschreven door
-gevorderde gebruikers van functionele programmeertalen \TODO{cite: GHC HQ does
-it}.
+gevorderde gebruikers van functionele programmeertalen\footnote{Zo vinden we
+bijvoorbeeld zelfs veel voorbeelden van expliciete recursieve functies die
+kunnen geschreven worden met behulp een hogere-orde fold functie in de broncode
+van GHC (zie sectie \ref{section:fold-detection-results}).}.
 
 De hierboven beschreven voordelen vormen de basismotivatie voor het onderzoek
 dat we in deze thesis vericht hebben. We richten ons op functies die geschreven
@@ -290,6 +292,7 @@ we gebruiken in deze thesis.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Achtergrond}
+\label{chapter:background}
 
 We kozen voor de pure functionele programmeertaal Haskell \cite{jones2003}
 omwille van verschillende redenen:
@@ -305,12 +308,12 @@ beschikbare bibliotheken bieden een waaier aan hogere-orde functies aan.
 typechecken van de code is deze type-informatie is beschikbaar in elke stap van
 de compilatie. Deze types geven ons meer informatie die we kunnen gebruiken in
 de transformaties. Bovendien maakt Haskell gebruik van type inference
-\TODO{cite}, wat ervoor zorgt dat de programmeur meestal zelf geen types moet
-opgeven.
+\cite{hindley1969}, wat ervoor zorgt dat de programmeur meestal zelf geen types
+moet opgeven.
 
 \item De de-facto standaard Haskell Compiler, GHC \cite{ghc}, laat via een
-pluginsysteem toe om code te manipuleren op een relatief eenvoudige manier
-\TODO{Cite het deel over GHC plugins/implementatie...}.
+pluginsysteem toe om code te manipuleren op een relatief eenvoudige manier (zie
+sectie \ref{section:ghc-plugins}).
 
 \end{itemize}
 
@@ -346,9 +349,9 @@ middle = \x -> \y -> (/) ((+) x y) 2
 \end{spec}
 \end{minipage}
 
-In tegenstelling tot de lambda-calculus \TODO{Cite lambda-calculus?}, is Haskell
-ook een \emph{sterk getypeerde} programmeertaal. Functies worden, naast een
-definitie, ook voorzien van een \emph{type-signatuur}:
+In tegenstelling tot de lambda-calculus \cite{cardone2006}, is Haskell ook een
+\emph{sterk getypeerde} programmeertaal. Functies worden, naast een definitie,
+ook voorzien van een \emph{type-signatuur}:
 
 \begin{code}
 middle :: Float -> Float -> Float
@@ -717,7 +720,7 @@ foldList  :: (a -> b -> b) -> b -> [a] -> b
 \item Eenmaal de type-signaturen bepaald zijn is het genereren van de
 implementatie redelijk eenvoudig. Elke functieparameter krijgt een naam naar de
 constructor.  Vervolgens genereren we een |go| functie. Dit is een toepassing
-van de Static Argument Transformation (zie \TODO{Cite SAT}).
+van de Static Argument Transformation \cite{santos1995}.
 
 \begin{spec}
 foldTree :: (a -> b) -> (b -> b -> b) -> Tree a -> b
@@ -1067,8 +1070,8 @@ performante versie.
 
 Uiteindelijk is |sumOfSquaredOdds'| dus volledig gereduceerd tot \'e\'en enkele
 |foldr| over een lijst: het is niet meer nodig om tijdelijke lijsten te
-alloceren om het resultaat te berekenen. In \TODO{Cite results chapter} tonen we
-aan dat dit leidt tot significante versnellingen.
+alloceren om het resultaat te berekenen. In sectie \ref{section:benchmarks}
+tonen we aan dat dit leidt tot significante versnellingen.
 
 We krijgen dus als het ware het beste van beide werelden: we kunnen elegante
 definities gebruiken voor de functies, die eenvoudiger leesbaar zijn en
@@ -1096,8 +1099,7 @@ fusion-regel gegeven in definitie \ref{theorem:foldr-build-tree-fusion}.
 \end{theorem:foldr-build-tree-fusion}
 
 Het bewijs hiervan verloopt analoog aan het bewijs voor
-\ref{theorem:foldr-build-fusion} en wordt hier achterwege gelaten \TODO{Of moet
-ik dit wel includeren? Het is 99\% hetzelfde...}.
+\ref{theorem:foldr-build-fusion} en wordt hier achterwege gelaten.
 
 Om dit te verduidelijken kunnen we kijken naar een concreet voorbeeld. Beschouw
 de voorbeeldfunctie |treeUpTo| die een boom maakt met alle elementen van |n| tot
@@ -1157,7 +1159,7 @@ Nu kunnen we bestuderen wat er door fusion gebeurt met een expressie als
 
 We krijgen een expressie die rechtstreeks de som uitrekent zonder ooit een
 constructor te gebruiken. Opnieuw zal dit voor een significante versnelling
-zorgen \TODO{Cite results chapter}.
+zorgen (zie sectie \ref{section:benchmarks}).
 
 Omdat naast fold- ook build-functies eenvoudig af te leiden zijn vanuit de
 definitie van een datatype, hebben we dit ook geautomatiseerd. De programmeur
@@ -1454,9 +1456,9 @@ In het geval van de |[]| constructor, vervangen we |y| door |[]| via de regel
 \textsc{F-Bind'}, en vormt dit dus geen probleem.
 
 \item Als |f| voorkomt in een andere vorm dan recursieve calls van de vorm |f
-vs|, dan is de functie \TODO{mogelijks} geen catamorfisme. Beschouw bijvoorbeeld
-de functie, die zal resulteren in oneindige recursie wanneer er een argument
-anders dan de lege lijst aan wordt meegegeven:
+vs|, dan is de functie mogelijks geen catamorfisme. Beschouw bijvoorbeeld de
+functie, die zal resulteren in oneindige recursie wanneer er een argument anders
+dan de lege lijst aan wordt meegegeven:
 
 \begin{spec}
 f = \x -> case x of
@@ -1811,13 +1813,14 @@ optimaliseren.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Implementatie \& evaluatie}
+\chapter{Implementatie}
+\label{chapter:implementation}
 
 \section{GHC Core}
 \label{section:ghc-core}
 
-Eerder beschreven we al \TODO{backreference} dat we voor deze thesis werken met
-GHC \cite{ghc}, de de-facto standaard Haskell compiler.
+In hoofdstuk \ref{chapter:background} beschreven we al dat we voor deze thesis
+werken met GHC \cite{ghc}, de de-facto standaard Haskell compiler.
 
 GHC werkt met een \emph{kerneltaal}. Een kerneltaal is een gereduceerde subset
 van de programmeertaal (in dit geval Haskell). Bovendien is het mogelijk om
@@ -2016,8 +2019,8 @@ Core.
   \label{figure:haskell-to-ghc-core}
 \end{figure}
 
-\section{Het GHC Plugins systeem}
-\label{section:ghc-plugins-system}
+\section{Het GHC Plugins framework}
+\label{section:ghc-plugins}
 
 Nu we beslist hebben op het niveau van GHC Core te werken, dringt zich de vraag
 op hoe we deze GHC Core-expressies kunnen manipuleren.
@@ -2221,7 +2224,7 @@ transformatie niet kunnen maken en dus de originele expressie behouden.
 \subsection{WhatMorphism.Fold}
 
 De |WhatMorphism.Fold| pass is een meer deterministische implementatie van de
-regels in \TODO{Cite regels}.
+regels in sectie \ref{section:fold-detection-rules}.
 
 We gebruiken de volgende functie ter illustratie (hier voorgesteld als
 Core-expressie):
@@ -2258,8 +2261,9 @@ dat wordt afgebroken door de |Case|, type-argumenten, en bijkomende argumenten.
 
 De bijkomende argumenten partitioneren we in twee klasses: veranderlijke en
 statische argumenten. Een statisch argument is een argument dat hetzelfde is in
-elke oproep, zoals we eerder in \TODO{ref} bespraken.  Type-argumenten dienen we
-ook op een andere manier te behandelen, maar hier gaan we niet dieper op in.
+elke oproep, zoals we eerder in sectie \ref{section:fold-detection-rules}
+bespraken.  Type-argumenten dienen we ook op een andere manier te behandelen,
+maar hier gaan we niet dieper op in.
 
 In ons voorbeeld vinden we dat de boom |t| het scrutinee-argument is, en |z| een
 veranderlijk bijkomend argument.
@@ -2343,8 +2347,9 @@ waarden construeren met concrete constructoren, om te zetten naar functies die
 gebruik maken van de build voor het corresponderende datatype.
 
 We gebruiken ook hier ook meer determintisch algoritme dan de
-niet-deterministische regels voorgesteld in \TODO{backref}. Als voorbeeld
-gebruiken we de functie |infiniteTree|:
+niet-deterministische regels voorgesteld in hoofdstuk
+\ref{chapter:build-detection}. Als voorbeeld gebruiken we de functie
+|infiniteTree|:
 
 \begin{code}
 infiniteTree :: Tree Int
@@ -2553,7 +2558,7 @@ niet wordt toegepast.
 
 \subsection{Volgorde van de passes}
 
-Zoals eerder besproken in sectie \ref{section:ghc-plugins-system}, kan onze
+Zoals eerder besproken in sectie \ref{section:ghc-plugins}, kan onze
 plugin, op het moment dat deze geladen wordt, de passes die GHC zal uitvoeren
 wijzigen. We kunnen natuurlijk bijvoorbeeld na\"ief onze plugins als eerste
 runnen, maar om goede resultaten te boeken, blijkt het uitermate belangrijk de
@@ -2698,7 +2703,12 @@ foldr/build-fusion.
 Deze pragma's wordt ook automatisch gegenereerd door onze Template Haskell code.
 De programmeur hoeft hier dus niet over na te denken.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Evaluatie}
+\label{chapter:evaluation}
+
 \section{Detectie van folds}
+\label{section:fold-detection-results}
 
 Een eerste aspect dat we kunnen bekijken is hoe goed de detectie van folds (zie
 hoofdstuk \ref{chapter:fold-detection}) werkt. We bespraken reeds dat onze tool
@@ -2715,8 +2725,8 @@ GHC Core te werken (zie sectie \ref{section:ghc-core}). E\'en van de suggesties
 die HLint kan geven is het gebruik van |map|, |foldl| of |foldr| in plaats van
 expliciete recursie.
 
-We toonden eerder al aan \TODO{backref} dat zowel |map| en |foldl| in termen van
-|foldr| uitgredrukt kunnen. Als we dus de som nemen van het aantal functies die
+We toonden eerder al aan dat zowel |map| en |foldl| in termen van |foldr|
+uitgredrukt kunnen. Als we dus de som nemen van het aantal functies die
 herschreven kunnen worden als |map|, |foldl| of |foldr| volgens HLint, krijgen
 we dus het aantal folds over lijsten gedetecteerd door HLint.
 
@@ -2790,6 +2800,7 @@ packages.}
 \end{table}
 
 \section{Tijdsmetingen}
+\label{section:benchmarks}
 
 We onderzoeken nu de tijdswinsten die we kunnen behalen door foldr/build-fusion
 uit te voeren. Hiertoe maken we een lijst kleine programma's die fusable
@@ -2904,10 +2915,12 @@ bomen (rechts).}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Related work}
+\label{chapter:related-work}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusie}
+\label{chapter:conclusion}
 
 \begin{itemize}
 \item Samenvatting
