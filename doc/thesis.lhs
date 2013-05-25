@@ -44,14 +44,15 @@ elapsed = undefined
 \end{code}
 }
 
-%format a'1 = "a^{\prime}_1"
-%format a'2 = "a^{\prime}_2"
 %format B1 = B"_1"
 %format B2 = B"_2"
-%format e1 = e"_1"
+%format bg = b"_g"
 %format e'1 = e"^{\prime}_1"
-%format e2 = e"_2"
 %format e'2 = e"^{\prime}_2"
+%format e1 = e"_1"
+%format e2 = e"_2"
+%format ei = e"_i"
+%format e'i = e"^{\prime}_i"
 %format f1 = f"_1"
 %format f2 = f"_2"
 %format x1 = x"_1"
@@ -811,11 +812,11 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 \begin{spec}
     map f (map g (x : xs))
 
-== {- def |map :| -}
+== {- def |map (:)| -}
 
     map f (g x : map g xs)
 
-== {- def |map :| -}
+== {- def |map (:)| -}
 
     f (g x) : map f (map g xs)
 
@@ -823,7 +824,7 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 
     f (g x) : map (f . g) xs
 
-== {- def |map :| -}
+== {- def |map (:)| -}
 
     map (f . g) (x : xs)
 \end{spec}
@@ -1186,7 +1187,7 @@ buildList g = elapsed
 
 \item Opnieuw krijgen we voor elke constructor een functieparameter, ditmaal
 voor |g|. De types voor deze functieparameters worden afgeleid op dezelfde
-manier als in het algoritme voor |deriveFold| (zie Sectie
+manier als in het algoritme voor |deriveFold| (zie sectie
 \ref{section:universal-fold}).
 
 \begin{spec}
@@ -1571,7 +1572,7 @@ head = \l -> foldr (\x xs -> x) (error "empty list") l
 \end{spec}
 
 Deze \emph{gedegenereerde} folds zijn niet relevant voor deze thesis. Het is
-immers niet interessant om deze functies te beschouwen voor foldr/build-fusie:
+immers niet interessant om deze functies te beschouwen voor foldr/build-fusion:
 andere eenvoudige technieken zoals inlining en \emph{case specialization}
 volstaan.
 
@@ -1590,8 +1591,223 @@ plaats van de herschreven definitie, die gebruikt maakt van |foldr|.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Detectie builds}
+\chapter{Detectie van builds}
 \label{chapter:build-detection}
+
+% Copy pasta, caption changed, formatting of e_i
+\begin{figure}[t]
+\begin{center}
+\fbox{
+\begin{minipage}{0.95\columnwidth}
+\[\begin{array}{c}
+\myruleform{\inferrule*{}{|b| \rightarrowtail |b'|;|bg|}} \quad\quad
+\inferrule*[left=(\textsc{B-Bind})]
+        { |c|, |n|, |g|~\text{fresh}\\\\
+          |e| ~{}_f\!\stackrel{c,n}{\rightarrowtail}_g~ |e'| }
+        {|f = \many x -> e| ~~\rightarrowtail \\\\ 
+          |f = \many x -> build (g (many x))|; \\\\
+          |g = \many x -> \c -> \n -> e'|
+             } \\
+\\
+\myruleform{\inferrule*{}{|e| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'|}} 
+\quad\quad
+\inferrule*[left=(\textsc{B-Rec})]
+        {  }
+        { |f (many e)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |g (many e) c n| }  \\
+\\
+\inferrule*[left=(\textsc{B-Nil})]
+        {  }
+        { |[]| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |n| }  
+\quad\quad
+\inferrule*[left=(\textsc{B-Cons})]
+        { |e2| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'2| }
+        { |(e1:e2)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |c e1 e'2| }  \\
+\\
+\inferrule*[left=(\textsc{B-Build})]
+        {  }
+        { |build e| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e c n| }  \\
+\\
+\inferrule*[left=(\textsc{B-Case})]
+        { |ei| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'i|\quad (\forall i) }
+        { |case e of many (p -> e)| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |case e of many (p -> e')| }  \\
+\end{array}\]
+\end{minipage}
+}
+\end{center}
+\caption{Onze regels voor het herkennen van builds}
+\label{figure:build-detection-rules}
+\end{figure}
+
+In Figuur \ref{figure:build-detection-rules} geven we de niet-deterministische
+regels die we gebruiken om builds te herkennen. Deze regels zijn opnieuw
+specifiek voor lijsten, teneinde de uitleg te vereenvoudigen.
+
+De relatie $|b| \rightarrowtail |b'; bg|$ staat centraal. Deze legt het verband
+tussen de binding |b| en de bindings |b'; bg|. De binding |b| maakt expliciet
+gebruik van de concrete consructoren, en |b'| is een herschreven variant die
+gebruik maakt van de functie |build|. Bijkomend krijgen we |bg|, een binding die
+gebruikt wordt als de generatorfuctie (meestal |g| genoemd). Deze wordt gegeven
+als argument van |build|.
+
+Deze relatie maakt gebruik van \'e\'en enkele regel, namelijk \textsc{B-Bind}.
+Deze regel herschrijft de de definitie van een functie en defini\"eert ook de
+bijkomende functie |bg|. De functie die we herschrijven mag om het even hoeveel
+argumenten hebben -- deze worden voorgesteld door |\many x -> elapsed|.
+
+Deze argumenten worden ook meegegeven aan de generatorfuctie |g|. Op deze manier
+kan |g| op dezelfde manier als de oorspronkelijke functie een waarde opbouwen --
+behalve dat er nu abstracte versies van de constructoren gebruikt worden. Een
+voorbeeld van een dergelijke functie met argumenten is |map|. Als we |map|
+herschrijven via onze regels krijgen we:
+
+\begin{spec}
+map  = \f -> \l -> build (g f l)
+
+g    = \f -> \l -> \c -> \n -> 
+        case l of
+          []      -> n
+          (y:ys)  -> c (f y) (g f ys c n)
+\end{spec}
+
+Hierbij hebben we |many x = [f, l]|. We ook zien dat |f| een statisch argument
+is en |l| een verandelijk argument. In tegenstelling tot de herkenning van folds
+(zie sectie \ref{section:fold-detection-rules}) moeten we nu geen onderscheid
+maken tussen beide.
+
+Om de expressies in de bindings te herschrijven maken we gebruik van de volgende
+relatie:
+
+\[|e| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e'|\]
+
+Deze relatie resulteert in de definitie van de generatorfuctie |g|. We maken
+hierbij gebruik van vijf verschillende regels. Hiervan behandelen de eerste vier
+regels al de manieren waarop we het aanmaken van een lijst kunnen herkennen. De
+vijfde regel, tenslotte, breidt de herkenning uit zodanig dat we ook
+|case|-expressies kunnen herschrijven, op voorwaarde dat we alle
+|case|-alternatieven kunnen herschrijven.
+
+\begin{enumerate}[topsep=0.00cm]
+
+\item De meest eenvoudige manier om een lijst aan te maken is simpelweg de
+constructor voor een lege lijst, |[]|. Via de regel \textsc{B-Nil} herschrijven
+we deze constructor naar |n|, de abstracte versie van |[]| die wordt meegegeven
+als argument aan |g|.
+
+\item Eveneens moeten we de |(:)| constructor herschrijven. Hiertoe dient de
+regel \textsc{B-Cons}. We vervangen |(:)| door de functie |c|, die wordt
+meegegeven aan |g| als argument. Dit is echter niet voldoende: het tweede
+argument van |(:)| is de tail van de lijst, en deze lijst moet ook opgebouwd
+worden gebruik makende van |n| en |c| in plaats van |[]| en |(:)|. Daarom
+herschrijven we ook de tail van de lijst, door de regels op een recursieve
+manier toe te passen.
+
+\item Indien er recursieve oproepen voorkomen naar de oorspronkelijke functie,
+moeten deze herschreven worden naar recursieve oproepen naar de nieuwe
+generatorfuctie |g|. Hiertoe dient de regel \textsc{B-Rec}.
+
+\item De regel \textsc{B-Build} handelt het geval af waarin we een geneste
+oproep naar |build| vinden. Deze |build| is dan van de vorm |build g'| -- met
+|g'| een andere generatorfunctie. Deze |g'| is van de vorm:
+
+\[ |g' = \c' n' -> elapsed| \]
+
+We willen nu deze |build g'| herschrijven zodanig dat deze ook onze argumenten
+|c| en |n| gebruikt. Dit gaat op zeer eenvoudige manier: namelijk, |g' c n|.
+
+\end{enumerate}
+
+In het |map|-voorbeeld hierboven illustreerden we reeds alle regels behalve
+\textsc{B-Build}. Hiervan geven we nu een voorbeeld. Beschouw de volgende
+functies:
+
+\begin{code}
+toFront :: Eq a => a -> [a] -> [a]
+toFront y ys = y : filter (/= y) ys
+\end{code}
+
+Veronderstel dat |filter| reeds herschreven is in termen van |build|, m.a.w., we
+hebben:
+
+\begin{spec}
+filter :: (a -> Bool) -> [a] -> [a]
+filter f ls = build $ \cons nil ->
+    foldr (\x xs -> if f x then cons x xs else xs) nil ls
+\end{spec}
+
+Als we nu |filter| inlinen in de definitie van |toFront| krijgen we:
+
+\begin{spec}
+toFront :: Eq a => a -> [a] -> [a]
+toFront y ys = y : (build $ \cons nil ->
+    foldr (\x xs -> if (/= y) x then cons x xs else xs) nil ys)
+\end{spec}
+
+Deze expressie kan nu worden herschreven door gebruik te maken van de regel
+\textsc{B-Build}:
+
+% g :: Eq a => a -> [a] -> (a -> b -> b) -> b -> b
+
+\begin{spec}
+toFront :: Eq a => a -> [a] -> [a]
+toFront y ys = build (g y ys)
+
+g = \y ys c n -> c y ((\cons nil ->
+    foldr (\x xs -> if (/= y) x then cons x xs else xs) nil ys) c n)
+\end{spec}
+
+\section{Gedegenereerde builds}
+
+Net zoals we niet-recursieve catamorfismes de naam gedegenereerde folds gaven,
+noemen we niet-recursieve builds gedegenereerde builds. Beschouw als voorbeeld:
+
+\begin{spec}
+f :: [Int]
+f = 1 : 2 : 3 : []
+\end{spec}
+
+Via de regels \textsc{B-Nil} en \textsc{B-Cons} wordt deze functie herschreven
+tot:
+
+\begin{spec}
+f :: [Int]
+f  = build g
+g  = \c n -> c 1 (c 2 (c 3 n))
+\end{spec}
+
+Een dergelijke build kunnen we eenvoudig herkennen door de afwezigheid van een
+recursieve oproep. In ons algoritme gebeurt dit dus door bij te houden of de
+regel \textsc{B-Rec} al dan niet gebruikt wordt tijdens het herschrijven van de
+functie.
+
+Strikt gezien hebben we geen foldr/build-fusion nodig om dit te optimaliseren:
+hiertoe volstaat specialisatie\footnote{Hiermee bedoelen we \emph{case
+specialization}. Er worden twee functies aangemaakt, |sum_nil| en |sum_cons|,
+die specifiek voor respectievelijk lege lijsten en niet-lege lijsten zijn.
+Vervolgens kan |sum| vervangen worden door de juiste specifieke versie als de
+constructor van het argument bekend is.} en inlinen van de consumerende functie,
+bijvoorbeeld |sum|.
+
+\begin{spec}
+    sum f
+== {- inline |f| -}
+    sum (1 : 2 : 3 : [])
+== {- inline |sum (:)| -}
+    1 + sum (2 : 3 : [])
+== {- inline |sum (:)| -}
+    1 + 2 + sum (3 : [])
+== {- inline |sum (:)| -}
+    1 + 2 + 3 + sum []
+== {- inline |sum (:)| -}
+    1 + 2 + 3 + sum []
+== {- inline |sum []| -}
+    1 + 2 + 3 + 0
+\end{spec}
+
+In de praktijk gaat GHC echter niet op een dergelijke manier agressief inlinen,
+zelfs niet wanneer de \texttt{-O2} vlag wordt meegegeven. Daarom is het, ondanks
+het ontbreken van recursie, toch nuttig om deze functies te herschrijven als
+build: foldr/build-fusion is dan in staat om expressies als |sum f| wel te
+optimaliseren.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
