@@ -46,7 +46,11 @@ elapsed = undefined
 
 %format B1 = B"_1"
 %format B2 = B"_2"
+%format B3 = B"_3"
 %format bg = b"_g"
+%format c1 = c"_1"
+%format c2 = c"_2"
+%format c12 = c"_{12}"
 %format e'1 = e"^{\prime}_1"
 %format e'2 = e"^{\prime}_2"
 %format e1 = e"_1"
@@ -55,6 +59,9 @@ elapsed = undefined
 %format e'i = e"^{\prime}_i"
 %format f1 = f"_1"
 %format f2 = f"_2"
+%format n1 = n"_1"
+%format n2 = n"_2"
+%format n12 = n"_{12}"
 %format x1 = x"_1"
 %format x2 = x"_2"
 %format xs1 = xs"_1"
@@ -293,6 +300,12 @@ we gebruiken in deze thesis.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Achtergrond}
 \label{chapter:background}
+
+\TODO{To mention:}
+\begin{itemize}
+\item |$|, |.|
+\item tuples
+\end{itemize}
 
 We kozen voor de pure functionele programmeertaal Haskell \cite{jones2003}
 omwille van verschillende redenen:
@@ -1215,7 +1228,99 @@ buildList g = g (:) []
 
 \subsection{Foldr/foldr-fusion}
 
-\TODO{Write this subsection}
+Een alternatieve vorm van fusie die eveneens van toepassing is op onze thesis is
+\emph{foldr/foldr-fusion}. We kunnen dit best uileggen door middel van een
+voorbeeld. Beschouw de volgende functie:
+
+\begin{code}
+mean :: [Int] -> Double
+mean xs = fromIntegral (sum xs) / fromIntegral (length xs)
+\end{code}
+
+Deze eenvoudige functie berekent het gemiddelde van een lijst. Ze is
+gedefini\"eerd op elegante wijze maar is niet zeer effici\"ent: de lijst |xs|
+wordt immers tweemaal geconsumeerd.
+
+In een lazy taal als Haskell kan deze oneffici\"entie naast tijds- ook onnodige
+geheugencomplexiteit met zich meebrengen. Omdat de lijst tweemaal geconsumeerd
+wordt, kan deze immers niet worden vrijgegeven door de garbage collector. Indien
+we de lijst \'e\'enmaal zouden doorlopen, zou dit uitgevoerd worden als een
+on-line algoritme, en is het dus niet nodig de volledige lijst in het geheugen
+beschikbaar te houden.
+
+Foldr/foldr-fusion is een optimalisatie voor dergelijke gevallen. Als we dit
+toepassen op ons voorbeeld, krijgen eerst we na inlinen van |sum| en |length| de
+volgende definitie:
+
+\begin{spec}
+mean :: [Int] -> Double
+mean xs = fromIntegral (foldr (\x ys -> x + ys) 0 xs) /
+    fromIntegral (foldr (\x zs -> 1 + zs) 0 xs)
+\end{spec}
+
+In deze expressie hebben we tweemaal een |foldr| over dezelfde lijst (|xs|) --
+dit betekent dat we foldr/foldr-fusion kunnen toepassen. We krijgen:
+
+\begin{code}
+mean' :: [Int] -> Double
+mean' xs =
+    let (sum', length') = foldr (\x (ys, zs) -> (x + ys, 1 + zs)) (0, 0) xs
+    in fromIntegral sum' / fromIntegral length'
+\end{code}
+
+In het algemeen kunnen we op deze manier twee algebra's samenvoegen tot \'e\'en
+enkele algebra, op voorwaarde dat ze op hetzelfde lijst-type werken:
+
+\begin{minipage}[c]{0.30\textwidth}
+\begin{spec}
+c1  :: a -> B1 -> B1
+c2  :: a -> B2 -> B2
+n1  :: B1
+n2  :: B2
+\end{spec}
+\end{minipage}
+$\Leftrightarrow$
+\begin{minipage}[c]{0.40\textwidth}
+\begin{spec}
+c12 :: a -> (B1, B2) -> (B1, B2)
+c12 = \x (ys, zs) -> (c1 x ys, c2 x zs)
+n12 :: (B1, B2)
+n12 = (n1, n2)
+\end{spec}
+\end{minipage}
+
+We kunnen deze optimalisatie verschillende keren na elkaar uitvoeren voor de
+gevallen waar we meer dan twee keer dezelfde lijst consumeren met een |foldr|:
+in die gevallen krijgen we types met geneste tuples, zoals bijvoorbeeld |((B1,
+B2), B3)|.
+
+Eveneens is deze optimalisatie uitbreidbaar tot andere recursieve algebra\"isce
+datatypes naast lijst. Deze extensie volgt natuurlijk eens de fold voor een
+dergelijk datatype gedefini\"eerd is en we beperken ons hier tot een klein
+voorbeeld: het berekenen van de gemiddelde waarde uit een boom.
+
+\begin{code}
+meanTree :: Tree Int -> Double
+meanTree tree =
+    let (sum', size) = foldTree  (\x -> (x, 1))
+                                 (\(xl, xr) (yl, yr) -> (xl + yl, xr + yr))
+                                 tree
+    in fromIntegral sum' / fromIntegral size
+\end{code}
+
+In tegenstelling tot foldr/build-fusion is zorgt deze optimalisatie echter vaak
+niet voor een snellere uitvoering van het programma. Dit komt omdat er een
+overhead is geassocieerd met het alloceren van tuples -- en voor kleine lijsten
+kan de vertraging door deze overhead de snelheidswinst van de optimalisatie
+neutraliseren of zelfs zorgen voor een algemene vertraging.
+
+Omwille van deze reden besloten we in onze proof-of-concept implementatie te
+kiezen voor foldr/build-fusion. We moeten echter wel opmerken dat integratie van
+ons werk in een systeem dat reeds foldr/foldr-fusion gebruikt zou leiden tot een
+verbetering van de effici\"entie: aangezien wij expliciet recursieve functies
+(die momenteel niet kunnen genieten van foldr/foldr-fusion) herschrijven naar
+functies die gebruik maken van fold, zullen er meer opportuniteiten zijn om deze
+optimalisatie toe te passen.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1506,7 +1611,7 @@ De regel \textsc{F-Bind} verwijst naar deze argumenten als |many u| en maakt
 hiervoor |box| gaten in de context |E|. Voor de functie |suml| is deze context
 bijvoorbeeld |suml triangle box|.
 
-Het feit dat deze argumenten kunnen veranderen in elke recursiestap, betekend
+Het feit dat deze argumenten kunnen veranderen in elke recursiestap, betekent
 dat we deze telkens opnieuw moeten doorgeven. Dit doen we door ze in de anonieme
 functies door te geven als extra argumenten, in de regel aangegeven als |\many u
 -> elapsed|. De initi\"ele waarden hiervoor (de argumenten doorgegeven aan de
