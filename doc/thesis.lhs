@@ -31,8 +31,9 @@
 
 \ignore{
 \begin{code}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE Rank2Types      #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE Rank2Types                #-}
 import Data.Char  (toUpper)
 import Data.List  (intersperse)
 import GhcPlugins
@@ -59,9 +60,13 @@ elapsed = undefined
 %format e'i = e"^{\prime}_i"
 %format f1 = f"_1"
 %format f2 = f"_2"
+%format filters = filter"_s"
+%format maps = map"_s"
 %format n1 = n"_1"
 %format n2 = n"_2"
 %format n12 = n"_{12}"
+%format maps = map"_s"
+%format fs = f"_s"
 %format x1 = x"_1"
 %format x2 = x"_2"
 %format xs1 = xs"_1"
@@ -3021,6 +3026,114 @@ bomen (rechts).}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Related work}
 \label{chapter:related-work}
+
+In de paper ``A short cut to deforestation'' \cite{gill1993} werd de
+foldr/build-fusion regel reeds bediscussi\"eerd. De auteurs leggen de voordelen
+van deze aanpak uit, ondersteund door vele benchmarks. Ze vermelden echter ook
+de problemen rond het feit dat om van deze optimalisaties te kunnen genieten,
+alle programmeurs hun code in een specifieke stijl moeten schrijven, met andere
+woorden, door gebruik te maken van |foldr| en |build|. Dit is natuurlijk exact
+het probleem dat we willen oplossen in deze thesis.
+
+\emph{Stream fusion} \cite{coutts2007} is een ge\"avanceerd alternatief op
+foldr/build-fusion. Een groot voordeel hiervan is dat het makkelijker fusion kan
+toepassen op functies als |zip| en |foldl|.
+
+Stream fusion werkt door lijsten voor te stellen als een tijdelijk type
+|Stream|:
+
+\begin{code}
+data Stream a  =  forall s. Stream (s -> Step a s) s
+data Step a s  =  Done
+               |  Yield a s
+               |  Skip s
+\end{code}
+
+Lijsten kunnen worden omgezet van en naar een dergelijk |Stream| type:
+
+\begin{code}
+stream :: [a] -> Stream a
+stream ls = Stream next ls
+  where
+    next []        = Done
+    next (x : xs)  = Yield x xs
+
+unstream :: Stream a -> [a]
+unstream (Stream next s0) = unfold s0
+  where
+    unfold s = case next s of
+        Done        -> []
+        Yield x s'  -> x : unfold s'
+        Skip s'     -> unfold s'
+\end{code}
+
+Nu dienen we functies als |map| te defini\"eren met behulp van het |Stream|
+type:
+
+\begin{code}
+map :: (a -> b) -> [a] -> [b]
+map f = unstream . maps . stream
+  where
+    maps (Steam next s0) = Stream next' s0
+      where
+        next' s = case next s of
+            Done        -> Done
+            Skip s'     -> Skip s'
+            Yield x s'  -> Yield (f x) s'
+\end{code}
+
+De hogere-orde functies zijn dus van de vorm |unsteam . fs . stream|. Als we
+hiervan een pijplijn maken krijgen we iets als bijvoorbeeld:
+
+\begin{spec}
+unstream . filters . stream . unstream . maps . stream
+\end{spec}
+
+Deze pijlijn kan geoptimaliseerd worden door stream fusion (het bewijs hiervan
+laten we achterwege):
+
+\newtheorem{theorem:stream-fusion}{Stelling}[section]
+\begin{theorem:stream-fusion}\label{theorem:stream-fusion}
+\[ |stream . unstream| = |id| \]
+\end{theorem:stream-fusion}
+
+Het nadeel van deze meer ge\"avanceerde vorm van fusion is dus ook dat de
+programmeurs alle code in een specifieke stijl moeten schrijven (ditmaal in
+termen van |Stream|) om te kunnen genieten van deze optimalisatie. Hier is het
+dus ook interessant om te kijken of deze transformatie niet automatisch kan
+gebeuren, en onze thesis geeft hiervoor een basis.
+
+Op een soortgelijke manier stelt Gibbons \cite{gibbons2003} voor om te
+programmeren in termen van folds en unfolds -- een specifieke codestijl die hij
+\emph{origami}-programmeren noemt. Unfolds zijn de tegenhanger van folds en
+kunnen gezien worden als een specifieke, gespecialiseerde versie van builds.
+
+HLint \cite{hlint} is een tool dat verschillende code-patronen kan herkennen en
+vervolgens suggesties geeft om deze code te verbetern. Onder andere kan HLint
+ook bepaalde gevallen van expliciete recursie ontdekken en suggereren om deze
+code te herschrijven in termen van een hogere-orde functie zoals |map|, |foldr|
+of |foldl|. Zoals we al vermelden sectie \ref{section:fold-detection-results},
+slaagt onze tool er in om meer van deze gevallen te ontdekken. Bovendien beperkt
+HLint zich tot lijsten en zoekt het niet naar recursiepatronen voor andere
+algebra\"ische datatypes.
+
+Sittampalam en de Moor ontwikkelden het MAG-framework \cite{sittampalam1998},
+een semi-automatische aanpak om foldr-fusion uit te voeren. In deze aanpak moet
+de programmeur het zowel initi\"ele programma specificeren, als het gewenste
+uiteindelijke programma (het \emph{doelprogramma}) en een verzameling van
+herschrijfregels.  Zo is er onder meer een herschrijfregel voor foldr-fusion:
+
+\begin{spec}
+f (foldr c n l) = foldr c' n' l
+   if  f n = n'
+       forall x y. f (c x y) = c' x (f y)
+\end{spec}
+
+Het MAG-framework probeert dan het doelprogramma af te leiden van het initi\"ele
+programma door gebruik te maken van de opgegeven herschrijfregels. Nadien moet
+de programmeur nog nagaan of foldr-fusion enkel is toegepast voor strikte
+functies |f| -- dit is een voorwaarde die immers niet opgegeven kan worden in
+het MAG-framework.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
