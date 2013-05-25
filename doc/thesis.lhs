@@ -49,9 +49,9 @@ elapsed = undefined
 %format B1 = B"_1"
 %format B2 = B"_2"
 %format e1 = e"_1"
-%format e'1 = "e^{\prime}_1"
+%format e'1 = e"^{\prime}_1"
 %format e2 = e"_2"
-%format e'2 = "e^{\prime}_2"
+%format e'2 = e"^{\prime}_2"
 %format f1 = f"_1"
 %format f2 = f"_2"
 %format x1 = x"_1"
@@ -1216,7 +1216,7 @@ buildList g = g (:) []
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Detectie folds}
+\chapter{Detectie van folds}
 \label{chapter:fold-detection}
 
 \section{Notatie}
@@ -1258,7 +1258,7 @@ Eveneens hebben we een \emph{context} nodig:
 \end{tabular}
 \end{center}
 
-Een dergelijke context |E| doelt op een functie die toegepast wordt op een
+Een dergelijke context |E| stelt een functie voor die toegepast wordt op een
 aantal argumenten. De functie en een aantal argumenten zijn reeds bekend. Voor
 de andere argumenten zijn er \emph{gaten} die nog kunnen worden ingevuld door
 expressies. We onderscheiden twee soorten gaten, aangegeven met de symbolen
@@ -1348,21 +1348,23 @@ ontdekken en te herschrijven.}
 \end{figure}
 
 De regels die we gebruiken zijn te zien in Figuur
-\ref{figure:fold-detection-rules}. We hebben ons hier gespecialiseerd tot folds
-over lijsten, m.a.w. |foldr|, om de uitleg zo simpel mogelijk te houden. In
-\TODO{blah} zien we hoe dit kan worden uitgebreid tot andere algebra\"ische
-datatypes.
+\ref{figure:fold-detection-rules}. Deze figuur is specifiek voor folds over
+lijsten, m.a.w. |foldr|. Op die manier kunnen we de uitleg zo simpel mogelijk te
+houden. In \TODO{blah} zien we hoe dit kan worden uitgebreid tot andere
+algebra\"ische datatypes.
 
-\paragraph{Functies met \'e\'en enkel argument} De stelling $|b| \leadsto |b'|$
-is de bepaalt of we binds kunnen herschrijven.  Deze maakt gebruik van de enkele
-regel \textsc{F-Bind}. Om deze regel te verduidelijken kijken we eerst naar een
-gespecialiseerde regel, \textsc{F-Bind'}. Deze gespecialiseerde regel is enkel
-van toepassing op functies met \'e\'en enkel argument.
+\paragraph{Functies met \'e\'en enkel argument} We hebben een relatie $|b|
+\leadsto |b'|$ (van het type $|Bind| \times |Bind|$). Deze relatie legt een
+verband tussen expliciet recursieve functies en de corresponderende functies
+herschreven in termen van |foldr|. De relatie $|b| \leadsto |b'|$ maakt gebruik
+van de enkele regel \textsc{F-Bind}. Om deze regel te verduidelijken kijken we
+eerst naar een gespecialiseerde regel, \textsc{F-Bind'}. Deze gespecialiseerde
+regel is enkel van toepassing op functies met \'e\'en enkel argument.
 
 \[
 \inferrule*[left=(\textsc{F-Bind'})]
-  { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e1|) \\ |ws|~\textit{fresh} \\\\ 
-    |e2| \stackrel{|f triangle|}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+  { |e'1| = [|y| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e1|) \\ |ws|~\textit{fresh} \\\\ 
+    |e2| \stackrel{|f triangle|}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, y, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
   }
   {
 |f = \y -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
@@ -1378,7 +1380,7 @@ sum = \y -> case y of
     (v:vs)  -> (+) v (sum vs)
 \end{spec}
 
-Om naar:
+om naar:
 
 \begin{spec}
 sum = \y -> foldr (\v ws -> (+) v ws) 0 y
@@ -1386,15 +1388,16 @@ sum = \y -> foldr (\v ws -> (+) v ws) 0 y
 
 Deze omzetting verloopt door op een zeer eenvoudige manier de regels toe te
 passen. Het belangrijkste hierbij is de recursieve oproepen in |e2| te vervangen
-door de variabele |ws|. Dit wordt gedaan door de volgende stelling:
+door de variabele |ws|. Het verband tussen de oorspronkelijke en herschreven
+expressie wordt bepaalt door de relatie:
 
 \[ e~{}_x\!\!\stackrel{E}{\leadsto}_y~e' \]
 
-Deze stelling maakt gebruik van vijf verschillende regels. \textsc{F-Rec} is
+Deze relatie maakt gebruik van vijf verschillende regels. \textsc{F-Rec} is
 verantwoordelijk voor het effectieve herschrijven van recursieve oproepen.  Voor
 andere expressies gebruiken we ofwel \'e\'en van de drie herschrijfregels
 \textsc{F-Abs}, \textsc{F-App}, \textsc{F-Case}, ofwel de reflectieve regel
-\textsc{F-Refl}, die de expressie gewoon behoud. In het vereenvoudigde geval,
+\textsc{F-Refl}, die de expressie gewoon behoudt. In het vereenvoudigde geval,
 waarbij we slechts \'e\'en argument hebben, kan \textsc{F-Rec} gereduceerd
 worden tot:
 
@@ -1446,8 +1449,8 @@ constructor, is |y| equivalent aan |(v : vs)|. Indien we dus nog een voorkomen
 van |y| hebben, impliceert dit een voorkomen van |vs| -- en we vermelden
 hierboven al waarom we dit niet kunnen toelaten voor catamorfismes.
 
-In het geval van de |[]| constructor, vervingen we reeds |y| door |[]| via de
-regel \textsc{F-Bind'}, en vormt dit dus geen probleem.
+In het geval van de |[]| constructor, vervangen we |y| door |[]| via de regel
+\textsc{F-Bind'}, en vormt dit dus geen probleem.
 
 \item Als |f| voorkomt in een andere vorm dan recursieve calls van de vorm |f
 vs|, dan is de functie \TODO{mogelijks} geen catamorfisme. Beschouw bijvoorbeeld
@@ -1507,13 +1510,14 @@ functies door te geven als extra argumenten, in de regel aangegeven als |\many u
 oorspronkelijke functie) moeten vervolgens ook worden meegegeven aan het
 resultaat van |foldr|.
 
-Het is belangrijk dat we de veranderlijke argumenten correct updaten naar elke
-stap van de recursieve oproep. Hiertoe dient de regel \textsc{F-Rec}. De nieuwe
-waarden van de veranderlijke argumenten worden aangegeven door |many e|.  Met
-behulp van de context |E| kunnen we deze dan invullen in de de anonieme functie,
-waar geen expliciete recursie voorkomt. De recursieve oproep wordt herschreven
-naar $|E|[|many e|;|vs|]$. Op die manier worden de verandelijke argumenten
-meegegeven aan het resultaat van de (impliciete) recursieve oproep, |ws|.
+Het is belangrijk dat we bij de veranderlijke argumenten in elke stap van de
+recursieve oproep de oude waarden vervangen door de nieuwe waarden. Hiertoe
+dient de regel \textsc{F-Rec}. De nieuwe waarden van de veranderlijke argumenten
+worden aangegeven door |many e|.  Met behulp van de context |E| kunnen we deze
+dan invullen in de de anonieme functie, waar geen expliciete recursie voorkomt.
+De recursieve oproep, van de vorm $|E|[|many e|;|vs|]$, wordt herschreven naar
+|ws (many e)|. Op die manier worden de verandelijke argumenten meegegeven aan
+het resultaat van de (impliciete) recursieve oproep, |ws|.
 
 Als we opnieuw |suml| als voorbeeld nemen, krijgen we nu:
 
@@ -1566,14 +1570,17 @@ head :: [a] -> a
 head = \l -> foldr (\x xs -> x) (error "empty list") l
 \end{spec}
 
-Deze \emph{gedegenereerde} folds zijn niet relevant voor deze thesis. De
-expliete versie is immers leesbaarder dan de herschreven versie, aangezien
-programmeurs bekend met de |foldr| functie een recursie verwachten (die er hiet
-niet is). Bovendien is het niet interessant om deze functies te beschouwen voor
-foldr/build-fusie: andere eenvoudige technieken zoals inlining en \emph{case
-specialization} volstaan hier.
+Deze \emph{gedegenereerde} folds zijn niet relevant voor deze thesis. Het is
+immers niet interessant om deze functies te beschouwen voor foldr/build-fusie:
+andere eenvoudige technieken zoals inlining en \emph{case specialization}
+volstaan.
 
-Gelukkig kunnen we eenvoudig klasseren of een functie wel dan niet een
+Een bijkomend argument is dat de herschreven versie, in termen van |foldr|, ook
+moeilijker is om te begrijpen is dan de oorspronkelijke versie. Programmeurs
+bekend met de |foldr| functie een verwachten hier namelijk een vorm van recursie
+(die er hiet niet is).
+
+Gelukkig kunnen we eenvoudig bepalen of een functie al dan niet een
 gedegenereerde fold is. Als we regel \textsc{F-Rec} minstens \'e\'enmaal
 gebruikten, is er zeker sprake van recursie. Anders is de functie in kwestie een
 gedegenereerde en verkiezen we om de oorspronkelijke definitie te gebruiken in
@@ -2236,8 +2243,8 @@ genieten van foldr/build-fusion.
 \subsection{WhatMorphism.Inliner}
 
 Zoals we later ook in subsectie \ref{subsection:to-inline-or-not-to-inline}
-zullen zien, is het niet altijd eenvoudig om te beslissen of een functie wel
-dan niet moet worden ge-inlined.
+zullen zien, is het niet altijd eenvoudig om te beslissen of een functie al dan
+niet moet worden ge-inlined.
 
 Daarom implementeerden we eerst een eigen inliner die alle functies die we reeds
 omgezet hebben altijd inlinet. Dit bleek echter niet altijd tot goede resultaten
@@ -2453,7 +2460,7 @@ Geen pragma                    & ?      & ?      \\
 }
 \end{center}
 \caption{Een overzicht van de verschillende \verb|{-# INLINE #-}| pragma's en of
-ze de functie |f| wel dan niet inlinen. Bij een ? beslist GHC zelf op basis van
+ze de functie |f| al dan niet inlinen. Bij een ? beslist GHC zelf op basis van
 een groot aantal heuristieken.}
 \label{tabular:inline-pragmas}
 \end{table}
