@@ -2520,22 +2520,49 @@ suggereert ook de auteurs van deze packages misschien HLint gebruiken.
 \hline
 Cabal-1.16.0.3          & 20  & 11  & 9   & 6   & 0   & 9  \\
 containers-0.5.2.1      & 100 & 11  & 89  & 41  & 11  & 1  \\
+cpphs-1.16              & 5   & 2   & 3   & 3   & 0   & 1  \\
 darcs-2.8.4             & 66  & 65  & 8   & 1   & 0   & 6  \\
 ghc-7.6.3               & 327 & 216 & 111 & 127 & 9   & 26 \\
 hakyll-4.2.2.0          & 5   & 1   & 4   & 3   & 0   & 0  \\
+haskell-src-exts-1.13.5 & 37  & 11  & 26  & 15  & 0   & 2  \\
 hlint-1.8.44            & 6   & 3   & 3   & 1   & 0   & 0  \\
 hscolour-1.20.3         & 4   & 4   & 0   & 0   & 0   & 2  \\
 HTTP-4000.2.8           & 6   & 6   & 0   & 2   & 0   & 3  \\
 pandoc-1.11.1           & 15  & 15  & 0   & 1   & 0   & 2  \\
 parsec-3.1.3            & 3   & 3   & 0   & 1   & 0   & 0  \\
 snap-core-0.9.3.1       & 4   & 3   & 1   & 1   & 0   & 0  \\
-cpphs-1.16              & 5   & 2   & 3   & 3   & 0   & 1  \\
-haskell-src-exts-1.13.5 & 37  & 11  & 26  & 15  & 0   & 2  \\
 \end{tabular}
 }
 \caption{Een overzicht van het aantal gevonden folds in een aantal bekende
 packages.}
 \label{tabular:fold-detection-results}
+\end{center}
+\end{table}
+
+\begin{table}
+\begin{center}
+{\renewcommand{\arraystretch}{1.20} % Slightly more spacing
+\begin{tabular}{l||r||r||r||r||r}
+\textbf{Package} & \textbf{Totaal} & Lijst & ADT & Rec. & Nested \\
+\hline
+Cabal-1.16.0.3          & 101 & 81  & 20  & 5   & 0    \\
+containers-0.5.2.1      & 25  & 2   & 23  & 12  & 0    \\
+cpphs-1.16              & 6   & 5   & 1   & 3   & 0    \\
+darcs-2.8.4             & 354 & 354 & 0   & 26  & 0    \\
+ghc-7.6.3               & 480 & 178 & 302 & 53  & 0    \\
+hakyll-4.2.2.0          & 22  & 18  & 4   & 2   & 0    \\
+haskell-src-exts-1.13.5 & 140 & 74  & 66  & 16  & 0    \\
+hlint-1.8.44            & 69  & 62  & 7   & 1   & 0    \\
+hscolour-1.20.3         & 33  & 33  & 0   & 2   & 0    \\
+HTTP-4000.2.8           & 11  & 11  & 0   & 5   & 0    \\
+pandoc-1.11.1           & 97  & 97  & 0   & 16  & 0    \\
+parsec-3.1.3            & 10  & 10  & 0   & 0   & 0    \\
+snap-core-0.9.3.1       & 4   & 4   & 0   & 0   & 0    \\
+\end{tabular}
+}
+\caption{Een overzicht van het aantal gevonden builds in een aantal bekende
+packages.}
+\label{tabular:build-detection-results}
 \end{center}
 \end{table}
 
