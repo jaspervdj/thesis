@@ -54,10 +54,12 @@ elapsed = undefined
 %format c12 = c"_{12}"
 %format e'1 = e"^{\prime}_1"
 %format e'2 = e"^{\prime}_2"
+%format e'i = e"^{\prime}_i"
+%format e'n = e"^{\prime}_n"
 %format e1 = e"_1"
 %format e2 = e"_2"
 %format ei = e"_i"
-%format e'i = e"^{\prime}_i"
+%format en = e"_n"
 %format f1 = f"_1"
 %format f2 = f"_2"
 %format filters = filter"_s"
@@ -1409,9 +1411,9 @@ is aan het aantal meegegeven expressies |many e|.
 \myruleform{\inferrule{}{b \leadsto b'}} \hspace{2cm}
 
 \inferrule*[left=(\textsc{F-Bind})]
-  { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
+  { |e'1| = [|y| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
     |E|[|many u|;|y|] = |f (many x) y (many z)| \\ |ws|~\textit{fresh} \\\\ 
-    |e2| \stackrel{E}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, y, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+    |e2| ~{}_{|vs|}\!\!\stackrel{E}{\leadsto}_{|ws|} |e'2| \\ \{ |f|, |y|, |vs| \} \cap \mathit{fv}(|e'2|) = \emptyset
   }
   {
 |f = \(many x) y (many z) -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
@@ -1420,7 +1422,7 @@ is aan het aantal meegegeven expressies |many e|.
 \\
 \myruleform{\inferrule*{}{e~{}_x\!\!\stackrel{E}{\leadsto}_y~e'}} \hspace{2cm}
 \inferrule*[left=(\textsc{F-Rec})]
-  { e_i~{}_x\!\!\stackrel{E}{\leadsto}_y~e_i' \quad (\forall i)
+  { |ei|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'i| \quad (\forall i)
   }
   { |E|[|many e|;|x|] ~{}_x\!\!\stackrel{E}{\leadsto}_y~|y (many e')|
   }
@@ -1428,7 +1430,7 @@ is aan het aantal meegegeven expressies |many e|.
 \inferrule*[left=(\textsc{F-Refl})]
   {
   }
-  { e~{}_x\!\!\stackrel{E}{\leadsto}_y~e
+  { |e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e|
   }
  \\
 \\
@@ -1447,7 +1449,7 @@ is aan het aantal meegegeven expressies |many e|.
  \\
 \\
 \inferrule*[left=(\textsc{F-Case})]
-  { |e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'| \\ e_i~{}_x\!\!\stackrel{E}{\leadsto}_y~e_i' \quad (\forall i)
+  { |e|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'| \\ |ei|~{}_x\!\!\stackrel{E}{\leadsto}_y~|e'i| \quad (\forall i)
   }
   { |case e of many (p -> e)|~{}_x\!\!\stackrel{E}{\leadsto}_y~|case e' of many (p -> e')|
   } \\
@@ -1463,8 +1465,8 @@ ontdekken en te herschrijven.}
 De regels die we gebruiken zijn te zien in Figuur
 \ref{figure:fold-detection-rules}. Deze figuur is specifiek voor folds over
 lijsten, m.a.w. |foldr|. Op die manier kunnen we de uitleg zo simpel mogelijk te
-houden. In \TODO{blah} zien we hoe dit kan worden uitgebreid tot andere
-algebra\"ische datatypes.
+houden. In sectie \ref{section:fold-detection-adts} zien we hoe dit kan worden
+uitgebreid tot andere algebra\"ische datatypes.
 
 \paragraph{Functies met \'e\'en enkel argument} We hebben een relatie $|b|
 \leadsto |b'|$ (van het type $|Bind| \times |Bind|$). Deze relatie legt een
@@ -1477,7 +1479,7 @@ regel is enkel van toepassing op functies met \'e\'en enkel argument.
 \[
 \inferrule*[left=(\textsc{F-Bind'})]
   { |e'1| = [|y| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e1|) \\ |ws|~\textit{fresh} \\\\ 
-    |e2| \stackrel{|f triangle|}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, y, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+    |e2| ~{}_{|vs|}\!\!\stackrel{|f triangle|}{\leadsto}_{|ws|} |e'2| \\ \{ |f|, |y|, |vs| \} \cap \mathit{fv}(|e'2|) = \emptyset
   }
   {
 |f = \y -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
@@ -1699,7 +1701,84 @@ gebruikten, is er zeker sprake van recursie. Anders is de functie in kwestie een
 gedegenereerde en verkiezen we om de oorspronkelijke definitie te gebruiken in
 plaats van de herschreven definitie, die gebruikt maakt van |foldr|.
 
-\TODO{sectie over andere ADTs}
+\section{Detectie van folds over andere algebra\"ische datatypes}
+\label{section:fold-detection-adts}
+
+Een volledig gesloten verzameling van regels hoe we expliciete recursie over een
+willekeurig, gegeven datatype kunnen herschrijven naar een fold over dat
+datatype zou ons te ver leiden. Daarom geven we in deze sectie een minder
+formele uitleg over hoe we de regels hiertoe kunnen uitbreiden. Let er wel op
+dat onze implementatie deze omzetting ook implementeerd (zie subsectie
+\ref{subsection:what-morphism-fold}).
+
+Ter illustratie gebruiken we de eenvoudige expliciet recursieve functie
+|sumTree|:
+
+\begin{spec}
+sumTree :: Tree Int -> Int
+sumTree (Leaf x)      = x
+sumTree (Branch l r)  = sumTree l + sumTree r
+\end{spec}
+
+De regel \textsc{F-Bind} is specifiek voor lijsten, verwijst onder meer
+letterlijk naar de constructoren |(:)| en |[]|. Om te illustreren hoe we deze
+regel kunnen uitbreiden, vestigen we de aandacht op drie belangrijke
+veranderingen:
+
+\begin{itemize}[topsep=0.00cm]
+
+\item We krijgen |n| constructoren in plaats van de twee constructoren van
+een lijst. We hebben dus ook |n| |case|-alternatieven: |e1|, |e2|, $\ldots$|en|.
+
+\item De functie |foldr| wordt uiteraard vervangen door de fold van het gegeven
+datatype. Voor |sumTree| hebben we het type |Tree|, dus krijgen we de fold
+|foldTree|.
+
+\item Bij een lijst is |vs| de enige recursieve subterm die kan optreden. In
+andere recursieve algebra\"ische datatypes kunnen dit er meerdere zijn. Zo
+hebben we bij het type |Tree| de recursieve subtermen |l| en |r|, beide in de
+|Branch| constructor.
+
+\end{itemize}
+
+Dit laatste impliceert ook dat de relatie tussen expressies van een andere vorm
+zal zijn. We krijgen voor het type |Tree|:
+
+\[ |e| ~{}_{|l|, |r|}\!\!\stackrel{E}{\leadsto}_{|l'|, |r'|} |e'| \]
+
+Met |E| opniew een context die recursieve oproepen naar sumtree herkent.
+Concreet is dit voor |sumTree|:
+
+\[ |E = sumTree triangle| \]
+
+Behalve deze verandering in de vorm van de relatie, hoeven we de regels
+\textsc{F-Refl}, \mbox{\textsc{F-Abs}}, \textsc{F-App} en \textsc{F-Case} niet
+te veranderen. Deze staan immers al in een algemene vorm en verwijzen niet
+concreet naar het lijst-datatype. We moeten de regel \textsc{F-Rec} wel
+uitbreiden voor het type |Tree|: er zijn nu immers twee recursieve oproepen
+mogelijk. We krijgen de regel \textsc{F-Rec-Tree}:
+
+\[
+\inferrule*[left=(\textsc{F-Rec-Tree})]
+  { |ei|~{}_{|l|, |r|}\!\!\stackrel{E}{\leadsto}_{|l'|, |r'|}~|e'i|
+    \quad (\forall i)
+  }
+  { |E|[|many e|;|l|]
+        ~{}_{|l|, |r|}\!\!\stackrel{E}{\leadsto}_{|l'|, |r'|}~|l' (many e')|
+    ~~~~~~~
+    |E|[|many e|;|r|]
+        ~{}_{|l|, |r|}\!\!\stackrel{E}{\leadsto}_{|l'|, |r'|}~|r' (many e')|
+  }
+\]
+
+Dit laat ons toe om zowel de recursieve oproep |sumTree l| als |sumTree r| te
+herschrijven als respectievelijk |l'| en |r'|. Voor |sumTree| krijgen na
+toepassing van deze regels uiteindelijk de herschreven versie:
+
+\begin{spec}
+sumTree :: Tree Int -> Int
+sumTree y = foldTree (\x -> x) (\l' r' -> l' + r') y
+\end{spec}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2332,6 +2411,7 @@ transformatie niet kunnen maken en dus de originele expressie behouden.
 \end{lstlisting}
 
 \subsection{WhatMorphism.Fold}
+\label{subsection:what-morphism-fold}
 
 De |WhatMorphism.Fold| pass is een meer deterministische implementatie van de
 regels in sectie \ref{section:fold-detection-rules}.
@@ -3070,7 +3150,7 @@ unstream (Stream next s0) = unfold s0
 Nu dienen we functies als |map| te defini\"eren met behulp van het |Stream|
 type:
 
-\begin{code}
+\begin{spec}
 map :: (a -> b) -> [a] -> [b]
 map f = unstream . maps . stream
   where
@@ -3080,7 +3160,7 @@ map f = unstream . maps . stream
             Done        -> Done
             Skip s'     -> Skip s'
             Yield x s'  -> Yield (f x) s'
-\end{code}
+\end{spec}
 
 De hogere-orde functies zijn dus van de vorm |unsteam . fs . stream|. Als we
 hiervan een pijplijn maken krijgen we iets als bijvoorbeeld:
