@@ -2392,6 +2392,11 @@ Ter illustratie beschouwen we een plugin pass die zorgt voor het inlinen van
 niet-recursieve binds. Een dergelijke pass zorgt dus voor een transformatie van
 |let x = e1 in e2| naar |subst e2 x e1|.
 
+Let op: om deze code eenvoudig te houden gaan we ervan uit dat alle variabelen
+uniek zijn over het gehelen programma, m.a.w. er kan geen shadowing optreden. In
+GHC is dit echter \textbf{niet het geval}, en in de praktijk moeten we dus
+voorzichtiger zijn als we een dergelijke plugin implementeren.
+
 \begin{code}
 simpleBetaReduction :: CoreProgram -> CoreM CoreProgram
 simpleBetaReduction = return . map (goBind [])
@@ -2417,8 +2422,6 @@ simpleBetaReduction = return . map (goBind [])
     go env (Type t)                = Type t
     go env (Coercion c)            = Coercion c
 \end{code}
-
-\TODO{Uitleg of update over shadowing}
 
 Eenmaal een dergelijke plugin geschreven is, kan ze eenvoudig gebruikt worden.
 Hiervoor gaan we als volgt te werk. Eerst \emph{packagen} we de plugin met
@@ -2931,7 +2934,17 @@ enkel als consument van een lijst van foldr/build-fusion genieten.
 Daaruit kunnen we concluderen dat het voordelig is om eerst |WhatMorphism.Build|
 uit te voeren en daarna pas |WhatMorphism.Fold|.
 
-\TODO{Alternatief: fold-regel wanneer we naar build omzetten}
+Een alternatief zou zijn om een extra \textsc{B-Fold} regel toe te voegen aan de
+regels in hoofdstuk \ref{chapter:build-detection}. Deze zou dan ook bepaalde
+soorten folds (waar de resultaatwaarde wordt opgebouwd met behulp van bepaalde
+constructoren) kunnen omzetten naar builds. Bij ons voorbeeld |upper| zouden we
+dan het volgende resultaat krijgen na omzetting naar een functie die gebruik
+maakt van |build|:
+
+\begin{spec}
+upper :: String -> String
+upper = build $ \cons nil -> foldr (\x xs -> cons (toUpper x) xs) nil
+\end{spec}
 
 \item Vervolgens voeren we |WhatMorphism.Fold| uit, vanwege de bovenstaande
 redenen.
