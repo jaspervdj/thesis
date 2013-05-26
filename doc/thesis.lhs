@@ -310,7 +310,6 @@ we gebruiken in deze thesis.
 
 \TODO{To mention:}
 \begin{itemize}
-\item |$|, |.|
 \item tuples
 \end{itemize}
 
@@ -508,6 +507,26 @@ van een volgende functie:
 
 In sectie \ref{section:benchmarks} zien we dat ons werk de compiler toelaat
 bepaalde instanties van dergelijke pijplijn-code te optimaliseren.
+
+Een andere veelgebruikte hogere-orde functie is |($)|. Deze functie staat voor
+\emph{functie-applicatie}.
+
+\begin{spec}
+($) :: (a -> b) -> a -> b
+f $ x = f x
+\end{spec}
+
+Dit lijkt misschien een nutteloze functie: waarom zou men |f $ x| schrijven als
+men evengoed |f x| kan schrijven? Het grote voordeel van het gebruik van |($)|
+ligt echter in de rechtse associativiteit van deze operator. Men kan |($)| dus
+als het ware gebruiken om haakjes te vervangen. Dit kan in sommige gevallen de
+code leesbaarder maken:
+
+\begin{spec}
+    f (g (h (i (j x))))
+== {- def |$| -}
+    f $ g $ h $ i $ j x
+\end{spec}
 
 Behalve polymorfe functies bestaan er ook polymorfe datatypes. Een voorbeeld
 hiervan is de lijst: we kunnen voor elk mogelijk type een lijst maken met
