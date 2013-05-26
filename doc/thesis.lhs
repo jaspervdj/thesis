@@ -38,7 +38,7 @@ import Data.Char  (toUpper)
 import Data.List  (intersperse)
 import GhcPlugins
 import Prelude    hiding (filter, foldr, head, id, map, sum, product,
-                          replicate)
+                          replicate, (.))
 
 elapsed :: a
 elapsed = undefined
@@ -488,6 +488,27 @@ id :: a -> a
 id x = x
 \end{code}
 
+Haskell-functies kunnen ook andere functies als argumenten nemen. Deze functies
+worden hogere-orde functies genoemd en zijn alomtegenwoordig in Haskell-code.
+
+Een zeer bekend voorbeeld van een hogere-orde functie is functiecompositie,
+|(.)|.
+
+\begin{code}
+(.) :: (b -> c) -> (a -> b) -> (a -> c)
+f . g = \x -> f (g x)
+\end{code}
+
+Dit concept komt uit de wiskunde, waar eveneens notatie $f \circ g$ gebruikt
+wordt. Deze functie laat ons ook toe om zogenaamde pijplijn-code te schrijven,
+waarbij we de resultaatwaarde van \'e\'en functie telkens gebruiken als argument
+van een volgende functie:
+
+\[ |f . g .| \ldots |. h| \]
+
+In sectie \ref{section:benchmarks} zien we dat ons werk de compiler toelaat
+bepaalde instanties van dergelijke pijplijn-code te optimaliseren.
+
 Behalve polymorfe functies bestaan er ook polymorfe datatypes. Een voorbeeld
 hiervan is de lijst: we kunnen voor elk mogelijk type een lijst maken met
 waarden van dit type door de dezelfde constructoren |(:)| en |[]| te gebruiken.
@@ -534,9 +555,8 @@ product (x : xs)  = x * product xs
 \end{code}
 
 Deze patronen kunnen ge\"implementeerd worden door middel van hogere-orde
-functies: functies die andere functies als parameters nemen.  In het
-bovenstaande voorbeeld zijn de functies eenvoudige voorbeelden van het |foldr|
-patroon.
+functies. In het bovenstaande voorbeeld zijn de functies eenvoudige voorbeelden
+van het |foldr| patroon.
 
 \begin{code}
 foldr :: (a -> b -> b) -> b -> [a] -> b
