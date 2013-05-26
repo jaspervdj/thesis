@@ -1,6 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \documentclass[12pt]{report}
 
+\usepackage[hidelinks]{hyperref}
 \usepackage[dutch]{babel}
 \usepackage[font={footnotesize, it}]{caption}
 \usepackage[left=1.90cm, right=1.90cm, top=1.90cm, bottom=3.67cm]{geometry}
@@ -152,11 +153,11 @@ elapsed = undefined
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Inleiding}
 
-Laten we beginnen bij het begin. Reeds van bij de ontwikkeling van de eerste
-computers, naar onze hedendaagse normen vrij rudimentaire machines, was het
+Laten we beginnen bij het begin. Al van bij de ontwikkeling van de eerste
+computers -- naar onze hedendaagse normen vrij rudimentaire machines -- was het
 noodzakelijk om in de gebruikte programmeertalen \emph{controlestructuren} te
-voorzien. Deze instructies laten toe de manier waarop het programma wordt
-uitgevoerd te be\"invloeden. In assembleertaal zijn dit de verschillende
+voorzien. Deze instructies laten toe invloed uit te oefenen op de manier waarop
+het programma wordt uitgevoerd. In assembleertaal zijn dit de verschillende
 \emph{sprong} instructies (\texttt{jmp}, \texttt{je}...). Typisch zal de
 instructie voor de spronginstructie een testinstructie zijn. Enkel gebruik maken
 van simpele tests en sprongen zonder duidelijke consistentie in de manier waarop
@@ -202,8 +203,8 @@ zullen bekijken.}. Dit wordt ge\"illustreerd in Figuur \ref{figure:for-vs-goto}.
     }
     \end{lstlisting}
   \end{minipage}
-  \caption{Twee semantisch equivalente programma's in de programmeertal C, links
-  \'e\'en met hoger-niveau controlestructuren en rechts \'e\'en met
+  \caption{Twee semantisch equivalente programma's in de programmeertaal C,
+  links \'e\'en met hoger-niveau controlestructuren en rechts \'e\'en met
   \texttt{goto}'s.}
   \label{figure:for-vs-goto}
 \end{figure}
@@ -224,16 +225,17 @@ Een soortgelijke redenering is te maken over \emph{functionele
 programmeertalen}. Deze talen maken geen gebruik van \texttt{goto} instructies,
 maar implementeren controlestructuren door middel van \emph{recursie}.
 
-Deze programmeertalen bieden een hoog abstractieniveau, en moedigen de
+Deze programmeertalen bieden een hoog abstractieniveau en moedigen de
 programmeurs aan om gebruik te maken van \emph{hogere-orde} functies (bv.
 |map|, |filter|, |any|, \ldots). Op deze manier is geen expliciete recursie
 nodig. Dit biedt verschillende voordelen:
 
 \begin{enumerate}[topsep=0.00cm]
+
 \item Voor een programmeur die bekend is met de gebruikte hogere-orde functies
-is mogelijk de code veel sneller te begrijpen \cite{dubochet2009}: men herkent
-onmiddelijk het patroon dat aangeboden wordt door de functie en dient enkel de
-argumenten van deze functie te bestuderen.
+is het mogelijk de code veel sneller te begrijpen \cite{dubochet2009}: men
+herkent onmiddelijk het patroon dat aangeboden wordt door de functie en dient
+enkel de argumenten van deze functie te bestuderen.
 
 \item Door gebruik te maken van hogere-orde functies wordt de code beknopter.
 Eerder is aangetoond dat het aantal fouten in code proportioneel is tot de
@@ -248,6 +250,7 @@ van deze hogere-orde functie.
 
 \item Ook de compiler kan gebruik maken van deze eigenschappen, om verschillende
 optimalisaties uit te voeren op de code.
+
 \end{enumerate}
 
 Deze redenen vormen een sterke motivatie om in deze talen geen expliciete
@@ -291,7 +294,7 @@ hogere-orde functie is, maar dat we zowel fold als build nodig hebben om
 vertalingen automatisch kan uitvoeren tijdens de compilatie van een
 Haskell-programma. Deze plugin werkt zowel voor de typische folds over lijsten
 in Haskell (|[a]|), maar ook voor andere (direct) recursieve datatypes,
-gedefini\"eerd door de gebruiker.
+gedefinieerd door de gebruiker.
 
 \item We onderzochten het aantal functies in enkele bekende Haskell programma's
 die kunnen herschreven worden met behulp van een hogere orde fold-functie. Deze
@@ -1313,7 +1316,7 @@ mean xs = fromIntegral (sum xs) / fromIntegral (length xs)
 \end{code}
 
 Deze eenvoudige functie berekent het gemiddelde van een lijst. Ze is
-gedefini\"eerd op elegante wijze maar is niet zeer effici\"ent: de lijst |xs|
+gedefinieerd op elegante wijze maar is niet zeer effici\"ent: de lijst |xs|
 wordt immers tweemaal geconsumeerd.
 
 In een lazy taal als Haskell kan deze oneffici\"entie naast tijds- ook onnodige
@@ -1371,7 +1374,7 @@ B2), B3)|.
 
 Eveneens is deze optimalisatie uitbreidbaar tot andere recursieve algebra\"isce
 datatypes naast lijst. Deze extensie volgt natuurlijk eens de fold voor een
-dergelijk datatype gedefini\"eerd is en we beperken ons hier tot een klein
+dergelijk datatype gedefinieerd is en we beperken ons hier tot een klein
 voorbeeld: het berekenen van de gemiddelde waarde uit een boom.
 
 \begin{code}
@@ -1814,7 +1817,7 @@ zal zijn. We krijgen voor het type |Tree|:
 
 \[ |e| ~{}_{|l|, |r|}\!\!\stackrel{E}{\leadsto}_{|l'|, |r'|} |e'| \]
 
-Met |E| opniew een context die recursieve oproepen naar sumtree herkent.
+Met |E| opnieuw een context die recursieve oproepen naar sumtree herkent.
 Concreet is dit voor |sumTree|:
 
 \[ |E = sumTree triangle| \]
@@ -2117,7 +2120,7 @@ kunnen ofwel de Haskell-code direct manipuleren. Er bestaan reeds verschillende
 bibliotheken om deze taak eenvoudiger te maken, zoals bijvoorbeeld
 \emph{haskell-src-exts} \cite{haskell-src-exts}.
 
-We kunnen echter ook werken met de GHC Core. Dit heeft voor ons een groot aandal
+We kunnen echter ook werken met de GHC Core. Dit heeft voor ons een groot aantal
 voordelen.
 
 \begin{itemize}[topsep=0.00cm]
@@ -2490,7 +2493,7 @@ foldlTree = \f z0 tree ->
     in go z0 tree
 \end{code}
 
-Dit is een \emph{left fold} over een |Tree| (gedefini\"eerd in sectie
+Dit is een \emph{left fold} over een |Tree| (gedefinieerd in sectie
 \ref{section:universal-fold}.
 
 Net zoals een left fold over een lijst, |foldl| kan uitgedrukt worden in functie
@@ -2522,7 +2525,7 @@ veranderlijk bijkomend argument.
 
 \item In de fold zal het niet meer mogelijk zijn om rechtstreeks te verwijzen
 naar |t|. Daarom vervangen we in de rechterleden van de |Case|-alternatieven
-telkens |t| door de linkherhandzijde van het alternatief.  Voor |go| hebben we
+telkens |t| door het linkerlid van het alternatief.  Voor |go| hebben we
 dus bijvoorbeeld voor het eerste alternatief |subst ((f z x)) t (Leaf x)|.
 
 \item Vervolgens bestuderen we de expressies in de rechterleden van de
@@ -2869,6 +2872,39 @@ een datatype en wordt op de volgende manier geassocieerd met het type:
 Eens deze annotaties aanwezig zijn in de source code, kunnen we ze op eenvoudige
 wijze ophalen in onze plugin wanneer we deze informatie nodig hebben.
 
+\subsection{Detectie of transformatie}
+\label{subsection:detection-or-transformation}
+
+Bij installatie is het ook mogelijk een aantal opties in te stellen. Hier is het
+mogelijk om in te stellen of we folds en builds enkel willen \emph{detecteren}
+of ook effectief \emph{transformeren}.
+
+De detectiemode is zeer nuttig aangezien deze zonder meer op bestaande code kan
+uitgevoerd worden, zonder dat deze gewijzigd moet worden.
+
+Voor de transformatiemode is dit wel nodig: dan moeten we namelijk (voorlopig
+manueel):
+
+\begin{itemize}[topsep=0.00cm]
+
+\item Imports toevoegen zoals de module |WhatMorphism.HaskellList| (zodanig dat
+onze |foldr| en |build| functies voor lijsten in scope zijn),
+|WhatMorphism.TemplateHaskell| (zodat de Template Haskell |deriveFold| en
+|deriveBuild| beschikbaar zijn) en tenslotte ook de module
+|WhatMorphism.Annotations| (om annotaties te kunnen toevoegen, zie subsectie
+\ref{subsection:annotations}).
+
+\item Als we in een module builds en folds willen genereren, moeten we ook de
+pragmas \verb|{-# LANGUAGE Rank2Types #-}| en \verb|{-# LANGUAGE TemplateHaskell
+#-}| toevoegen. Hiervan dient het eerste om het expliciet universeel
+gekwantificeerde type van build-functies toe te laten, en het tweede laat ons
+toe de |deriveFold| en |deriveBuild| functie op te roepen.
+
+\item Bij types waarvoor we een fold en willen genereren plaatsen we vervolgens
+de |deriveFold|- en |deriveBuild|-functies, en ook een annotatie.
+
+\end{itemize}
+
 \section{Aanpassen van de compilatie-passes}
 
 \subsection{Volgorde van de passes}
@@ -3038,9 +3074,9 @@ De programmeur hoeft hier dus niet over na te denken.
 Een eerste aspect dat we kunnen bekijken is hoe goed de detectie van folds (zie
 hoofdstuk \ref{chapter:fold-detection}) werkt. We bespraken reeds dat onze tool
 niet alle mogelijk folds kan detecteren. Helaas is het ook zeer intensief werk
-om een exacte telling te doen van het aantal folds in codebase, aangezien dit
-manueel zou moeten gebeuren. Het lijkt dus niet mogelijk om valse negatieven te
-vinden.
+om een exacte telling te doen van het aantal folds in een codebase, aangezien
+dit manueel zou moeten gebeuren. Het lijkt dus niet mogelijk om valse negatieven
+te vinden.
 
 We kunnen wel vergelijken met andere tools. Hiervan is \emph{HLint} \cite{hlint}
 een voorbeeld. HLint is een tool dat Haskell-packages leest en suggesties geeft
@@ -3067,7 +3103,7 @@ meegeleverd worden -- en deze worden allemaal herkent als folds. Dit duidt aan
 dat wij een strikte subset van mogelijk folds detecteren.
 
 Het feit dat HLint geen enkele mogelijke fold kan vinden in sommige packages
-suggereert ook de auteurs van deze packages misschien HLint gebruiken.
+suggereert ook dat de auteurs van deze packages misschien HLint gebruiken.
 
 \begin{table}
 \begin{center}
@@ -3324,7 +3360,7 @@ programmeren in termen van folds en unfolds -- een specifieke codestijl die hij
 kunnen gezien worden als een specifieke, gespecialiseerde versie van builds.
 
 HLint \cite{hlint} is een tool dat verschillende code-patronen kan herkennen en
-vervolgens suggesties geeft om deze code te verbetern. Onder andere kan HLint
+vervolgens suggesties geeft om deze code te verbeteren. Onder andere kan HLint
 ook bepaalde gevallen van expliciete recursie ontdekken en suggereren om deze
 code te herschrijven in termen van een hogere-orde functie zoals |map|, |foldr|
 of |foldl|. Zoals we al vermelden sectie \ref{section:fold-detection-results},
