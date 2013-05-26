@@ -308,11 +308,6 @@ we gebruiken in deze thesis.
 \chapter{Achtergrond}
 \label{chapter:background}
 
-\TODO{To mention:}
-\begin{itemize}
-\item tuples
-\end{itemize}
-
 We kozen voor de pure functionele programmeertaal Haskell \cite{jones2003}
 omwille van verschillende redenen:
 
@@ -528,9 +523,40 @@ code leesbaarder maken:
     f $ g $ h $ i $ j x
 \end{spec}
 
-Behalve polymorfe functies bestaan er ook polymorfe datatypes. Een voorbeeld
-hiervan is de lijst: we kunnen voor elk mogelijk type een lijst maken met
-waarden van dit type door de dezelfde constructoren |(:)| en |[]| te gebruiken.
+Behalve polymorfe functies bestaan er ook polymorfe datatypes. Een veelgebruikt
+voorbeeld hiervan is de \emph{tuple}, dat een paar van waarden voorsteld.
+
+\begin{spec}
+data (a, b) = (a, b)
+\end{spec}
+
+Hetp polymorfisme van dit datatype laat ons toe om waarden van eender welk type
+te koppelen, bijvoorbeeld een |String| en een |Int|:
+
+\begin{code}
+jasper :: (String, Int)
+jasper = ("Jasper", 22)
+\end{code}
+
+Meerder waarden kunnen ook gekoppeld worden door deze tuples te
+\emph{nesten}\footnote{Eveneens kunnen we meerde waarden koppelen door triples,
+of andere $\ldots$ |n|-tuples te gebruiken. Op die manier krijgen we:
+
+\begin{spec}
+zeroes :: (Int, Integer, Double, Float)
+zeroes = (0, 0, 0, 0)
+\end{spec}
+
+Deze |n|-tuples worden echter niet gebruik in onze thesis.}. Zo krijgen we
+bijvoorbeeld:
+
+\begin{code}
+zeroes :: (((Int, Integer), Double), Float)
+zeroes = (((0, 0), 0), 0)
+\end{code}
+
+Naast polymorf kunnen datatypes ook recursief zijn. Het de-facto voorbeeld
+hiervan is de lijst.
 
 \begin{spec}
 data [a]
