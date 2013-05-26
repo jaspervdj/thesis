@@ -31,14 +31,17 @@
 
 \ignore{
 \begin{code}
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE Rank2Types                #-}
-import Data.Char  (toUpper)
-import Data.List  (intersperse)
+import Data.Char     (toUpper)
+import Data.Data     (Data)
+import Data.Typeable (Typeable)
+import Data.List     (intersperse)
 import GhcPlugins
-import Prelude    hiding (filter, foldr, head, id, map, sum, product,
-                          replicate, (.))
+import Prelude       hiding (filter, foldr, head, id, map, sum, product,
+                             replicate, (.))
 
 elapsed :: a
 elapsed = undefined
@@ -2466,15 +2469,6 @@ De passes werken op basis van een best-effort en kunnen dus falen voor bepaalde
 expressies. Dit betekent niet dat de compilatie wordt afgebroken, wel dat we de
 transformatie niet kunnen maken en dus de originele expressie behouden.
 
-\subsection{Annotaties}
-\label{subsection:annotations}
-
-\TODO{write here}
-
-\begin{lstlisting}
-{-# ANN type Tree (RegisterFoldBuild "foldTree" "buildTree") #-}
-\end{lstlisting}
-
 \subsection{WhatMorphism.Fold}
 \label{subsection:what-morphism-fold}
 
@@ -2808,6 +2802,69 @@ immers iets meer controle, zo breidden we deze pass al uit zodanig dat er door
 |let|-bindings kan gekeken worden. Ook kunnen we op deze manier voor iets meer
 debug-output zorgen waardoor we eenvoudiger kunnen zien waarom de fusion wel of
 niet wordt toegepast.
+
+\subsection{Annotaties}
+\label{subsection:annotations}
+
+Een andere belangrijke, nieuwe feature van GHC die we gebruiken zijn
+\emph{annotaties} \cite{ghc-annotations}. Deze laten toe om extra informatie toe
+te voegen aan functies, types en modules. Dit is een bekend concept en wordt ook
+gebruikt in andere programmeertalen zoals Java \cite{java-annotations}.
+
+Deze annotaties kunnen op verschillende manieren gebruikt worden, bijvoorbeeld:
+
+\begin{itemize}[topsep=0.00cm]
+
+\item Informatie doorgeven over functies aan plugins;
+
+\item Extra documentatie of commentaar specificeren op een manier zodanig dat
+deze later kan opgevraagd worden door een andere tool;
+
+\item Bepaalde functies aanduiden als test cases, zoals gebeurt in de
+Java-bibliotheek JUnit \cite{hunt2003}.
+
+\end{itemize}
+
+Standaard-annotaties in GHC horen bij top-level functies of variabelen en zien
+er als volgt uit:
+
+\begin{lstlisting}
+{-# ANN f "A String annotation" #-}
+{-# ANN g [("arity", 3)]        #-}
+\end{lstlisting}
+
+We kunnen dus een top-level functie of variabele annoteren met een expressie |e|
+van om het even welk type\footnote{Dit type moet wel serialiseerbaar zijn.
+Hiertoe wordt de generische |Data.Data| klasse \cite{lammel2003} gebruikt.}.
+
+We kunnen ook modules of types annoteren door gebruik te maken van de volgende
+syntax:
+
+\begin{lstlisting}
+{-# ANN type T e #-}
+{-# ANN module e #-}
+\end{lstlisting}
+
+In ons geval willen we algebra\"ische datatypes koppelen aan de corresponderende
+folds en builds. Daarom gebruiken we een type-annotatie van het type
+|RegisterFoldBuild|.
+
+\begin{code}
+data RegisterFoldBuild = RegisterFoldBuild
+    {  registerFold   :: String
+    ,  registerBuild  :: String
+    }  deriving (Data, Show, Typeable)
+\end{code}
+
+Dit datatype bevat simpelweg de namen van de corresponderende fold en build van
+een datatype en wordt op de volgende manier geassocieerd met het type:
+
+\begin{lstlisting}
+{-# ANN type Tree (RegisterFoldBuild "foldTree" "buildTree") #-}
+\end{lstlisting}
+
+Eens deze annotaties aanwezig zijn in de source code, kunnen we ze op eenvoudige
+wijze ophalen in onze plugin wanneer we deze informatie nodig hebben.
 
 \section{Aanpassen van de compilatie-passes}
 
