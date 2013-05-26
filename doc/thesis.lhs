@@ -1319,15 +1319,15 @@ Deze eenvoudige functie berekent het gemiddelde van een lijst. Ze is
 gedefinieerd op elegante wijze maar is niet zeer effici\"ent: de lijst |xs|
 wordt immers tweemaal geconsumeerd.
 
-In een lazy taal als Haskell kan deze oneffici\"entie naast tijds- ook onnodige
-geheugencomplexiteit met zich meebrengen. Omdat de lijst tweemaal geconsumeerd
-wordt, kan deze immers niet worden vrijgegeven door de garbage collector. Indien
-we de lijst \'e\'enmaal zouden doorlopen, zou dit uitgevoerd worden als een
-on-line algoritme, en is het dus niet nodig de volledige lijst in het geheugen
-beschikbaar te houden.
+In een lazy taal als Haskell kan deze ineffici\"entie naast onnodige
+tijdscomplexiteit ook extra geheugencomplexiteit met zich meebrengen. Omdat de
+lijst tweemaal geconsumeerd wordt, kan deze immers niet worden vrijgegeven door
+de garbage collector. Indien we de lijst \'e\'enmaal zouden doorlopen, zou dit
+uitgevoerd worden als een on-line algoritme, en is het dus niet nodig de
+volledige lijst in het geheugen beschikbaar te houden.
 
 Foldr/foldr-fusion is een optimalisatie voor dergelijke gevallen. Als we dit
-toepassen op ons voorbeeld, krijgen eerst we na inlinen van |sum| en |length| de
+toepassen op ons voorbeeld krijgen eerst we na inlinen van |sum| en |length| de
 volgende definitie:
 
 \begin{spec}
@@ -1448,7 +1448,7 @@ Een dergelijke context |E| stelt een functie voor die toegepast wordt op een
 aantal argumenten. De functie en een aantal argumenten zijn reeds bekend. Voor
 de andere argumenten zijn er \emph{gaten} die nog kunnen worden ingevuld door
 expressies. We onderscheiden twee soorten gaten, aangegeven met de symbolen
-|box| en |triangle|. Een |box| geeft een onbelangrijk argument aan, en een
+|box| en |triangle|. Een |box| geeft een onbelangrijk argument aan en een
 |triangle| duidt op een argument dat in het bijzonder de aandacht verdient
 (concreet zal dit in ons geval de waarde zijn waarover we folden).
 
@@ -3096,7 +3096,7 @@ wij detecteren in een Haskell-package: wij detecteren immers folds over alle
 algebra\"ische datatypes. We maken dus een onderscheid tussen folds over lijsten
 en folds over andere algebra\"ische datatypes.
 
-Een overzicht van de resultaten is te zien in tabel
+Een overzicht van de resultaten is te zien in Tabel
 \ref{tabular:fold-detection-results}. We zien duidelijk dat we meer folds vinden
 dan HLint. Bovendien probeerden we onze tool ook uit op de testcases die
 meegeleverd worden -- en deze worden allemaal herkent als folds. Dit duidt aan
@@ -3133,25 +3133,43 @@ packages.}
 \end{center}
 \end{table}
 
+\section{Detectie van builds}
+\label{section:build-detection-results}
+
+Naast de detectie van folds kunnen we ook de detectie van builds evalueren. Hier
+bestaat er naar ons weten echter geen vergelijkbare tool die dit soort detectie
+uitvoerd. Dit betekent dat we niets hebben om onze resultaten mee te
+vergelijken.
+
+De resultaten kunnen worden teruggevonden in Tabel
+\ref{tabular:build-detection-results}. We kunnen concluderen dat de aantallen
+liggen in dezelfde grote-orde liggen als deze voor folds (zie sectie
+\ref{section:fold-detection-results}).
+
+Merk op dat we hier de regel \textsc{B-Build} (zie hoofdstuk
+\ref{chapter:build-detection}) niet gebruiken. Dit komt omdat we hier de optie
+gebruiken om enkel builds te detecteren en niet te transformeren (zie subsectie
+\ref{subsection:detection-or-transformation}).
+
 \begin{table}
 \begin{center}
 {\renewcommand{\arraystretch}{1.20} % Slightly more spacing
 \begin{tabular}{l||r||r||r||r||r}
-\textbf{Package} & \textbf{Totaal} & Lijst & ADT & Rec. & Nested \\
+\textbf{Package} & \textbf{Totaal} & Lijst & ADT & Rec. \\
 \hline
-Cabal-1.16.0.3          & 101 & 81  & 20  & 5   & 0    \\
-containers-0.5.2.1      & 25  & 2   & 23  & 12  & 0    \\
-cpphs-1.16              & 6   & 5   & 1   & 3   & 0    \\
-darcs-2.8.4             & 354 & 354 & 0   & 26  & 0    \\
-ghc-7.6.3               & 480 & 178 & 302 & 53  & 0    \\
-hakyll-4.2.2.0          & 22  & 18  & 4   & 2   & 0    \\
-haskell-src-exts-1.13.5 & 140 & 74  & 66  & 16  & 0    \\
-hlint-1.8.44            & 69  & 62  & 7   & 1   & 0    \\
-hscolour-1.20.3         & 33  & 33  & 0   & 2   & 0    \\
-HTTP-4000.2.8           & 11  & 11  & 0   & 5   & 0    \\
-pandoc-1.11.1           & 97  & 97  & 0   & 16  & 0    \\
-parsec-3.1.3            & 10  & 10  & 0   & 0   & 0    \\
-snap-core-0.9.3.1       & 4   & 4   & 0   & 0   & 0    \\
+Cabal-1.16.0.3          & 101 & 81  & 20  & 5   \\
+containers-0.5.2.1      & 25  & 2   & 23  & 12  \\
+cpphs-1.16              & 6   & 5   & 1   & 3   \\
+darcs-2.8.4             & 354 & 354 & 0   & 26  \\
+ghc-7.6.3               & 480 & 178 & 302 & 53  \\
+hakyll-4.2.2.0          & 22  & 18  & 4   & 2   \\
+haskell-src-exts-1.13.5 & 140 & 74  & 66  & 16  \\
+hlint-1.8.44            & 69  & 62  & 7   & 1   \\
+hscolour-1.20.3         & 33  & 33  & 0   & 2   \\
+HTTP-4000.2.8           & 11  & 11  & 0   & 5   \\
+pandoc-1.11.1           & 97  & 97  & 0   & 16  \\
+parsec-3.1.3            & 10  & 10  & 0   & 0   \\
+snap-core-0.9.3.1       & 4   & 4   & 0   & 0   \\
 \end{tabular}
 }
 \caption{Een overzicht van het aantal gevonden builds in een aantal bekende
@@ -3159,6 +3177,42 @@ packages.}
 \label{tabular:build-detection-results}
 \end{center}
 \end{table}
+
+\section{Foldr/build-fusion}
+\label{section:foldr-build-fusion-results}
+
+Een telling maken van het aantal keer dat foldr/build-fusion kan toegepast
+worden in een Haskell package blijft echter een moeilijk probleem. We zitten met
+de volgende concrete moeilijkheden:
+
+\begin{itemize}[topsep=0.00cm]
+
+\item Om foldr/build fusion te detecteren, dienen we eerst de transformaties
+naar folds en builds uit te voeren. Hiervoor is helaas nog manuele interventie
+nodig (zie subsectie \ref{subsection:detection-or-transformation}).
+
+\item Veel code die cruciaal is voor de effici\"entie van een programma wordt
+momenteel manueel geoptimaliseerd en zal dus geen tijdelijke lijsten of andere
+algebra\"ische datatypes aanmaken. Hier zijn dus geen mogelijkheden tot
+automatische optimalisatie.
+
+\item Een groot deel van de code wordt wel al geschreven in een stijl die
+gebruik maakt van hogere-orde functie. Omdat wij deze functies niet kunnen
+omzetten naar foldr/build-fusion\footnote{Om meer precies te zijn, onze plugin
+kan wel herkennen dat een functie uit een externe library zoals bijvoorbeeld
+|map| een fold en een build is, en deze ook herschrijven, op voorwaarde dat deze
+functie eerst ge-inlined is. Maar dit gebeurt pas in een late phase van de
+compilatie en op dat moment willen wij onze folds en builds ook inlinen (zie
+subsectie \ref{subsection:to-inline-or-not-to-inline}) -- bijgevolg is er zijn
+er geen kansen om hierop nog fusie toe te passen.}, komen ze niet in aanmerking
+als kandidaten voor onze foldr/build-fusion. Code geschreven in hogere-orde
+stijl kan momenteel helaas dus niet samen gefused worden met code die wij
+vertaalden naar folds of builds.
+
+\end{itemize}
+
+In de sectie \TODO{ref future work} beschouwen we een aantal oplossingen voor
+deze problemen.
 
 \section{Tijdsmetingen}
 \label{section:benchmarks}
