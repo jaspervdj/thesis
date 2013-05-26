@@ -34,6 +34,7 @@
 \begin{code}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE Rank2Types                #-}
 import Data.Char     (toUpper)
@@ -275,33 +276,35 @@ het even welke stijl, en toch genieten van de verschillende optimalisaties.
 
 We hanteren hiervoor de volgende concrete aanpak:
 
-\TODO{Verwijs meer naar hoofdstukken hier}
-
 \begin{enumerate}[topsep=0.00cm]
 
-\item We tonen aan hoe functies die expliciete recursie gebruiken maar wel een
-specifiek soort patroon (meer bepaald \emph{catamorfismes} \TODO{citatie?})
-volgen kunnen gedetecteerd worden, en vertaald naar een versie die een
-hogere-orde fold functie gebruikt in plaats van expliciete recursie.
+\item In hoofdstuk \ref{chapter:fold-detection} tonen we aan hoe functies die
+expliciete recursie gebruiken maar wel een specifiek soort patroon (meer bepaald
+\emph{catamorfismes} \cite{meijer1991}) volgen kunnen gedetecteerd worden, en
+vertaald naar een versie die een hogere-orde fold functie gebruikt in plaats van
+expliciete recursie.
 
 \item Tevens leggen we ook uit hoe we functies die geschreven kunnen worden als
 een toepassing van build kunnen detecteren en vertalen naar een versie die
-effectief gebruikt maakt van build. Merk op dat build op zich geen
-hogere-orde functie is, maar dat we zowel fold als build nodig hebben om
+effectief gebruikt maakt van build. Dit wordt bespoken in hoofdstuk
+\ref{chapter:build-detection}. Merk op dat build op zich geen hogere-orde
+functie is, maar dat we zowel fold als build nodig hebben om
 \emph{foldr/build-fusion} toe te passen, een bekende optimalisatie.
 
 \item We implementeerden een GHC Compiler Plugin die deze detecties en
 vertalingen automatisch kan uitvoeren tijdens de compilatie van een
 Haskell-programma. Deze plugin werkt zowel voor de typische folds over lijsten
 in Haskell (|[a]|), maar ook voor andere (direct) recursieve datatypes,
-gedefinieerd door de gebruiker.
+gedefinieerd door de gebruiker. In hoofdstuk \ref{chapter:implementation}
+bespreken we de implementatie van deze plugin.
 
 \item We onderzochten het aantal functies in enkele bekende Haskell programma's
 die kunnen herschreven worden met behulp van een hogere orde fold-functie. Deze
 blijken in vele packages aanwezig te zijn. Ook bekijken we de resultaten van
 enkele benchmarks na automatische foldr/build-fusion. Omdat foldr/build-fusion
 de compiler toelaat om tussentijdse allocatie te vermijden, zien we hier zeer
-grote versnellingen.
+grote versnellingen. De resultaten hiervan zijn terug te vinden in hoofdstuk
+\ref{chapter:evaluation}.
 
 \end{enumerate}
 
@@ -395,7 +398,7 @@ E\'en van de de bekendste voorbeelden hiervan is de \emph{Y-combinator}.
 
 \newtheorem{theorem:y-combinator}{Definitie}[section]
 \begin{theorem:y-combinator}\label{theorem:y-combinator}
-\[ |Y = \f -> (\x -> f (x x)) (\x -> f (x x))| \]
+\[ |Y| ~~ |==| ~~ |\f -> (\x -> f (x x)) (\x -> f (x x))| \]
 \end{theorem:y-combinator}
 
 \newtheorem*{theorem:y-fixpoint}{Stelling}
@@ -2185,8 +2188,7 @@ die toelaat om expressies uit GHC Core terug te koppelen naar Haskell
 expressies, inclusief alle syntactische sugar waar de programmeur gebruik van
 kan maken. Automatisch herschrijven van expressies in GHC Core zorgt dan voor
 een soortgelijke update van de corresponderende Haskell code. Deze stap valt
-echter buiten het huidig bereik van deze thesis. We gaan hier iets dieper op in
-sectie \TODO{future work}.
+echter buiten het huidig bereik van deze thesis.
 
 Om bovenstaande redenen kiezen we er dus voor om met GHC Core te werken. In
 Figuur \ref{figure:haskell-to-ghc-core} geven we een kort overzicht van de
@@ -2895,10 +2897,11 @@ onze |foldr| en |build| functies voor lijsten in scope zijn),
 \ref{subsection:annotations}).
 
 \item Als we in een module builds en folds willen genereren, moeten we ook de
-pragmas \verb|{-# LANGUAGE Rank2Types #-}| en \verb|{-# LANGUAGE TemplateHaskell
-#-}| toevoegen. Hiervan dient het eerste om het expliciet universeel
-gekwantificeerde type van build-functies toe te laten, en het tweede laat ons
-toe de |deriveFold| en |deriveBuild| functie op te roepen.
+pragmas \verb@{-# LANGUAGE Rank2Types #-}@ en
+\verb@{-# LANGUAGE TemplateHaskell #-}@ toevoegen. Hiervan dient het eerste om
+het expliciet universeel gekwantificeerde type van build-functies toe te laten,
+en het tweede laat ons toe de |deriveFold| en |deriveBuild| functie op te
+roepen.
 
 \item Bij types waarvoor we een fold en willen genereren plaatsen we vervolgens
 de |deriveFold|- en |deriveBuild|-functies, en ook een annotatie.
@@ -3211,7 +3214,7 @@ vertaalden naar folds of builds.
 
 \end{itemize}
 
-In de sectie \TODO{ref future work} beschouwen we een aantal oplossingen voor
+In Hoofdstuk \ref{chapter:future-work} beschouwen we een aantal oplossingen voor
 deze problemen.
 
 \section{Tijdsmetingen}
@@ -3322,11 +3325,6 @@ bomen (rechts).}
 \label{figure:list-tree-speedups}
 \end{figure}
 
-\begin{itemize}
-\item \TODO{Mutually recursive functions}
-\item \TODO{Compilatie ies trager}
-\end{itemize}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Related work}
@@ -3399,7 +3397,7 @@ laten we achterwege):
 
 \newtheorem{theorem:stream-fusion}{Stelling}[section]
 \begin{theorem:stream-fusion}\label{theorem:stream-fusion}
-\[ |stream . unstream| = |id| \]
+\[ |stream . unstream| ~~ |==| ~~ |id| \]
 \end{theorem:stream-fusion}
 
 Het nadeel van deze meer ge\"avanceerde vorm van fusion is dus ook dat de
@@ -3442,13 +3440,204 @@ het MAG-framework.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Toekomstig werk}
+\label{future-work}
+
+In dit hoofdstuk geven we een aantal idee\"en suggesties over hoe ons werk kan
+uitgebreid worden naar de toekomst toe.
+
+\section{Betere integratie}
+
+Zoals we reeds in sectie \ref{section:foldr-build-fusion-results} vermeldden,
+kunnen onze plugins niet optimaal samenwerken met bijvoorbeeld de bestaande
+|Data.List| module. Dit zorgt er bijvoorbeeld voor dat we nooit fusion krijgen
+in een pijplijn als:
+
+\[ |f . map g| \]
+
+met |f| een expliciet recursieve functie was die wij omgezet hebben naar een
+fold. Deze fusie is theoretisch natuurlijk wel mogelijk aangezien |map| een
+producent van een lijst is, en |f| een consument.
+
+Er zijn hiervoor verschillende oplossingen. Een eerste is natuurlijk om de
+|Data.List| module te herschrijven in termen van onze functies, maar dit is niet
+echt praktisch. Een betere oplossing zou zijn om een aantal \verb|{-# RULES #-}|
+pragmas toe te voegen, voor elke functie uit |Data.List|, die deze kan fusen met
+onze folds en builds.
+
+\section{GADTs}
+\label{section:gadts}
+
+Beschouw het volgende eenvoudige expressie-type:
+
+\begin{spec}
+data Expr  =  Const Int
+           |  Add Expr Expr
+           |  Equal Expr Expr
+\end{spec}
+
+Dit laat toe om numerieke waarden bij elkaar op te tellen en deze vervolgens te
+vergelijken. Met dit datatype is het is echter ook mogelijk om expressies op te
+stellen als:
+
+\[ |Add (Equal (Const 1) (Const 2)) (Const 3)| \]
+
+Deze expressie telt 3 op bij het resultaat van |1 == 2|. In ongetypeerde talen
+geeft dit een runtime-fout. De vraag is nu natuurlijk of we met het
+ge\"avanceerde typesysteem van Haskell een betere oplossing hiervoor kunnen
+construeren. Dit blijkt mogelijk te zijn door middel van GADTs
+\cite{cheney2003}. Deze laten toe het return-type van een constructor expliciet
+vast te leggen.
+
+\begin{spec}
+data Expr a where
+    Const  :: Int -> Expr Int
+    Add    :: Expr Int -> Expr Int -> Expr Int
+    Equal  :: Expr Int -> Expr Int -> Expr Bool
+\end{spec}
+
+Er werd reeds aangetoond \cite{johann2008} dat voor dergelijke GADTs ook folds
+en builds kunnen opgesteld worden. Bijgevolg is het wenselijk voor ons werk om
+ook in staat te zijn deze folds en builds te kunnen genereren en herkennen.
+Hiervan hebben we echter nog geen implementatie.
+
+\section{Indirect recursieve datatypes}
+
+In sectie \ref{section:ghc-core} hadden we het reeds over indirecte recursie.
+Daarbij gaven we het voorbeeld:
+
+\begin{spec}
+jibble :: [Int] -> Int
+jibble []        = 1
+jibble (x : xs)  = wiggle x xs
+
+wiggle :: Int -> [Int] -> Int
+wiggle x xs = x * jibble xs + 1
+\end{spec}
+
+Deze functie kunnen we niet onmiddelijk herkennen: dit kan pas na het inlinen
+van |wiggle| -- maar we hoeven hier dus geen extra werk voor te verrichten.
+
+Indirect recursieve datatype vormen een moeilijker probleem. Een bekend
+voorbeeld van een indirecte recursief datatype is de \emph{Rose Tree}
+\cite{blundell2012}. In Haskell kan een dergelijke boom voorgesteld worden als:
+
+\begin{code}
+data Rose a = Rose a [Rose a]
+\end{code}
+
+Ook hier is het mogelijk om via inlinen het probleem te reduceren. We kunnen
+namelijk de constructoren van de lijst inlinen in de definitie van |Rose|
+\cite{yakushev2009}. Op die manier krijgen we:
+
+\begin{spec}
+data Node
+data List
+
+data Rose tag a where
+    Node  :: a -> Rose List a -> Rose Node a
+
+    Nil   :: Rose List a
+    Cons  :: Rose Node a -> Rose List a -> Rose List a
+\end{spec}
+
+In sectie \ref{section:gadts} bespraken we reeds dat we ook folds en builds
+kunnen schrijven voor GADTs. Deze omzetting vormt dus \'e\'en mogelijke
+oplossing, die echter niet echt praktisch is. We bekijken nu twee betere
+oplossingen. Het verschil ligt erin hoe we met het geneste type (in dit geval de
+lijst) omgaan.
+
+\paragraph{Via een andere fold} De eerste oplossing bestaat eruit ons algoritme
+uit te breiden zondanig dat de subterm |[Rose a]| herkend als een ander type
+waarvoor een fold bestaat -- in dit geval |foldr|. We geven dan de parameters
+voor |foldr| ook mee als argumenten aan |foldRose|:
+
+\begin{code}
+foldRose  ::  (a -> b -> c)  -- De rose-constructor
+          ->  (c -> b -> b)  -- De (:)-constructor
+          ->  b              -- De []-constructor
+          ->  Rose a -> c
+foldRose rose cons nil = go
+  where
+    go (Rose x ls) = rose x (foldr (cons . go) nil ls)
+\end{code}
+
+Eveneens is het mogelijk om op deze manier een build te specificeren:
+
+\begin{code}
+buildRose  ::  (forall c b.      (a -> b -> c)
+                             ->  (c -> b -> b)
+                             ->  b
+                             ->  c)
+           -> Rose a
+buildRose g = g Rose (:) []
+\end{code}
+
+En hieruit volgt dan de foldr/build-fusion regel voor het type |Rose| die we
+zien in Stelling \ref{theorem:foldrose-buildrose-fusion} (zonder bewijs).
+
+\newtheorem{theorem:foldrose-buildrose-fusion}{Stelling}[section]
+\begin{theorem:foldrose-buildrose-fusion}
+\label{theorem:foldrose-buildrose-fusion}
+\[ |foldRose rose cons nil (buildRose g)| ~~ |==| ~~ |g rose cons nil| \]
+\end{theorem:foldrose-buildrose-fusion}
+
+\paragraph{Via de functie |fmap|} Een nadeel van de vorige aanpak is dat deze
+enkel bruikbaar is als de manier waarom we de lijst consumeren \emph{ook} een
+fold is.  Er is ook een mogelijkheid waarin we niet met deze belemmering zitten,
+namelijk door gebruik te maken van de |Functor|-klasse \cite{yorgey2009}. Dit
+laat ons toe de recursieve subterm binnen de lijst te reduceren zonder de
+structuur van de lijst te kennen.
+
+Dit geeft ons een veel eenvoudigere definitie van |foldRose|:
+
+\begin{code}
+foldRose' :: (a -> [b] -> b) -> Rose a -> b
+foldRose' rose = go
+  where
+    go (Rose x ls) = rose x (fmap go ls)
+\end{code}
+
+Ook voor |buildRose| krijgen we een eenvoudigere definitie:
+
+\begin{code}
+buildRose' :: (forall b. (a -> [b] -> b) -> b) -> Rose a
+buildRose' g = g Rose
+\end{code}
+
+Als we de twee aanpakken vergelijken hebben beide voordelen en nadelen. Een
+voordeel van de aanpak via |fmap| is dat we hier de lijst kunnen consumeren op
+eender welke manier -- we zijn niet beperkt tot een |foldr|. Dit is echter een
+mes dat aan twee kanten snijdt: langs de andere kant betekent dit dat de
+consumatie van de lijst eventueel ook niet kan genieten van foldr/build-fusion.
+
+Ook is niet elke indirect recursieve subterm een |Functor|: beschouw
+bijvoorbeeld de types |Expr| en |Decl|:
+
+\begin{spec}
+type Var   = String
+
+data Expr  =  Const Int
+           |  Add Expr Expr
+           |  Mul Expr Expr
+           |  Var Var
+           |  Let Decl Expr
+
+data Decl  =  Bind Var Expr
+           |  Seq Decl Decl
+\end{spec}
+
+Noch |Expr| noch |Decl| is een |Functor| -- hier behoort aanpak via |fmap| dus
+niet tot de mogelijkheden.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusie}
 \label{chapter:conclusion}
 
 \begin{itemize}
 \item Samenvatting
 \item Reflectie
-\item Future work...
 \end{itemize}
 
 
