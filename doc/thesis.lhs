@@ -1916,7 +1916,7 @@ als argument van |build|.
 
 Deze relatie maakt gebruik van \'e\'en enkele regel, namelijk \textsc{B-Bind}.
 Deze regel herschrijft de de definitie van een functie en defini\"eert ook de
-bijkomende functie |bg|. De functie die we herschrijven mag om het even hoeveel
+bijkomende functie |g|. De functie die we herschrijven mag om het even hoeveel
 argumenten hebben -- deze worden voorgesteld door |\many x -> elapsed|.
 
 Deze argumenten worden ook meegegeven aan de generatorfuctie |g|. Op deze manier
@@ -2092,7 +2092,7 @@ elk Haskell-programma uit te drukken in de kerneltaal.
 Een dergelijke vertaling gebeurt door de compiler en is beter bekend onder de
 naam desugaring \footnote{De vele syntactische structuren die in idiomatische
 Haskell-code gebruikt worden staan bekend als \emph{syntactic sugar}, vandaar
-deze naam.}. Programmas die uitgedrukt worden in de kerneltaal zijn meestal
+deze naam.}. Programma's die uitgedrukt worden in de kerneltaal zijn meestal
 minder beknopt.
 
 Het gebruik van een dergelijke kerneltaal heeft verschillende voordelen:
@@ -2761,7 +2761,8 @@ Om dit te verhinderen stellen we twee mogelijkheden voor:
 
 \begin{itemize}[topsep=0.00cm]
 
-\item Een Template Haskell functie die de \verb|{-# RULES #-}| pragma genereerd;
+\item Een Template Haskell functie die het \verb|{-# RULES #-}| pragma
+genereert;
 
 \item Een extra pass, |WhatMorphism.Fusion|, die het fusion-patroon op een
 generieke manier implementeerd.
@@ -2778,7 +2779,7 @@ $(deriveFold quote Tree "foldTree" "buildTree")
 \end{spec}
 %}
 
-En deze genereerd dan de bovenstaande |"foldTree/buildTree-fusion"| regel.
+Deze genereert dan de bovenstaande |"foldTree/buildTree-fusion"| regel.
 
 De |WhatMorphism.Fusion| pass neemt een andere aanpak. Door gebruik te maken van
 de reeds aanwezige annotaties (zie subsectie \ref{subsection:annotations}),
@@ -2877,7 +2878,7 @@ wijze ophalen in onze plugin wanneer we deze informatie nodig hebben.
 \subsection{Detectie of transformatie}
 \label{subsection:detection-or-transformation}
 
-Bij installatie is het ook mogelijk een aantal opties in te stellen. Hier is het
+Bij installatie is het mogelijk een aantal opties in te stellen. Hier is het
 mogelijk om in te stellen of we folds en builds enkel willen \emph{detecteren}
 of ook effectief \emph{transformeren}.
 
@@ -2903,8 +2904,8 @@ het expliciet universeel gekwantificeerde type van build-functies toe te laten,
 en het tweede laat ons toe de |deriveFold| en |deriveBuild| functie op te
 roepen.
 
-\item Bij types waarvoor we een fold en willen genereren plaatsen we vervolgens
-de |deriveFold|- en |deriveBuild|-functies, en ook een annotatie.
+\item Bij types waarvoor we een fold en build willen genereren plaatsen we
+vervolgens de |deriveFold|- en |deriveBuild|-functies, en ook een annotatie.
 
 \end{itemize}
 
@@ -2970,8 +2971,8 @@ omzetten naar een build: ons algoritme is niet in staat om te zien dat |foldr|
 enkel de constructoren |(:)| en |[]| zal gebruiken. In dit geval kan |upper| dus
 enkel als consument van een lijst van foldr/build-fusion genieten.
 
-Daaruit kunnen we concluderen dat het voordelig is om eerst |WhatMorphism.Build|
-uit te voeren en daarna pas |WhatMorphism.Fold|.
+Daaruit kunnen we concluderen dat het voordelig is |WhatMorphism.Build|
+uit te voeren voor |WhatMorphism.Fold| en niet omgekeerd.
 
 Een alternatief zou zijn om een extra \textsc{B-Fold} regel toe te voegen aan de
 regels in hoofdstuk \ref{chapter:build-detection}. Deze zou dan ook bepaalde
@@ -3200,12 +3201,12 @@ algebra\"ische datatypes aanmaken. Hier zijn dus geen mogelijkheden tot
 automatische optimalisatie.
 
 \item Een groot deel van de code wordt wel al geschreven in een stijl die
-gebruik maakt van hogere-orde functie. Omdat wij deze functies niet kunnen
+gebruik maakt van hogere-orde functies. Omdat wij deze functies niet kunnen
 omzetten naar foldr/build-fusion\footnote{Om meer precies te zijn, onze plugin
 kan wel herkennen dat een functie uit een externe library zoals bijvoorbeeld
 |map| een fold en een build is, en deze ook herschrijven, op voorwaarde dat deze
-functie eerst ge-inlined is. Maar dit gebeurt pas in een late phase van de
-compilatie en op dat moment willen wij onze folds en builds ook inlinen (zie
+functie eerst ge-inlined is. Maar dit gebeurt pas in een laat in de volgorde van
+de GHC-phases en op dat moment willen wij onze folds en builds ook inlinen (zie
 subsectie \ref{subsection:to-inline-or-not-to-inline}) -- bijgevolg is er zijn
 er geen kansen om hierop nog fusie toe te passen.}, komen ze niet in aanmerking
 als kandidaten voor onze foldr/build-fusion. Code geschreven in hogere-orde
@@ -3214,7 +3215,7 @@ vertaalden naar folds of builds.
 
 \end{itemize}
 
-In Hoofdstuk \ref{chapter:future-work} beschouwen we een aantal oplossingen voor
+In sectie \ref{section:future-work} beschouwen we een aantal oplossingen voor
 deze problemen.
 
 \section{Tijdsmetingen}
@@ -3307,7 +3308,7 @@ Met $t_2$ de tijdsmeting als we compileerden met \emph{what-morphism} en $t_1$
 de tijdsmeting met enkel de \texttt{-O2} vlag.
 
 We zien dat we direct grote speedups krijgen bij |l0| en |t0|. Dit toont aan dat
-foldr/build-fusion zelfs voor heel kleine pipelines de moeite loont. Eveneens
+foldr/build-fusion ook voor heel kleine pipelines de moeite loont. Eveneens
 kunnen we uit de grafiek me relatieve resultaten afleiden dat de versnelling
 steeds dichter bij 100\% zal komen naarmate de pijplijn langer wordt.
 
@@ -3340,7 +3341,7 @@ het probleem dat we willen oplossen in deze thesis.
 
 \emph{Stream fusion} \cite{coutts2007} is een ge\"avanceerd alternatief op
 foldr/build-fusion. Een groot voordeel hiervan is dat het makkelijker fusion kan
-toepassen op functies als |zip| en |foldl|.
+toepassen op functies als zoals |zip|.
 
 Stream fusion werkt door lijsten voor te stellen als een tijdelijk type
 |Stream|:
@@ -3440,30 +3441,38 @@ het MAG-framework.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Toekomstig werk}
-\label{future-work}
+\chapter{Conclusie}
+\label{chapter:conclusion}
 
-In dit hoofdstuk geven we een aantal idee\"en suggesties over hoe ons werk kan
+\begin{itemize}
+\item Samenvatting
+\item Reflectie
+\end{itemize}
+
+\section{Toekomstig werk}
+\label{section:future-work}
+
+In deze sectie geven we een aantal idee\"en en suggesties over hoe ons werk kan
 uitgebreid worden naar de toekomst toe.
 
 \section{Betere integratie}
 
 Zoals we reeds in sectie \ref{section:foldr-build-fusion-results} vermeldden,
-kunnen onze plugins niet optimaal samenwerken met bijvoorbeeld de bestaande
+werken onze plugins niet optimaal samen met bijvoorbeeld de bestaande
 |Data.List| module. Dit zorgt er bijvoorbeeld voor dat we nooit fusion krijgen
 in een pijplijn als:
 
 \[ |f . map g| \]
 
-met |f| een expliciet recursieve functie was die wij omgezet hebben naar een
-fold. Deze fusie is theoretisch natuurlijk wel mogelijk aangezien |map| een
-producent van een lijst is, en |f| een consument.
+met |f| een expliciet recursieve functie die wij omgezet hebben naar een fold.
+Deze fusie is theoretisch natuurlijk wel mogelijk aangezien |map| een producent
+van een lijst is, en |f| een consument.
 
-Er zijn hiervoor verschillende oplossingen. Een eerste is natuurlijk om de
-|Data.List| module te herschrijven in termen van onze functies, maar dit is niet
-echt praktisch. Een betere oplossing zou zijn om een aantal \verb|{-# RULES #-}|
-pragmas toe te voegen, voor elke functie uit |Data.List|, die deze kan fusen met
-onze folds en builds.
+Er zijn hiervoor verschillende oplossingen. Een eerste is om de |Data.List|
+module te herschrijven in termen van onze functies, maar dit is niet echt
+praktisch. Een betere oplossing zou zijn om een aantal \verb|{-# RULES #-}|
+pragmas toe te voegen, \'e\'en voor elke functie uit |Data.List|, zodang dat
+deze ook gefused kunnen worden met onze folds en builds.
 
 \section{GADTs}
 \label{section:gadts}
@@ -3516,11 +3525,12 @@ wiggle x xs = x * jibble xs + 1
 \end{spec}
 
 Deze functie kunnen we niet onmiddelijk herkennen: dit kan pas na het inlinen
-van |wiggle| -- maar we hoeven hier dus geen extra werk voor te verrichten.
+van |wiggle| -- maar we hoeven hier geen extra werk voor te verrichten.
 
-Indirect recursieve datatype vormen een moeilijker probleem. Een bekend
-voorbeeld van een indirecte recursief datatype is de \emph{Rose Tree}
-\cite{blundell2012}. In Haskell kan een dergelijke boom voorgesteld worden als:
+Indirect recursieve algebra\"ische datatypes vormen echter een moeilijker
+probleem. Een bekend voorbeeld van een indirect recursief datatype is de
+\emph{Rose Tree} \cite{blundell2012}. In Haskell kan een dergelijke boom
+voorgesteld worden als:
 
 \begin{code}
 data Rose a = Rose a [Rose a]
@@ -3548,7 +3558,7 @@ oplossingen. Het verschil ligt erin hoe we met het geneste type (in dit geval de
 lijst) omgaan.
 
 \paragraph{Via een andere fold} De eerste oplossing bestaat eruit ons algoritme
-uit te breiden zondanig dat de subterm |[Rose a]| herkend als een ander type
+uit te breiden zodat dat de subterm |[Rose a]| herkend wordt als een ander type
 waarvoor een fold bestaat -- in dit geval |foldr|. We geven dan de parameters
 voor |foldr| ook mee als argumenten aan |foldRose|:
 
@@ -3606,10 +3616,10 @@ buildRose' g = g Rose
 \end{code}
 
 Als we de twee aanpakken vergelijken hebben beide voordelen en nadelen. Een
-voordeel van de aanpak via |fmap| is dat we hier de lijst kunnen consumeren op
-eender welke manier -- we zijn niet beperkt tot een |foldr|. Dit is echter een
-mes dat aan twee kanten snijdt: langs de andere kant betekent dit dat de
-consumatie van de lijst eventueel ook niet kan genieten van foldr/build-fusion.
+voordeel van de aanpak via |fmap| is dat we de lijst kunnen consumeren op eender
+welke manier -- we zijn niet beperkt tot een |foldr|. Dit is echter een mes dat
+aan twee kanten snijdt: langs de andere kant betekent dit dat de consumatie van
+de lijst ook niet kan genieten van foldr/build-fusion.
 
 Ook is niet elke indirect recursieve subterm een |Functor|: beschouw
 bijvoorbeeld de types |Expr| en |Decl|:
@@ -3627,18 +3637,8 @@ data Decl  =  Bind Var Expr
            |  Seq Decl Decl
 \end{spec}
 
-Noch |Expr| noch |Decl| is een |Functor| -- hier behoort aanpak via |fmap| dus
-niet tot de mogelijkheden.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Conclusie}
-\label{chapter:conclusion}
-
-\begin{itemize}
-\item Samenvatting
-\item Reflectie
-\end{itemize}
+Noch |Expr| noch |Decl| is een |Functor| -- hier behoort de aanpak via |fmap|
+dus niet tot de mogelijkheden.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
