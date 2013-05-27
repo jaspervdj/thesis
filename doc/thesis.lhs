@@ -170,7 +170,7 @@ C), maakte het concept \emph{gestructureerd programmeren} een opmars.  Dit
 betekent dat controlestructuren van een hoger abstractieniveau, zoals
 bijvoorbeeld \texttt{for}- en \texttt{while}-lussen, werden ge\"introduceerd.
 Deze programmeertalen laten echter meestal wel nog toe om \emph{expliciete}
-sprongen te maken door middel van de \texttt{goto} instructie \footnote{Merk op
+sprongen te maken door middel van de \texttt{goto} instructie\footnote{Merk op
 dat deze programmeertalen door een compiler worden omgezet naar machinetaal,
 waarin wel nog sprongen voorkomen. Dit vormt echter geen probleem voor
 leesbaarheid, sinds de meeste programmeurs deze machinetaal slechts zelden
@@ -280,8 +280,9 @@ We hanteren hiervoor de volgende concrete aanpak:
 
 \item In hoofdstuk \ref{chapter:fold-detection} tonen we aan hoe functies die
 expliciete recursie gebruiken maar wel een specifiek soort patroon (meer bepaald
-\emph{catamorfismes} \cite{meijer1991}) volgen kunnen gedetecteerd worden, en
-vertaald naar een versie die een hogere-orde fold functie gebruikt in plaats van
+\emph{catamorfismes} \cite{meijer1991}) volgen kunnen gedetecteerd worden.
+Eveneens leggen we uit hoe deze door middel van herschrijfregels vertaald kunnen
+worden naar een versie die een hogere-orde fold functie gebruikt in plaats van
 expliciete recursie.
 
 \item Tevens leggen we ook uit hoe we functies die geschreven kunnen worden als
@@ -317,20 +318,20 @@ we gebruiken in deze thesis.
 \chapter{Achtergrond}
 \label{chapter:background}
 
-We kozen voor de pure functionele programmeertaal Haskell \cite{jones2003}
-omwille van verschillende redenen:
+We kozen voor de pure functionele programmeertaal Haskell
+\cite{marlow2010}\cite{jones2003} omwille van verschillende redenen:
 
 \begin{itemize}[topsep=0.00cm]
 
-\item Het Haskell Prelude \footnote{Het Prelude is de module die impliciet in
-elk Haskell-programma wordt ge\"importeerd. De functies hieruit zijn dus
+\item Het Haskell Prelude\footnote{Het Prelude is de module die impliciet in elk
+Haskell-programma wordt ge\"importeerd. De functies hieruit zijn dus
 rechtstreeks te gebruiken zonder dat men een bibliotheek moet importeren.} en de
 beschikbare bibliotheken bieden een waaier aan hogere-orde functies aan.
 
-\item Haskell is een sterk getypeerde programmeertaal. Na het ini\"ele parsen en
-typechecken van de code is deze type-informatie is beschikbaar in elke stap van
-de compilatie. Deze types geven ons meer informatie die we kunnen gebruiken in
-de transformaties. Bovendien maakt Haskell gebruik van type inference
+\item Haskell is een sterk getypeerde programmeertaal. Na het initi\"ele parsen
+en typechecken van de code is deze type-informatie is beschikbaar in elke stap
+van de compilatie. Deze types geven ons meer informatie die we kunnen gebruiken
+in de transformaties. Bovendien maakt Haskell gebruik van type inference
 \cite{hindley1969}, wat ervoor zorgt dat de programmeur meestal zelf geen types
 moet opgeven.
 
@@ -533,13 +534,13 @@ code leesbaarder maken:
 \end{spec}
 
 Behalve polymorfe functies bestaan er ook polymorfe datatypes. Een veelgebruikt
-voorbeeld hiervan is de \emph{tuple}, dat een paar van waarden voorsteld.
+voorbeeld hiervan is de \emph{tuple}, dat een paar van waarden voorstelt.
 
 \begin{spec}
 data (a, b) = (a, b)
 \end{spec}
 
-Hetp polymorfisme van dit datatype laat ons toe om waarden van eender welk type
+Het polymorfisme van dit datatype laat ons toe om waarden van eender welk type
 te koppelen, bijvoorbeeld een |String| en een |Int|:
 
 \begin{code}
@@ -620,7 +621,8 @@ foldr f  z (x : xs)  = f x (foldr f z xs)
 
 Als we |sum| en |product| herschrijven op basis van |foldr|, krijgen we veel
 beknoptere definities, die semantisch equivalent zijn aan de expliciet
-recursieve versies en sneller te lezen door ervaren programmeurs:
+recursieve versies. Deze zijn bovendien sneller te lezen door ervaren
+programmeurs:
 
 \begin{code}
 sum' :: [Int] -> Int
@@ -679,9 +681,10 @@ Concreet betekent dit dat we een functie |g| kunnen herschrijven in termen van
 voldoen.
 
 Ook betekent dit dat er slechts \'e\'en |foldr| is voor een lijst -- elke
-alternatieve definitie is hieraan isomorf. Er is dus een wederzijds verband
-tussen het type |[a]| en de functie |foldr|. De vraag naar het bestaan van een
-bijectie tussen algebra\"ische datatypes en fold-functies dringt zich dus op.
+alternatieve definitie is hieraan isomorf \cite{hutton1999}. Er is dus een
+wederzijds verband tussen het type |[a]| en de functie |foldr|. De vraag naar
+het bestaan van een bijectie tussen algebra\"ische datatypes en fold-functies
+dringt zich dus op.
 
 Deze vraag kan affirmatief beantwoord worden: een dergelijke bijectie bestaat,
 ze legt bovendien het verband tussen een datatype en het overeenkomstige
@@ -720,7 +723,7 @@ instance Show a => Show (Tree a) where
 }
 
 Door een functie-argument te specificeren voor elke constructor, kunnen we nu
-een fold defin\"eren voor het type |Tree|:
+een fold defini\"eren voor het type |Tree|:
 
 \begin{code}
 foldTree  ::  (a -> b)       -- Operator voor leaf
@@ -865,7 +868,7 @@ Ervaren Haskell-programmeurs zullen steevast de tweede versie boven de eerste
 verkiezen. Het feit dat de tweede versie is opgebouwd uit kleinere, makkelijk te
 begrijpen functies maakt deze veel leesbaarder.
 
-De eerste versie is echter effici\"enter: deze berkent rechtstreeks het
+De eerste versie is echter effici\"enter: deze berekent rechtstreeks het
 resultaat (een |Int|), terwijl de tweede versie twee tijdelijke |[Int]| lijsten
 aanmaakt: een eerste als resultaat van |filter odd|, en een tweede als resultaat
 van |map (^ 2)|.
@@ -928,21 +931,21 @@ en bewijzen dat de correctheid dan ook geldt voor een lijst |x : xs|.
 \end{proof}
 
 GHC beschikt over een mechanisme om dit soort transformaties uit te voeren
-tijdens de compilatie, door middel van het \verb|{-# RULES -#}| pragma's
+tijdens de compilatie, door middel van \verb|{-# RULES -#}| pragma's
 \cite{jones2001}. Zo kunnen we bijvoorbeeld map/map-fusion implementeren door
-eenvodigweg het volgende pragma te vermelden:
+eenvoudigweg het volgende pragma te vermelden:
 
 \begin{lstlisting}
 {-# RULES "map/map-fusion" forall f g xs.
     map f (map g xs) = map (f . g) xs #-}
 \end{lstlisting}
 
-Het nadeel van deze aanpak is echter dat het aantal nodige rules kwadratisch
-stijgt in proportie tot het aantal hogere-orde functies dat op het datatype (in
-dit geval lijsten) werkt.
+Het nadeel van deze aanpak is echter dat het aantal vereiste rules kwadratisch
+stijgt in proportie tot het aantal hogere-orde functies dat op het datatype
+werkt -- in dit geval lijsten.
 
 Ter illustratie, als we bijvoorbeeld enkel de twee functies |map| en |filter|
-beschouwen, hebben al vier rules nodig, en een bijkomende hulpfunctie
+beschouwen, hebben we al vier rules nodig, en een bijkomende hulpfunctie
 |mapFilter|:
 
 \begin{spec}
@@ -958,10 +961,10 @@ mapFilter f g (x : xs)
     | otherwise   = mapFilter f g xs
 \end{spec}
 
-Maar als we nu een langere expressie |map f . map g . filter h| hebben, kunnen
-we iets krijgen als |map f . mapFilter g h|, en dienen we weer nieuwe
-fusion-regels toe te voegen om deze expressie te kunnen fusen. Het aantal nodige
-regels stijgt dus zeer snel.
+Maar als we nu een langere expressie |map f . map g . filter h| hebben, krijgen
+we iets van de vorm |map f . mapFilter g h|, en dienen we weer nieuwe
+fusion-regels toe te voegen om deze expressie te kunnen fuseren. Het aantal
+nodige regels stijgt dus zeer snel.
 
 Voor sommige modules ligt het aantal hogere-orde functies erg hoog, dus wordt
 deze aanpak onhaalbaar.
@@ -1021,12 +1024,12 @@ Als we echter ook nog letterlijk verwijzen naar |(:)| en |[]|, is deze
 vervanging onmogelijk. Het universeel gekwantificeerde type |b| lost dit
 probleem op. De programmeur is verplicht een |g| mee te geven die werkt voor
 \emph{elke} |b|, en hij weet niet welk type uiteindelijk geconstrueerd zal
-worden. Bijgevolg en kan hij dus ook geen concrete constructoren gebruiken.
+worden. Bijgevolg kan hij dus ook geen concrete constructoren gebruiken.
 
 Nu we vastgesteld hebben dat enkel de abstracte versies van de constructoren
 gebruikt worden, laat dit idee ons toe om de productie en consumatie van een
-lijst te fusen, zodanig dat er geen tijdelijke lijst moet worden aangemaakt. We
-werken dit nu formeel uit.
+lijst te fuseren, zodanig dat er geen tijdelijke lijst moet worden aangemaakt.
+We werken dit nu formeel uit.
 
 \newtheorem{theorem:foldr-build-fusion}{Stelling}[section]
 \begin{theorem:foldr-build-fusion}\label{theorem:foldr-build-fusion}
@@ -1184,7 +1187,8 @@ buildTree g = g Leaf Branch
 \end{code}
 
 Zodra we beschikken over een fold en een build voor een algebra\"isch datatype,
-is het mogelijk om fusion toe te passen. Voor het type |Tree| wordt de
+is het mogelijk om fusion toe te passen. Om dit duidelijker te maken,
+illustreren we dit nu voor het type |Tree|. We krijgen voor |Tree| de
 fusion-regel gegeven in definitie \ref{theorem:foldr-build-tree-fusion}.
 
 \newtheorem{theorem:foldr-build-tree-fusion}{Definitie}[section]
@@ -1210,8 +1214,8 @@ treeUpTo n m = buildTree $ \leaf branch ->
     in g n m
 \end{code}
 
-Nu kunnen we bestuderen wat er door fusion gebeurt met een expressie als
-|sumTree (treeUpTo n m)|, die een tijdelijke boom aanmaakt.
+Nu kunnen we bestuderen wat er door fusion gebeurt met een expressie zoals
+bijvoorbeeld |sumTree (treeUpTo n m)|, die een tijdelijke boom aanmaakt.
 
 \begin{spec}
     sumTree (treeUpTo n m)
@@ -1350,7 +1354,8 @@ mean' xs =
 \end{code}
 
 In het algemeen kunnen we op deze manier twee algebra's samenvoegen tot \'e\'en
-enkele algebra, op voorwaarde dat ze op hetzelfde lijst-type werken:
+enkele algebra, op voorwaarde dat ze op hetzelfde lijst-type werken, in ons
+voorbeeld |[a]|:
 
 \begin{minipage}[c]{0.30\textwidth}
 \begin{spec}
@@ -1375,9 +1380,9 @@ gevallen waar we meer dan twee keer dezelfde lijst consumeren met een |foldr|:
 in die gevallen krijgen we types met geneste tuples, zoals bijvoorbeeld |((B1,
 B2), B3)|.
 
-Eveneens is deze optimalisatie uitbreidbaar tot andere recursieve algebra\"isce
-datatypes naast lijst. Deze extensie volgt natuurlijk eens de fold voor een
-dergelijk datatype gedefinieerd is en we beperken ons hier tot een klein
+Eveneens is deze optimalisatie uitbreidbaar tot andere recursieve algebra\"ische
+datatypes naast lijsten. Deze extensie volgt natuurlijk eens de fold voor een
+dergelijk datatype gedefinieerd is. We beperken ons hier tot een klein
 voorbeeld: het berekenen van de gemiddelde waarde uit een boom.
 
 \begin{code}
@@ -1389,7 +1394,7 @@ meanTree tree =
     in fromIntegral sum' / fromIntegral size
 \end{code}
 
-In tegenstelling tot foldr/build-fusion is zorgt deze optimalisatie echter vaak
+In tegenstelling tot foldr/build-fusion zorgt deze optimalisatie echter vaak
 niet voor een snellere uitvoering van het programma. Dit komt omdat er een
 overhead is geassocieerd met het alloceren van tuples -- en voor kleine lijsten
 kan de vertraging door deze overhead de snelheidswinst van de optimalisatie
@@ -2090,7 +2095,7 @@ van de programmeertaal (in dit geval Haskell). Bovendien is het mogelijk om
 elk Haskell-programma uit te drukken in de kerneltaal.
 
 Een dergelijke vertaling gebeurt door de compiler en is beter bekend onder de
-naam desugaring \footnote{De vele syntactische structuren die in idiomatische
+naam desugaring\footnote{De vele syntactische structuren die in idiomatische
 Haskell-code gebruikt worden staan bekend als \emph{syntactic sugar}, vandaar
 deze naam.}. Programma's die uitgedrukt worden in de kerneltaal zijn meestal
 minder beknopt.
@@ -2537,7 +2542,7 @@ dienen.
 
 De argumenten voor deze anonieme functies zijn de binders van het alternatief
 gevolgd door de veranderlijke bijkomende argumenten. Zo krijgen we in ons
-voorbeeld |\x z -> elapsed| en |\l_rec r_rec z -> elapsed| \footnote{Het
+voorbeeld |\x z -> elapsed| en |\l_rec r_rec z -> elapsed|\footnote{Het
 |_rec|-suffix duidt hier op het feit dat dit niet de originele binders zijn,
 aangezien het type veranderde. Dit is een implementatie-detail, dat verder geen
 invloed heeft op de essentie van het algoritme.}.
@@ -2898,7 +2903,7 @@ onze |foldr| en |build| functies voor lijsten in scope zijn),
 \ref{subsection:annotations}).
 
 \item Als we in een module builds en folds willen genereren, moeten we ook de
-pragmas \verb@{-# LANGUAGE Rank2Types #-}@ en
+pragma's \verb@{-# LANGUAGE Rank2Types #-}@ en
 \verb@{-# LANGUAGE TemplateHaskell #-}@ toevoegen. Hiervan dient het eerste om
 het expliciet universeel gekwantificeerde type van build-functies toe te laten,
 en het tweede laat ons toe de |deriveFold| en |deriveBuild| functie op te
@@ -3453,7 +3458,7 @@ het MAG-framework.
 \label{section:future-work}
 
 In deze sectie geven we een aantal idee\"en en suggesties over hoe ons werk kan
-uitgebreid worden naar de toekomst toe.
+uitgebreid worden in de toekomst.
 
 \section{Betere integratie}
 
@@ -3471,7 +3476,7 @@ van een lijst is, en |f| een consument.
 Er zijn hiervoor verschillende oplossingen. Een eerste is om de |Data.List|
 module te herschrijven in termen van onze functies, maar dit is niet echt
 praktisch. Een betere oplossing zou zijn om een aantal \verb|{-# RULES #-}|
-pragmas toe te voegen, \'e\'en voor elke functie uit |Data.List|, zodang dat
+pragma's toe te voegen, \'e\'en voor elke functie uit |Data.List|, zodang dat
 deze ook gefused kunnen worden met onze folds en builds.
 
 \section{GADTs}
