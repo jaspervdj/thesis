@@ -4,7 +4,7 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage[dutch]{babel}
 \usepackage[font={footnotesize, it}]{caption}
-\usepackage[left=1.90cm, right=1.90cm, top=1.90cm, bottom=3.67cm]{geometry}
+\usepackage[left=4.00cm, right=1.50cm, top=2.50cm, bottom=2.50cm]{geometry}
 \usepackage[numbers]{natbib}  % For URLs in bibliography
 \usepackage[xetex]{graphicx}
 \usepackage{amsmath}
@@ -13,6 +13,7 @@
 \usepackage{enumitem}
 \usepackage{fontspec,xunicode}
 \usepackage{listings}
+\usepackage{pdfpages}
 \usepackage{titlesec}
 \usepackage{url}
 
@@ -120,6 +121,13 @@ elapsed = undefined
 \lstset{basicstyle=\ttfamily, keywordstyle=\ttfamily\bf}
 
 
+\def\blankpage{
+    \newpage
+    \thispagestyle{empty}
+    \mbox{}
+}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Infer rules
 
@@ -137,6 +145,18 @@ elapsed = undefined
 \author{Jasper Van der Jeugt}
 
 \begin{document}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\includepdf{ugent-titlepage.pdf}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\blankpage
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\includepdf{ugent-titlepage.pdf}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -333,8 +353,8 @@ in Haskell (|[a]|), maar ook voor andere (direct) recursieve datatypes,
 gedefinieerd door de gebruiker. In hoofdstuk \ref{chapter:implementation}
 bespreken we de implementatie van deze plugin.
 
-\item We onderzochten het aantal functies in enkele bekende Haskell programma's
-die kunnen herschreven worden met behulp van een hogere orde fold-functie. Deze
+\item We onderzochten het aantal functies in enkele bekende Haskell packages die
+kunnen herschreven worden met behulp van een hogere orde fold-functie. Deze
 blijken in vele packages aanwezig te zijn. Ook bekijken we de resultaten van
 enkele benchmarks na automatische foldr/build-fusion. Omdat foldr/build-fusion
 de compiler toelaat om tussentijdse allocatie te vermijden, zien we hier zeer
@@ -401,7 +421,7 @@ Dit is natuurlijk een zeer beperkte syntax en Haskell breidt deze sterk uit.
 Beschouw bijvoorbeeld de volgende Haskell-functie (links) en het lambda-calculus
 equivalent (rechts):
 
-\begin{minipage}{0.5\textwidth}
+\begin{minipage}{0.4\textwidth}
 \begin{code}
 middle x y = (x + y) / 2
 \end{code}
@@ -422,7 +442,7 @@ middle :: Float -> Float -> Float
 
 Net zoals lambda-abstracties is de |->| (een operator op type-niveau) in
 type-signaturen rechts-associatief.  Deze type-signatuur is dus equivalent aan
-|Float -> (Float -> Float)|. Dit concept heet \emph{currying}: we kunnen
+\mbox{|Float -> (Float -> Float)|}. Dit concept heet \emph{currying}: we kunnen
 |middle| beschouwen als een functie die \'e\'en Float argument neemt en functie
 van het type |Float -> Float| als resultaatwaarde heeft, of als een functie die
 twee |Float|-argumenten neemt en een |Float| als resultaatwaarde heeft.
@@ -514,7 +534,8 @@ toppingPrice Peppers    = 0.30
 
 pizzaPrice :: Pizza -> Double
 pizzaPrice Plain                  = 5.20
-pizzaPrice (ExtraToppings t1 t2)  = 5.40 + toppingPrice t1 + toppingPrice t2
+pizzaPrice (ExtraToppings t1 t2)  =
+    5.40 + toppingPrice t1 + toppingPrice t2
 \end{code}
 
 Het zou ons te ver voeren om het volledig typesysteem van Haskell hier te
@@ -1629,10 +1650,10 @@ expressie wordt bepaalt door de relatie:
 Deze relatie maakt gebruik van vijf verschillende regels. \textsc{F-Rec} is
 verantwoordelijk voor het effectieve herschrijven van recursieve oproepen.  Voor
 andere expressies gebruiken we ofwel \'e\'en van de drie herschrijfregels
-\textsc{F-Abs}, \textsc{F-App}, \textsc{F-Case}, ofwel de reflectieve regel
-\textsc{F-Refl}, die de expressie gewoon behoudt. In het vereenvoudigde geval,
-waarbij we slechts \'e\'en argument hebben, kan \textsc{F-Rec} gereduceerd
-worden tot:
+\mbox{\textsc{F-Abs}}, \textsc{F-App}, \textsc{F-Case}, ofwel de reflectieve
+regel \textsc{F-Refl}, die de expressie gewoon behoudt. In het vereenvoudigde
+geval, waarbij we slechts \'e\'en argument hebben, kan \textsc{F-Rec}
+gereduceerd worden tot:
 
 \[
 \inferrule*[left=(\textsc{F-Rec'})]
@@ -1829,7 +1850,7 @@ formele uitleg over hoe we de regels hiertoe kunnen uitbreiden. Let er wel op
 dat onze implementatie deze omzetting ook implementeerd (zie subsectie
 \ref{subsection:what-morphism-fold}).
 
-Ter illustratie gebruiken we de eenvoudige expliciet recursieve functie
+Ter illustratie gebruiken we hier de eenvoudige expliciet recursieve functie
 |sumTree|:
 
 \begin{spec}
@@ -2102,11 +2123,7 @@ bijvoorbeeld |sum|.
     sum (1 : 2 : 3 : [])
 == {- inline |sum (:)| -}
     1 + sum (2 : 3 : [])
-== {- inline |sum (:)| -}
-    1 + 2 + sum (3 : [])
-== {- inline |sum (:)| -}
-    1 + 2 + 3 + sum []
-== {- inline |sum (:)| -}
+== {- inline |sum (:)| nog 3 maal -}
     1 + 2 + 3 + sum []
 == {- inline |sum []| -}
     1 + 2 + 3 + 0
@@ -2647,7 +2664,7 @@ foldlTree' = \f z0 tree ->
 waarden construeren met concrete constructoren, om te zetten naar functies die
 gebruik maken van de build voor het corresponderende datatype.
 
-We gebruiken ook hier ook meer determintisch algoritme dan de
+We gebruiken ook hier ook meer determintisch algoritme dan de voorgestelde
 niet-deterministische regels voorgesteld in hoofdstuk
 \ref{chapter:build-detection}. Als voorbeeld gebruiken we de functie
 |infiniteTree|:
@@ -2935,18 +2952,17 @@ manueel):
 \begin{itemize}[topsep=0.00cm]
 
 \item Imports toevoegen zoals de module |WhatMorphism.HaskellList| (zodanig dat
-onze |foldr| en |build| functies voor lijsten in scope zijn),
+onze |foldr| en |build| functies voor lijsten in beschikbaar zijn),
 |WhatMorphism.TemplateHaskell| (zodat de Template Haskell |deriveFold| en
-|deriveBuild| beschikbaar zijn) en tenslotte ook de module
+|deriveBuild| beschikbaar zijn) en tenslotte importeren we ook de module
 |WhatMorphism.Annotations| (om annotaties te kunnen toevoegen, zie subsectie
 \ref{subsection:annotations}).
 
-\item Als we in een module builds en folds willen genereren, moeten we ook de
-pragma's \verb@{-# LANGUAGE Rank2Types #-}@ en
-\verb@{-# LANGUAGE TemplateHaskell #-}@ toevoegen. Hiervan dient het eerste om
-het expliciet universeel gekwantificeerde type van build-functies toe te laten,
-en het tweede laat ons toe de |deriveFold| en |deriveBuild| functie op te
-roepen.
+\item Als we in een module builds en folds willen genereren, moeten we ook in de
+module-header de pragma's \verb@{-# LANGUAGE Rank2Types #-}@ en \verb@{-#
+LANGUAGE TemplateHaskell #-}@ toevoegen. Hiervan dient het eerste om het
+expliciet universeel gekwantificeerde type van build-functies toe te laten, en
+het tweede laat ons toe de |deriveFold| en |deriveBuild| functie op te roepen.
 
 \item Bij types waarvoor we een fold en build willen genereren plaatsen we
 vervolgens de |deriveFold|- en |deriveBuild|-functies, en ook een annotatie.
@@ -3015,8 +3031,8 @@ omzetten naar een build: ons algoritme is niet in staat om te zien dat |foldr|
 enkel de constructoren |(:)| en |[]| zal gebruiken. In dit geval kan |upper| dus
 enkel als consument van een lijst van foldr/build-fusion genieten.
 
-Daaruit kunnen we concluderen dat het voordelig is |WhatMorphism.Build|
-uit te voeren voor |WhatMorphism.Fold| en niet omgekeerd.
+We kunnen concluderen dat het voordelig |WhatMorphism.Build| uit te voeren voor
+|WhatMorphism.Fold| en niet omgekeerd.
 
 Een alternatief zou zijn om een extra \textsc{B-Fold} regel toe te voegen aan de
 regels in hoofdstuk \ref{chapter:build-detection}. Deze zou dan ook bepaalde
@@ -3030,8 +3046,8 @@ upper :: String -> String
 upper = build $ \cons nil -> foldr (\x xs -> cons (toUpper x) xs) nil
 \end{spec}
 
-\item Vervolgens voeren we |WhatMorphism.Fold| uit, vanwege de bovenstaande
-redenen.
+\item Vervolgens voeren we |WhatMorphism.Fold| uit, vanwege de redenen die we
+hierboven uitlegden.
 
 \item Voor functies die we succesvol omzetten naar folds en builds, passen we de
 \emph{inliner-info} aan. Dit zorgt ervoor dat GHC deze agressief zal proberen
@@ -3722,5 +3738,10 @@ dus niet tot de mogelijkheden.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \bibliographystyle{plainnat}
 \bibliography{references}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\blankpage
+
 
 \end{document}
