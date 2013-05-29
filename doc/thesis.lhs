@@ -3084,8 +3084,8 @@ Een eerste aspect dat we kunnen bekijken is hoe goed de detectie van folds (zie
 hoofdstuk \ref{chapter:fold-detection}) werkt. We bespraken reeds dat onze tool
 niet alle mogelijk folds kan detecteren. Helaas is het ook zeer intensief werk
 om een exacte telling te doen van het aantal folds in een codebase, aangezien
-dit manueel zou moeten gebeuren. Het lijkt dus niet mogelijk om valse negatieven
-te vinden.
+dit manueel moet gebeuren. Het lijkt dus bijzonder lastig om valse negatieven te
+vinden.
 
 We kunnen wel vergelijken met andere tools. Hiervan is \emph{HLint} \cite{hlint}
 een voorbeeld. HLint is een tool dat Haskell-packages leest en suggesties geeft
@@ -3336,13 +3336,14 @@ bomen (rechts).}
 \chapter{Related work}
 \label{chapter:related-work}
 
-In de paper ``A short cut to deforestation'' \cite{gill1993} werd de
-foldr/build-fusion regel reeds bediscussi\"eerd. De auteurs leggen de voordelen
-van deze aanpak uit, ondersteund door vele benchmarks. Ze vermelden echter ook
-de problemen rond het feit dat om van deze optimalisaties te kunnen genieten,
-alle programmeurs hun code in een specifieke stijl moeten schrijven, met andere
-woorden, door gebruik te maken van |foldr| en |build|. Dit is natuurlijk exact
-het probleem dat we willen oplossen in deze thesis.
+In het paper ``A short cut to deforestation'' \cite{gill1993} werd de
+foldr/build-fusion regel reeds besproken. De auteurs leggen de voordelen van
+deze aanpak uit, ondersteund door vele benchmarks. Ze vermelden echter ook de
+problemen rond het feit dat om van deze optimalisaties te kunnen genieten, alle
+programmeurs hun code in een specifieke stijl moeten schrijven. In dit concrete
+geval moet men gebruik te maken van |foldr| en |build| -- anders is de
+optimalisatie niet van toepassing. Dit is natuurlijk precies het probleem dat we
+willen oplossen in deze thesis.
 
 \emph{Stream fusion} \cite{coutts2007} is een ge\"avanceerd alternatief op
 foldr/build-fusion. Een groot voordeel hiervan is dat het makkelijker fusion kan
@@ -3490,9 +3491,9 @@ data Expr  =  Const Int
            |  Equal Expr Expr
 \end{spec}
 
-Dit laat toe om numerieke waarden bij elkaar op te tellen en deze vervolgens te
-vergelijken. Met dit datatype is het is echter ook mogelijk om expressies op te
-stellen als:
+Dit type laat toe om numerieke waarden bij elkaar op te tellen en deze
+vervolgens te vergelijken. Met dit datatype is het is echter ook mogelijk om
+expressies op te stellen als:
 
 \[ |Add (Equal (Const 1) (Const 2)) (Const 3)| \]
 
@@ -3500,8 +3501,8 @@ Deze expressie telt 3 op bij het resultaat van |1 == 2|. In ongetypeerde talen
 geeft dit een runtime-fout. De vraag is nu natuurlijk of we met het
 ge\"avanceerde typesysteem van Haskell een betere oplossing hiervoor kunnen
 construeren. Dit blijkt mogelijk te zijn door middel van GADTs
-\cite{cheney2003}. Deze laten toe het return-type van een constructor expliciet
-vast te leggen.
+\cite{cheney2003}, die toelaten toe het return-type van een constructor
+expliciet vast te leggen.
 
 \begin{spec}
 data Expr a where
