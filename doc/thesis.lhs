@@ -309,6 +309,11 @@ grote versnellingen. De resultaten hiervan zijn terug te vinden in hoofdstuk
 
 \end{enumerate}
 
+Dit heeft veel praktische toepassingen en om ons werk dan ook zo toegankelijk
+mogelijk te maken, werken we ook aan een engelstalig artikel over hetzelfde
+onderwerp, ``Bringing Functions into the Fold''. Dit artikel zullen we indienen
+voor de ACM SIGPLAN Haskell Symposium 2013 conferentie.
+
 We kozen Haskell als programmeertaal voor ons onderzoek. In het volgende
 hoofdstuk zullen we kort ingaan op de eigenschappen van deze programmeertaal die
 we gebruiken in deze thesis.
@@ -2880,7 +2885,7 @@ een datatype en wordt op de volgende manier geassocieerd met het type:
 Eens deze annotaties aanwezig zijn in de source code, kunnen we ze op eenvoudige
 wijze ophalen in onze plugin wanneer we deze informatie nodig hebben.
 
-\subsection{Detectie of transformatie}
+\subsection{Detectie of transformatie?}
 \label{subsection:detection-or-transformation}
 
 Bij installatie is het mogelijk een aantal opties in te stellen. Hier is het
@@ -3333,7 +3338,7 @@ bomen (rechts).}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Related work}
+\chapter{Gerelateerd onderzoek}
 \label{chapter:related-work}
 
 In het paper ``A short cut to deforestation'' \cite{gill1993} werd de
@@ -3447,21 +3452,47 @@ het MAG-framework.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Conclusie}
+\chapter[Conclusie en mogelijke uitbreidingen]{Conclusie en mogelijke \\
+uitbreidingen}
 \label{chapter:conclusion}
 
-\begin{itemize}
-\item Samenvatting
-\item Reflectie
-\end{itemize}
+\section{Conclusie}
 
-\section{Toekomstig werk}
+Programmeurs willen gebruik maken van programmeertalen van hoog niveau, om
+productiever te kunnen zijn en elegante, goed onderhoudbare code te schrijven.
+Tegelijk is er ook een verlangen dat code zeer effici\"ent blijft. Deze twee
+idee\"en lijken tegenstrijdig maar door slimme compilers en optimalisaties is
+dit grotendeels mogelijk.
+
+Het werk dat wij presenteerden in deze thesis is een dergelijke slimme
+optimalisatie. Het laat de programmeur toe om kleine, eenvoudige functies te
+schrijven. Vervolgens kan men meer complexe operaties uitdrukken als combinaties
+van deze kleine functies, die telkens tijdelijke structuren opbouwen en
+afbreken. Als dit op een na\"ieve manier gecompileerd wordt, zal dit zeer
+ineffici\"ent zijn. Door ons werk kunnen een subset van deze functies echter op
+een automatische gefuseerd worden naar effici\"entere varianten.
+
+Enerzijds toonden we met onze implementatie aan dat deze gefuseerde versies veel
+effici\"enter zijn (zie sectie \ref{section:benchmarks}) en anderzijds toonden
+we ook aan dat er veel functies zijn die momenteel niet van dit soort
+optimalisaties kunnen genieten (zie secties \ref{section:fold-detection-results}
+en \ref{section:build-detection-results}). Tenslotte kunnen functies van deze
+laatste soort door onze plugin automatisch herschreven worden zodat ze wel in
+aanmerking komen voor deze optimalisaties!
+
+Dit werk is dus een stap in de richting naar expressieve programmeertalen van
+hoog niveau met zeer effici\"ente implementaties. Om dit werk toegankelijker te
+maken, schrijven we ook het engelstalig artikel ``Bringing Functions into the
+Fold'', dat we zullen indienen voor de ACM SIGPLAN Haskell Symposium 2013
+conferentie.
+
+\section{Mogelijke uitbreidingen}
 \label{section:future-work}
 
 In deze sectie geven we een aantal idee\"en en suggesties over hoe ons werk kan
 uitgebreid worden in de toekomst.
 
-\section{Betere integratie}
+\subsection{Betere integratie}
 
 Zoals we reeds in sectie \ref{section:foldr-build-fusion-results} vermeldden,
 werken onze plugins niet optimaal samen met bijvoorbeeld de bestaande
@@ -3480,8 +3511,8 @@ praktisch. Een betere oplossing zou zijn om een aantal \verb|{-# RULES #-}|
 pragma's toe te voegen, \'e\'en voor elke functie uit |Data.List|, zodang dat
 deze ook gefused kunnen worden met onze folds en builds.
 
-\section{GADTs}
-\label{section:gadts}
+\subsection{GADTs}
+\label{subsection:gadts}
 
 Beschouw het volgende eenvoudige expressie-type:
 
@@ -3516,7 +3547,7 @@ en builds kunnen opgesteld worden. Bijgevolg is het wenselijk voor ons werk om
 ook in staat te zijn deze folds en builds te kunnen genereren en herkennen.
 Hiervan hebben we echter nog geen implementatie.
 
-\section{Indirect recursieve datatypes}
+\subsection{Indirect recursieve datatypes}
 
 In sectie \ref{section:ghc-core} hadden we het reeds over indirecte recursie.
 Daarbij gaven we het voorbeeld:
@@ -3557,7 +3588,7 @@ data Rose tag a where
     Cons  :: Rose Node a -> Rose List a -> Rose List a
 \end{spec}
 
-In sectie \ref{section:gadts} bespraken we reeds dat we ook folds en builds
+In sectie \ref{subsection:gadts} bespraken we reeds dat we ook folds en builds
 kunnen schrijven voor GADTs. Deze omzetting vormt dus \'e\'en mogelijke
 oplossing, die echter niet echt praktisch is. We bekijken nu twee betere
 oplossingen. Het verschil ligt erin hoe we met het geneste type (in dit geval de
