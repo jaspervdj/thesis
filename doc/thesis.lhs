@@ -140,6 +140,40 @@ elapsed = undefined
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter*{Dankwoord}
+
+Het schrijven van een thesis is een uitputtende en tijdrovende zaak. Een groot
+aantal mensen hebben mij echter bijgestaan en ervoor gezorgd dat ik zelfs in
+moeilijke perioden steeds mijn motivatie en interesse bleef behouden.
+
+Dank gaat uit naar mijn promotor, prof. dr. ir. Tom Schrijvers en mijn
+begeleider Steven Keuchel. Voor vele correcties in de thesistekst wil ik graag
+Andy Georges, Tom Naessens en Toon Willems  bedanken. Ten laatste wil ik mijn
+ouders bedanken, en natuurlijk ook mijn vrienden, voor de schitterende
+studententijd die ik op de Universiteit Gent beleefd heb.
+
+\vspace{5.00cm}
+
+\noindent Jasper Van der Jeugt \\
+mei 2013
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter*{Toelating tot bruikleen}
+
+De auteur geeft de toelating deze masterproef voor consultatie beschikbaar te
+stellen en delen van de masterproef te kopiëren voor persoonlijk gebruik.  Elk
+ander gebruik valt onder de beperkingen van het auteursrecht, in het bijzonder
+met betrekking tot de verplichting de bron uitdrukkelijk te vermelden bij het
+aanhalen van resultaten uit deze masterproef.
+
+\vspace{5.00cm}
+
+\noindent Jasper Van der Jeugt \\
+mei 2013
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \maketitle
 \tableofcontents
 
@@ -3350,7 +3384,7 @@ geval moet men gebruik te maken van |foldr| en |build| -- anders is de
 optimalisatie niet van toepassing. Dit is natuurlijk precies het probleem dat we
 willen oplossen in deze thesis.
 
-\emph{Stream fusion} \cite{coutts2007} is een ge\"avanceerd alternatief op
+\emph{Stream fusion} \cite{coutts2007} is een geavanceerd alternatief op
 foldr/build-fusion. Een groot voordeel hiervan is dat het makkelijker fusion kan
 toepassen op functies als zoals |zip|.
 
@@ -3412,7 +3446,7 @@ laten we achterwege):
 \[ |stream . unstream| ~~ |==| ~~ |id| \]
 \end{theorem:stream-fusion}
 
-Het nadeel van deze meer ge\"avanceerde vorm van fusion is dus ook dat de
+Het nadeel van deze meer geavanceerde vorm van fusion is dus ook dat de
 programmeurs alle code in een specifieke stijl moeten schrijven (ditmaal in
 termen van |Stream|) om te kunnen genieten van deze optimalisatie. Hier is het
 dus ook interessant om te kijken of deze transformatie niet automatisch kan
@@ -3458,33 +3492,41 @@ uitbreidingen}
 
 \section{Conclusie}
 
-Programmeurs willen gebruik maken van programmeertalen van hoog niveau, om
-productiever te kunnen zijn en elegante, goed onderhoudbare code te schrijven.
-Tegelijk is er ook een verlangen dat code zeer effici\"ent blijft. Deze twee
-idee\"en lijken tegenstrijdig maar door slimme compilers en optimalisaties is
-dit grotendeels mogelijk.
+Programmeurs verkiezen vaak om programmeertalen met een hoog abstractieniveau te
+gebruiken omwille van elegante, goed onderhoudbare code te kunnen schrijven.
+Toch blijft de prestatie van de uitgevoerde code van groot belang, m.a.w., de
+code moet vertaald kunnen woden naar effici\"ente machinecode. De conflicten
+tussen beide doelstellingen kunnen heden ten dage vrij goed worden opgelost door
+het gebruik van geavanceerde compilers en slimme optimalisaties.
 
-Het werk dat wij presenteerden in deze thesis is een dergelijke slimme
-optimalisatie. Het laat de programmeur toe om kleine, eenvoudige functies te
-schrijven. Vervolgens kan men meer complexe operaties uitdrukken als combinaties
-van deze kleine functies, die telkens tijdelijke structuren opbouwen en
-afbreken. Als dit op een na\"ieve manier gecompileerd wordt, zal dit zeer
-ineffici\"ent zijn. Door ons werk kunnen een subset van deze functies echter op
-een automatische gefuseerd worden naar effici\"entere varianten.
+In deze thesis hebben we een dergelijke slimme optimalisatie beschreven en
+geimplementeerd. Ons wek laat de programmeur toe zijn code op te bouwen met
+kleine, duidelijk begrijpbare en makkelijk testbare functies. Meer complexe
+operaties worden dan op een natuurlijke manier uitgedrukt als een combinatie van
+deze bouwstenen. Conceptueel maken deze combinaties tijdelijke structuren die
+vervolgens afgebroken worden om het eindresultaat te berekenen. Alhoewel dit
+toelaat om te redeneren over de code en het dus eenvoudiger wordt het programma
+te begrijpen, zal een na\"ieve compiler uiteindelijk bijzonder ineffici\"ente
+code afleveren die de beschikbare machinebronnen niet goed benut en bijgevolg
+zeer slecht presteert. Door ons werk kan een subset van deze functies echter op
+een automatische manier gefuseerd worden naar effici\"entere varianten.
 
-Enerzijds toonden we met onze implementatie aan dat deze gefuseerde versies veel
-effici\"enter zijn (zie sectie \ref{section:benchmarks}) en anderzijds toonden
-we ook aan dat er veel functies zijn die momenteel niet van dit soort
-optimalisaties kunnen genieten (zie secties \ref{section:fold-detection-results}
-en \ref{section:build-detection-results}). Tenslotte kunnen functies van deze
-laatste soort door onze plugin automatisch herschreven worden zodat ze wel in
-aanmerking komen voor deze optimalisaties!
+Enerzijds hebben we aangetoond dat veel functies momenteel niet in aanmerking
+komen voor de optimalisaties die we hebben voorgesteld (zie secties
+\ref{section:fold-detection-results} en \ref{section:build-detection-results});
+anderzijds hebben we aangetoond dat eenmaal fusie mogelijk is, de implementatie
+of resulterende machinecode veel effici\"enter zal zijn tijdens het uitvoeren
+(zie sectie \ref{section:benchmarks}). Om de eerste tekortkoming aan te pakken
+hebben we een techniek ontwikkeld die toelaat om functies automatisch te
+herschrijven zodat ze wel in aanmerking komen voor deze optimalisaties.
 
-Dit werk is dus een stap in de richting naar expressieve programmeertalen van
-hoog niveau met zeer effici\"ente implementaties. Om dit werk toegankelijker te
-maken, schrijven we ook het engelstalig artikel ``Bringing Functions into the
-Fold'', dat we zullen indienen voor de ACM SIGPLAN Haskell Symposium 2013
-conferentie.
+Ons werk vormt dus een volgende stap in de implementatie van effici\"ente
+hoog-niveau programmeertalen. Een artikel waarin dit werk wordt voorgesteld in
+een meer beknopte vorm, zal worden opgestuurd naar de ACM SIGPLAN Haskell
+Symposium 2013 conferentie onder de naam ``Bringing Functions into the Fold''.
+
+Tot slot vermelden we in de volgende secties nog een aantal uitbreidingen die in
+later onderzoek kunnen worden uitgewerkt.
 
 \section{Mogelijke uitbreidingen}
 \label{section:future-work}
@@ -3529,11 +3571,10 @@ expressies op te stellen als:
 \[ |Add (Equal (Const 1) (Const 2)) (Const 3)| \]
 
 Deze expressie telt 3 op bij het resultaat van |1 == 2|. In ongetypeerde talen
-geeft dit een runtime-fout. De vraag is nu natuurlijk of we met het
-ge\"avanceerde typesysteem van Haskell een betere oplossing hiervoor kunnen
-construeren. Dit blijkt mogelijk te zijn door middel van GADTs
-\cite{cheney2003}, die toelaten toe het return-type van een constructor
-expliciet vast te leggen.
+geeft dit een runtime-fout. De vraag is nu natuurlijk of we met het geavanceerde
+typesysteem van Haskell een betere oplossing hiervoor kunnen construeren. Dit
+blijkt mogelijk te zijn door middel van GADTs \cite{cheney2003}, die toelaten
+toe het return-type van een constructor expliciet vast te leggen.
 
 \begin{spec}
 data Expr a where
@@ -3679,7 +3720,7 @@ dus niet tot de mogelijkheden.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\bibliographystyle{unsrtnat}
+\bibliographystyle{plainnat}
 \bibliography{references}
 
 \end{document}
