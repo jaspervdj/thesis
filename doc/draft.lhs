@@ -1226,22 +1226,100 @@ used hlint during development.
 
 \tom{We need to benchmark foldr/build examples from the literature.}
 
+%===============================================================================
+\section{Limitations}
+
+Our approach is currently limited to directly recursive functions that recurse
+over basic regular datatypes. Below we describe a number of cases that are not handled.
+
+%-------------------------------------------------------------------------------
+\paragraph{Mutually Recursive Functions}
+Our approach currently does not deal with mutually recursive functions like:
+\begin{code}
+concat []      = []
+concat (x:xs)  = concat' x xs
+
+concat' []     xs  = concat xs
+concat' (y:ys) xs   = y : concat' ys
+\end{code}
+which can be rewritten as:
+\begin{code}
+concat l = build (g l)
+
+concat' x xs = build (g' x xs)
+
+g l c n = foldr (\x xs -> foldr c xs x) n l
+
+g' l xs c n = foldr c (g xs c n) l
+\end{code}
+An important special case of the above situation is that where one function is
+a local definition of the other.
+\tom{This happens in practice with our tool.}
+
+%-------------------------------------------------------------------------------
+\paragraph{Mutually Recursive Datatypes}
+
+Mutually recursive functions arise naturally for mutually recursive datatypes like
+rose trees. For instance,
+\begin{code}
+data Rose   = Node Int Forest
+data Forest = Nil | Cons Rose Forest
+
+sizeR (Node _ f)  = 1 + sizeF f
+
+sizeF Nil         = 0
+sizeF (Cons r f)  = sizeR r + sizeF f
+\end{code}
+can be written as
+\begin{code}
+data Rose   = Node Int Forest
+data Forest = Nil | Cons Rose Forest
+
+sizeR = foldR (\x f -> 1 + f) 0 (\r f -> r + f) 
+sizeF = foldF (\x f -> 1 + f) 0 (\r f -> r + f)
+\end{code}
+where the two mutually recursive datatypes have the following signatures for their
+fold functions:
+\begin{code}
+foldR  :: (Int -> f -> r) -> f -> (r -> f -> f) -> Rose    -> r 
+foldF  :: (Int -> f -> r) -> f -> (r -> f -> f) -> Forest  -> f
+\end{code}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Related Work}
 
-In ``A short cut to deforestation'' \cite{gill1993}, the foldr/build rule is
-discussed. The authors discuss the benefits of this approach, supported by many
-benchmarks. However, they also mention the issues with the fact that every
-programmer needs to use a specific style (i.e., write all functions in terms of
-|foldr|/|build|). Naturally, this is exactly what our research mitigates!
+%-------------------------------------------------------------------------------
+\subsection{Applications of Folds and Fusion}
 
-Stream fusion \cite{coutts2007} is an advanced alternative to foldr/build
-fusion. It has the benefits of easily being able to fuse zips and left folds.
-However, at the time of writing, there is no known reliable method of optimising
-uses of |concatMap|. |concatMap| is important because it represents the entire
-class of nested list computations, including list comprehensions
-\cite{coutts2010}.
+There is a long line of work on writing recursive functions in terms of
+structured recursion schemes, as well as proving fusion properties of these and
+exploiting them for deriving efficient programs.
 
+Bird and Meertens~\cite{bird,meertens} have come up with several equational
+laws for recursion schemes to serve them in their work on program calculation.
+
+With their Squiggol calculus, Meijer et al.~\cite{meijer1991} promote the use
+of structured recursion by means of recursion operators. These operators are
+defined in a datatype generic way and are equipped with a number of algebraic
+laws that enable equivalence-preserving program transformations.
+
+Gibbons~\cite{Gibbons2003:Origami} promotes explicit programming in terms of
+folds and unfolds, which he calls \emph{origami} programming. Unfolds are the dual
+of folds, and capture a special case of builds.
+
+Gill et al.~\cite{gill1993} present the foldr/build fusion rule and discuss
+its benefits. They mention that it would be desirable, yet highly challenging,
+for the compiler to notice whether functions can be expressed in terms of |foldr|
+and |build|. That would allow programmers to write programs in whatever style they like.
+
+Stream fusion~\cite{coutts2007} is an alternative to foldr/build fusion. It
+has the benefits of easily being able to fuse zips and left folds. However, at
+the time of writing, there is no known reliable method of optimising uses of
+|concatMap|. |concatMap| is important because it represents the entire class of
+nested list computations, including list comprehensions~\cite{coutts2010}.
+
+%-------------------------------------------------------------------------------
+\subsection{Automatic Discovery}
 The \emph{hlint}~\cite{hlint} tool is designed to recognize various code
 patterns and offer suggestions for improving them. In particular, it recognizes
 various forms of explicit recursion and suggests the use of appropriate
@@ -1250,10 +1328,6 @@ recursion patterns.  As we already showed in Section
 \ref{subsection:identifying-folds}, we are able to detect more instances of
 folds for Haskell lists than hlint. Moreover, hlint makes no effort to detect
 folds for other algebraic datatypes.
-
-Gibbons~\cite{Gibbons2003:Origami} promotes explicit programming in terms of
-folds and unfolds, which he calls \emph{origami} programming. Unfolds are the dual
-of folds, and capture a special case of builds.
 
 Sittampalam and de Moor~\cite{mag} present a semi-automatic approach to |foldr|
 fusion based on the MAG system. In their approach, the programmer specifies the
