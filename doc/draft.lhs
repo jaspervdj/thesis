@@ -1205,32 +1205,36 @@ fact that our analysis is more powerful than that of hlint.  Also, hlint does
 not look for catamorphisms over other datatypes than lists, while several
 packages do have a significant number of those.
 
-\begin{table}
+\begin{table*}
 \begin{center}
 \ra{1.3}
-\begin{tabular}{@@{}lrrrrrrr@@{}}
+\begin{tabular}{@@{}lrrrrrrrrrrr@@{}}
 \toprule
-\textbf{Package} & \textbf{Total} & List & Other & V. arg. & N. rec. & \textbf{HLint} \\
+                 & \multicolumn{6}{c}{\textbf{folds}} &
+                 & \multicolumn{4}{c}{\textbf{builds}} \\
+\cmidrule{2-7} \cmidrule{9-12}
+\textbf{Package} & \textbf{Total} & List & Other & V. arg. & N. rec. & \textbf{HLint} &
+                 & \textbf{Total} & List & Other & Rec. \\
 \midrule
-Cabal                   & 20  & 11  & 9   & 6   & 0   & 9  \\
-containers              & 100 & 11  & 89  & 41  & 11  & 1  \\
-cpphs                   & 5   & 2   & 3   & 3   & 0   & 1  \\
-darcs                   & 66  & 65  & 8   & 1   & 0   & 6  \\
-ghc                     & 327 & 216 & 111 & 127 & 9   & 26 \\
-hakyll                  & 5   & 1   & 4   & 3   & 0   & 0  \\
-haskell-src-exts        & 37  & 11  & 26  & 15  & 0   & 2  \\
-hlint                   & 6   & 3   & 3   & 1   & 0   & 0  \\
-hscolour                & 4   & 4   & 0   & 0   & 0   & 2  \\
-HTTP                    & 6   & 6   & 0   & 2   & 0   & 3  \\
-pandoc                  & 15  & 15  & 0   & 1   & 0   & 2  \\
-parsec                  & 3   & 3   & 0   & 1   & 0   & 0  \\
-snap-core               & 4   & 3   & 1   & 1   & 0   & 0  \\
+Cabal-1.16.0.3          & 20  & 11  & 9   & 6   & 0   & 9  & & 101 & 81  & 20  & 5  \\
+containers-0.5.2.1      & 100 & 11  & 89  & 41  & 11  & 1  & & 25  & 2   & 23  & 12 \\
+cpphs-1.16              & 5   & 2   & 3   & 3   & 0   & 1  & & 6   & 5   & 1   & 3  \\
+darcs-2.8.4             & 66  & 65  & 8   & 1   & 0   & 6  & & 354 & 354 & 0   & 26 \\
+ghc-7.6.3               & 327 & 216 & 111 & 127 & 9   & 26 & & 480 & 178 & 302 & 53 \\
+hakyll-4.2.2.0          & 5   & 1   & 4   & 3   & 0   & 0  & & 22  & 18  & 4   & 2  \\
+haskell-src-exts-1.13.5 & 37  & 11  & 26  & 15  & 0   & 2  & & 140 & 74  & 66  & 16 \\
+hlint-1.8.44            & 6   & 3   & 3   & 1   & 0   & 0  & & 69  & 62  & 7   & 1  \\
+hscolour-1.20.3         & 4   & 4   & 0   & 0   & 0   & 2  & & 33  & 33  & 0   & 2  \\
+HTTP-4000.2.8           & 6   & 6   & 0   & 2   & 0   & 3  & & 11  & 11  & 0   & 5  \\
+pandoc-1.11.1           & 15  & 15  & 0   & 1   & 0   & 2  & & 97  & 97  & 0   & 16 \\
+parsec-3.1.3            & 3   & 3   & 0   & 1   & 0   & 0  & & 10  & 10  & 0   & 0  \\
+snap-core-0.9.3.1       & 4   & 3   & 1   & 1   & 0   & 0  & & 4   & 4   & 0   & 0  \\
 \bottomrule
 \end{tabular}
-\caption{Results of identifying folds in some well-known projects}
+\caption{Results of identifying folds and builds in well-known Haskell packages}
 \label{tabular:project-results}
 \end{center}
-\end{table}
+\end{table*}
 
 Folds with a variant arguments (left folds) are found quite regularly in
 Haskell packages, but those with nested recursive calls are much rarer. We have
