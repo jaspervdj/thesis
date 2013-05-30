@@ -1165,41 +1165,66 @@ pattern matching -- the only kind of branching possible in GHC Core.
 \section{Evaluation}
 
 %-------------------------------------------------------------------------------
-\subsection{Identifying folds}
+\subsection{Identifying Folds}
 \label{subsection:identifying-folds}
 
-A first aspect we can evaluate is how well our detection of folds works.
-Unfortunately, manually identifying folds in projects takes too much time. This
-explains why it is especially hard to detect false negatives.
+In order to test the quality of our fold discovery algorithm, we have applied
+it to 13 popular Haskell packages. This experiment also provides us with an
+estimate (a lower bound) of the number of explicitly recursive catamorphisms
+that experienced Haskell programmers write in practice.
 
-Additionally, very little other related work is done. The \emph{hlint}
-\cite{hlint} tool is able to recognize folds as well, but its focus lies on
-refactoring rather than optimisations.
+Table \ref{tabular:project-results} lists the results of our analysis. The
+first column lists the names of the packages and the second column (Total)
+reports the total number of discovered catamorphisms. The third and fourth
+column split up this total number in catamorphisms over lists (List) and
+catamorphisms over other algebraic datatypes (Other). The fifth column (V.
+arg.) shows the number of catamorphisms with auxiliary variable arguments
+(e.g., left folds). The sixth column (N. rec.) counts the number of variable argument
+catamorphisms with nested recursive calls such as the |f vs (f vs (v + acc))| example
+from Section~\ref{}.
 
-In Table \ref{tabular:project-results}, we can see the results of running our
-tool on some well-known Haskell projects. We classify folds into three
-categories:
+Finally, the last column provides the analysis results of
+\emph{hlint}~\cite{hlint} for comparison. This tool provides hints on
+how to refactor Haskell source code. The listed results reflect the number of
+suggestions on the use of |map|, |filter| and |foldr| rather than explicit
+recursion.
 
-\begin{itemize}
-\item Degenerate folds, as described in \ref{subsection:degenerate-folds};
-\item List folds, folds over data structures of type |[a]|;
-\item Data folds, folds over any other data structure.
-\end{itemize}
+We see that across all packages our analysis finds more list catamorphisms than
+hlint. In fact, our tool discovers some list catamorphisms in hlint's own
+source code that hlint cannot find itself. Moreover, in addition to the results
+in the table, our tool also successfully identifies all the list folds in the
+hlint test suite.  There are three other packages in which hlint does not find
+any catamorphisms. This is likely due to the fact that the authors of those
+packages have themselves used hlint to discover and eliminate explicit
+recursion.
 
-\tom{We should omit degenerate folds from the table because they are not interesting.}
+We attribute the better results of our tool partly to the fact that more
+catamorphisms are exposed in the core representation by GHC's program
+transformations.  However, to a large extent, the better results are due to the
+fact that our analysis is more powerful than that of hlint.  Also, hlint does
+not look for catamorphisms over other datatypes than lists, while several
+packages do have a significant number of those.
 
 \begin{table}
 \begin{center}
 \ra{1.3}
-\begin{tabular}{@@{}lrrrr@@{}}
+\begin{tabular}{@@{}lrrrrrrr@@{}}
 \toprule
-                    & Degenerate & List & Data & hlint \\
+\textbf{Package} & \textbf{Total} & List & Other & V. arg. & N. rec. & \textbf{HLint} \\
 \midrule
-\textbf{hlint}      &   248             & 17   & 25  & 0     \\
-\textbf{parsec}     &   150             &  6   &  0  & 0     \\
-\textbf{containers} &   311             &  7   & 75  & 0     \\
-\textbf{pandoc}     & 1,012             & 35   &  1  & 0     \\
-\textbf{cabal}      & 1,701             & 43   & 30  & 1     \\
+Cabal                   & 20  & 11  & 9   & 6   & 0   & 9  \\
+containers              & 100 & 11  & 89  & 41  & 11  & 1  \\
+cpphs                   & 5   & 2   & 3   & 3   & 0   & 1  \\
+darcs                   & 66  & 65  & 8   & 1   & 0   & 6  \\
+ghc                     & 327 & 216 & 111 & 127 & 9   & 26 \\
+hakyll                  & 5   & 1   & 4   & 3   & 0   & 0  \\
+haskell-src-exts        & 37  & 11  & 26  & 15  & 0   & 2  \\
+hlint                   & 6   & 3   & 3   & 1   & 0   & 0  \\
+hscolour                & 4   & 4   & 0   & 0   & 0   & 2  \\
+HTTP                    & 6   & 6   & 0   & 2   & 0   & 3  \\
+pandoc                  & 15  & 15  & 0   & 1   & 0   & 2  \\
+parsec                  & 3   & 3   & 0   & 1   & 0   & 0  \\
+snap-core               & 4   & 3   & 1   & 1   & 0   & 0  \\
 \bottomrule
 \end{tabular}
 \caption{Results of identifying folds in some well-known projects}
@@ -1207,13 +1232,13 @@ categories:
 \end{center}
 \end{table}
 
-We also tested our tool on the test cases included in the hlint source code, and
-we identified the same folds. However, in arbitrary code (See Table
-\ref{tabular:project-results}), our tool detects more possible folds than hlint.
-This suggests that we detect a strict superset of possible folds, even for
-lists. The fact that the number of possible folds in these projects found by
-hlint is so low indicates that the authors of the respective packages might have
-used hlint during development.
+Folds with a variant arguments (left folds) are found quite regularly in
+Haskell packages, but those with nested recursive calls are much rarer. We have
+only found them in the GHC and containers packages; they may be an indication
+of a rather advanced programming style.
+
+\tom{What can we say about \#folds/LoC ratio?}
+\tom{Perform same experiment on FLP project.}
 
 %-------------------------------------------------------------------------------
 \subsection{Identifying builds}
@@ -1285,6 +1310,75 @@ foldR  :: (Int -> f -> r) -> f -> (r -> f -> f) -> Rose    -> r
 foldF  :: (Int -> f -> r) -> f -> (r -> f -> f) -> Forest  -> f
 \end{code}
 
+%-------------------------------------------------------------------------------
+\paragraph{GADTs}
+GADTs pose an additional challenge because they represented
+a family of types whose members are selected by means of a one or more type indices.
+For instance, the GADT |Expr a| represents a family of expression types
+by means of the type index |a|.
+\begin{code}
+data Expr a where
+  Lit :: Int -> Expr Int
+  Add :: Exp Int -> Exp Int -> Exp Int
+  Eq  :: Exp Int -> Exp Int -> Exp Bool
+
+eval :: Expr a -> a
+eval (Lit n)    = n
+eval (Add x y)  = eval x + eval y
+eval (Eq x y)   = eval x == eval y
+\end{code}
+
+This type indexing is reflected in both the fold and build definitions.
+%{
+%format . = "."
+\begin{code}
+foldE  ::  (Int -> r Int) 
+       ->  (r Int -> r Int -> r Int) 
+       ->  (r Bool -> r Bool -> r Bool) 
+       ->  Exp a -> r a
+foldE lit add eq e = go e
+  where 
+   go (Lit n)    = lit n
+   go (Add x y)  = add (go x) (go y)
+   go (Eq x y)   = eq (go x) (go y)
+
+buildExp :: (forall r  .   (Int -> r Int) 
+                       ->  (r Int -> r Int -> r Int) 
+                       ->  (r Int -> r Int -> r Bool) 
+                       ->  r a) -> Exp a
+buildExp g = g Lit Add Eq
+\end{code}
+%}
+
+%{
+%format . = "."
+\begin{code}
+eval e = 
+  runR $ foldE  (\n -> R n) 
+                (\x y -> R (runR x + runID y)) 
+                (\x y -> R (runR x == runR y) 
+                e
+
+newtype R a = R { runR :: a }
+
+foldE  ::  (Int -> r Int) 
+       ->  (r Int -> r Int -> r Int) 
+       ->  (r Bool -> r Bool -> r Bool) 
+       ->  Exp a -> r a
+foldE lit add eq e = go e
+  where 
+   go (Lit n)    = lit n
+   go (Add x y)  = add (go x) (go y)
+   go (Eq x y)   = eq (go x) (go y)
+
+buildExp :: (forall r  .   (Int -> r Int) 
+                       ->  (r Int -> r Int -> r Int) 
+                       ->  (r Int -> r Int -> r Bool) 
+                       ->  r a) -> Exp a
+buildExp g = g Lit Add Eq
+\end{code}
+%}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Related Work}
 
@@ -1320,6 +1414,9 @@ nested list computations, including list comprehensions~\cite{coutts2010}.
 
 %-------------------------------------------------------------------------------
 \subsection{Automatic Discovery}
+
+\tom{Cover GHC rewrite rules}
+
 The \emph{hlint}~\cite{hlint} tool is designed to recognize various code
 patterns and offer suggestions for improving them. In particular, it recognizes
 various forms of explicit recursion and suggests the use of appropriate
