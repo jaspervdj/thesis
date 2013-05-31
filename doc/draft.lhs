@@ -1173,7 +1173,7 @@ it to 13 popular Haskell packages. This experiment also provides us with an
 estimate (a lower bound) of the number of explicitly recursive catamorphisms
 that experienced Haskell programmers write in practice.
 
-Table \ref{tabular:project-results} lists the results of our analysis. The
+Table \ref{tabular:project-results} lists the results of the fold analysis on the left. The
 first column lists the names of the packages and the second column (Total)
 reports the total number of discovered catamorphisms. The third and fourth
 column split up this total number in catamorphisms over lists (List) and
@@ -1246,6 +1246,17 @@ of a rather advanced programming style.
 
 %-------------------------------------------------------------------------------
 \subsection{Identifying builds}
+
+The right-hand side of Table~\ref{tabular:project-results} shows the result of
+the build analysis for the 13 packages. The Total column lists the total number
+of builds per package, while the List and Other columns split up this number
+into list builds and builds of other datatypes. Column Rec show the number of
+recursive builds.
+
+Our main
+observation is that the numbers are roughly proportional to those of the folds.
+Unlike for folds, we are not aware of any other tool that detects builds and would
+provide a basis for comparison.
 
 %-------------------------------------------------------------------------------
 \subsection{Optimization results}
@@ -1391,11 +1402,11 @@ buildExp g = g Lit Add Eq
 
 There is a long line of work on writing recursive functions in terms of
 structured recursion schemes, as well as proving fusion properties of these and
-exploiting them for deriving efficient programs.
+exploiting them for deriving efficient programs. Typically the derivation
+process is performed manually.
 
 Bird and Meertens~\cite{bird,meertens} have come up with several equational
 laws for recursion schemes to serve them in their work on program calculation.
-
 With their Squiggol calculus, Meijer et al.~\cite{meijer1991} promote the use
 of structured recursion by means of recursion operators. These operators are
 defined in a datatype generic way and are equipped with a number of algebraic
@@ -1410,25 +1421,11 @@ its benefits. They mention that it would be desirable, yet highly challenging,
 for the compiler to notice whether functions can be expressed in terms of |foldr|
 and |build|. That would allow programmers to write programs in whatever style they like.
 
-Stream fusion~\cite{coutts2007} is an alternative to foldr/build fusion. It
-has the benefits of easily being able to fuse zips and left folds. However, at
-the time of writing, there is no known reliable method of optimising uses of
-|concatMap|. |concatMap| is important because it represents the entire class of
-nested list computations, including list comprehensions~\cite{coutts2010}.
-
 %-------------------------------------------------------------------------------
-\subsection{Automatic Discovery}
+\subsection{Automation}
 
-\tom{Cover GHC rewrite rules}
-
-The \emph{hlint}~\cite{hlint} tool is designed to recognize various code
-patterns and offer suggestions for improving them. In particular, it recognizes
-various forms of explicit recursion and suggests the use of appropriate
-higher-order functions like |map|, |filter| and |foldr| that capture these
-recursion patterns.  As we already showed in Section
-\ref{subsection:identifying-folds}, we are able to detect more instances of
-folds for Haskell lists than hlint. Moreover, hlint makes no effort to detect
-folds for other algebraic datatypes.
+Higher-order matching is a general technique for matching expressions in
+functional programs against expression templates.
 
 Sittampalam and de Moor~\cite{mag} present a semi-automatic approach to |foldr|
 fusion based on the MAG system. In their approach, the programmer specifies the
@@ -1447,13 +1444,41 @@ applying the rewrite rules. Finally, the programmer needs to check whether MAG
 has only applied the fusion rule to strict functions |f|, a side condition of
 the fusion rule that cannot be specified in MAG.
 
+GHC rewrite rules~\cite{jones2001} are a lightweight way to (semi-)automate fusion. The
+programmer provides rewrite rules to rewrite program patterns into their fused
+forms and the compiler applies these whenever it finds an opportunity.  The one
+part that is not automated is that programmers still have to write their code
+in terms of the higher-order recursion schemes. GHC has set up various of its
+base libraries in this way to benefit from fold/build fusion among others.
+Building on GHC rewrite rules, Coutts et al.~\cite{coutts2007} have proposed
+stream fusion as a convenient alternative to foldr/build fusion. Stream
+fusion is able to fuse zips and left folds, but, on the downside, it is
+less obvious for the programmer to write his functions in the required style.
+% However, at
+% the time of writing, there is no known reliable method of optimising uses of
+% |concatMap|. |concatMap| is important because it represents the entire class of
+% nested list computations, including list comprehensions~\cite{coutts2010}.
+
+The \emph{hlint}~\cite{hlint} tool is designed to recognize various code
+patterns and offer suggestions for improving them. In particular, it recognizes
+various forms of explicit recursion and suggests the use of appropriate
+higher-order functions like |map|, |filter| and |foldr| that capture these
+recursion patterns.  As we already showed in Section
+\ref{subsection:identifying-folds}, we are able to detect more instances of
+folds for Haskell lists than hlint. Moreover, hlint makes no effort to detect
+folds for other algebraic datatypes.
+
+Supercompilation~\cite{supercompilation} is a much more generic and brute-force
+technique for program specialization that is capable of fusing
+producer-consumer pipelines.  Unfortunately, the current state of the art of
+supercompilation for Haskell~\cite{UCAM-CL-TR-835} is still too unreliable to
+be used in practice.
+
 \begin{itemize}
 \item fold applications
-\item supercompilation
 \item datatypes a la carte
 \item attribute grammars
 \end{itemize}
-
 
 %===============================================================================
 \section{Conclusion}
