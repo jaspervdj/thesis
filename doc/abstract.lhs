@@ -34,6 +34,7 @@
 %format e'2 = "e^{\prime}_2"
 %format forall (x) = "\mathopen{}\forall" x "\mathclose{}"
 %format box = "\Box"
+%format elapsed = "\ldots"
 %format triangle = "\triangle"
 %format (many (x)) = "\overline{" x "}"
 \def\commentbegin{\quad$[\![\enskip$}
@@ -78,6 +79,9 @@
 {-# LANGUAGE Rank2Types      #-}
 import Data.Char     (toUpper)
 import Prelude       hiding (head, foldr, map, sum, replicate)
+
+elapsed :: a
+elapsed = undefined
 \end{code}
 }
 
@@ -119,7 +123,7 @@ the attention immediately to what is new (i.e., the function parameters).
 to code size~\cite{gaffney1984}, higher-order functions should lead to fewer
 bugs.
 
-\item Properties can be established for the higher-order function indepently
+\item Properties can be established for the higher-order function independently
 from its particular uses. This makes (e.g., equational) reasoning more
 productive.
 
@@ -139,19 +143,20 @@ foldr f z (x : xs)  = f x (foldr f z xs)
 \end{code}
 
 Indeed, the research literature is full of applications, properties and
-optimisations based on folds. \tom{add many citations}
+optimisations based on folds \cite{wadler1990, gill1993, meijer1991,
+hutton1999}.
 
-Hence, given all these advantages of folds, one would expect every programmer
-to diligently avoid explicit recursion where folds can do the job.
-Unfortunately, that is far from true in practice. For many reasons, programmers
-do not write their code in terms of explicit folds. This class comprises a
-large set of advanced functional programmers \tom{evidence of our case study}.
-This is compounded by the fact that programmers often do not bother to define
-the equivalent of |foldr| for other inductive algebraic datatypes.
+Hence, given all these advantages of folds, one would expect every programmer to
+diligently avoid explicit recursion where folds can do the job.  Unfortunately,
+that is far from true in practice. For many reasons, programmers do not write
+their code in terms of explicit folds. This class comprises a large set of
+advanced functional programmers (see \ref{subsection:identifying-folds}). This
+is compounded by the fact that programmers often do not bother to define the
+equivalent of |foldr| for other inductive algebraic datatypes.
 
 Yet, sadly, these first-order recursive functions are treated as second-class
 by compilers. They do not benefit from the same performance gains like loop
-fusion and deforestations. In fact, the leading Haskell compiler GHC won't
+fusion and deforestation. In fact, the leading Haskell compiler GHC won't
 even inline recursive functions.
 
 We disagree with this injustice and argue that it is quite unnecessary to
@@ -166,10 +171,10 @@ the purpose of automation.
 
 Catamorphisms are functions that \emph{consume} an inductively defined
 datastructure by means of structural recursion. They can be expressed in terms
-of |foldr| \todo{cite}.
+of |foldr| \cite{meijer1991}.
 
 The |build| function is the dual to the |foldr| function. Where the |foldr|
-function captures a pattern of list \emph{consumation}, |build| captures a
+function captures a pattern of list \emph{consummation}, |build| captures a
 particular pattern of list \emph{production}.
 
 %format . = "."
@@ -179,14 +184,14 @@ build g = g (:) []
 \end{code}
 %}
 
-Given these functions, we can \emph{fuse} the production and consumation of a
+Given these functions, we can \emph{fuse} the production and consummation of a
 list: meaning that no intermediate datastructure needs to be allocated. The
 foldr/build-fusion rule is given by:
 
 \[ |foldr cons nil (build g)| ~~ |==| ~~ |g cons nil| \]
 
 The main Haskell compiler, GHC, currently provides limited automation for
-foldr/build fusion: by means of a GHC rewrite rule.  When functions are
+foldr/build-fusion: by means of a GHC rewrite rule.  When functions are
 defined explicitly in terms of |foldr| and |build|, after inlining, the
 rewrite rule may perform the fusion.
 
@@ -195,15 +200,15 @@ restricted to lists and secondly it requires programmers to explicitly define
 their functions in terms of |build| and |foldr|.
 
 This work lifts both limitations. It allows programmers to write their
-functions in explicitly recursive style and performs foldr/build fusion for
-any directly inductive datatype.
+functions in explicitly recursive style and performs foldr/build-fusion for
+any directly inductive datastructure.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Discovering Folds and Builds}
 \label{subsection:identifying-folds-and-builds}
 
-We have divised a set of formal rewrite rules to turn explicitly recursive
+We have devised a set of formal rewrite rules to turn explicitly recursive
 functions into folds and to rewrite producers into builds where possible.
 
 \subsection{Syntax and Notation}
@@ -261,11 +266,11 @@ expressions |many e| does not match the number of box holes.
 \subsection{Rules}
 
 The non-deterministic rules to rewrite functions into folds or builds can be
-found in Figure \ref{fig:foldspec} and Figure \ref{fig:buildspec}
-respectively. To keep the exposition simple, they are only given for lists and
-not arbitrary algebraic datatypes: the specifics for this generalization can
-be found in the full text. As an illustation, consider |map|, which is both a
-fold as well as a build.
+found in Figure \ref{fig:foldspec} and Figure \ref{fig:buildspec} respectively.
+To keep the exposition simple, they are only given for lists and not arbitrary
+algebraic datastructures: the specifics for this generalization can be found in
+the full text. As an illustration, consider |map|, which is both a fold as well
+as a build.
 
 \begin{code}
 map = \f y -> case y of
@@ -410,8 +415,8 @@ We implemented such a plugin, which contains passes:
 
 \item A pass to convert functions written in explicitly recursive style into
 functions in terms of folds. This pass is a deterministic implementation of the
-rules in Figure \ref{fig:foldspec}. Directly inductive datatypes other than
-list are supported as well.
+rules in Figure \ref{fig:foldspec}. Directly inductive datastructures other than
+list are also supported.
 
 \item We have a similar pass for builds: a deterministic implementation of the
 rules in Figure \ref{fig:buildspec}.
@@ -427,7 +432,7 @@ extra rule pragmas \cite{jones2001}.
 \end{itemize}
 
 Additionally our work also contains Template Haskell \cite{sheard2002} routines
-to migitate the burden of defining folds and builds for algebraic datatypes.
+to mitigate the burden of defining folds and builds for algebraic datatypes.
 These folds and builds can be generated by issuing, e.g., for a type |Tree|:
 
 %{
@@ -442,131 +447,162 @@ $(deriveBuild Tree "buildTree")
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation}
 
-%-------------------------------------------------------------------------------
 \subsection{Identifying folds}
 \label{subsection:identifying-folds}
 
 A first aspect we can evaluate is how well our detection of folds works.
-Unfortunately, manually identifying folds in projects takes too much time. This
-explains why it is especially hard to detect false negatives.
+Unfortunately, manually identifying folds in projects very labour-intensive.
+This explains why it is especially hard to detect false negatives.
 
-Additionally, very little other related work is done. The \emph{hlint}
+Additionally, very little other related work is done. There is the \emph{HLint}
 \cite{hlint} tool is able to recognize folds as well, but its focus lies on
-refactoring rather than optimisations.
+refactoring rather than optimisations. We cannot directly compare our results
+with those of HLint since we detect folds over all possible directly inductive
+datastructures, and HLint is limited to list. Hence, we classify the folds we
+detect as either a fold over a list or a fold over some other datastructure.
 
-In Table \ref{tabular:project-results}, we can see the results of running our
-tool on some well-known Haskell projects. We classify folds into three
-categories:
-
-\begin{itemize}
-\item Degenerate folds, as described in \ref{subsection:degenerate-folds};
-\item List folds, folds over data structures of type |[a]|;
-\item Data folds, folds over any other data structure.
-\end{itemize}
-
-\tom{We should omit degenerate folds from the table because they are not interesting.}
+Table \ref{tabular:fold-detection-results} shows that we clearly detect more
+folds than the HLint tool does. Additionally, we also tried our tool on the test
+cases included with HLint -- which we could all correctly detect. This suggests
+that we detect a strict superset of possible folds, even for lists. The fact
+that the number of possible folds in these projects found by HLint is so low
+indicates that the authors of the respective packages might have used HLint
+during development.
 
 \begin{table}
 \begin{center}
-\ra{1.3}
-\begin{tabular}{@@{}lrrrr@@{}}
-\toprule
-                    & Degenerate & List & Data & hlint \\
-\midrule
-\textbf{hlint}      &   248             & 17   & 25  & 0     \\
-\textbf{parsec}     &   150             &  6   &  0  & 0     \\
-\textbf{containers} &   311             &  7   & 75  & 0     \\
-\textbf{pandoc}     & 1,012             & 35   &  1  & 0     \\
-\textbf{cabal}      & 1,701             & 43   & 30  & 1     \\
-\bottomrule
+{\renewcommand{\arraystretch}{1.20} % Slightly more spacing
+\begin{tabular}{lrrrr}
+                          & Total & List & ADT & HLint \\
+\textbf{Cabal}            & 20    & 11   & 9   & 9     \\
+\textbf{containers}       & 100   & 11   & 89  & 1     \\
+\textbf{cpphs}            & 5     & 2    & 3   & 1     \\
+\textbf{darcs}            & 66    & 65   & 8   & 6     \\
+\textbf{ghc}              & 327   & 216  & 111 & 26    \\
+\textbf{hakyll}           & 5     & 1    & 4   & 0     \\
+\textbf{haskell-src-exts} & 37    & 11   & 26  & 2     \\
+\textbf{hlint}            & 6     & 3    & 3   & 0     \\
+\textbf{hscolour}         & 4     & 4    & 0   & 2     \\
+\textbf{HTTP}             & 6     & 6    & 0   & 3     \\
+\textbf{pandoc}           & 15    & 15   & 0   & 2     \\
+\textbf{parsec}           & 3     & 3    & 0   & 0     \\
+\textbf{snap-core}        & 4     & 3    & 1   & 0     \\
 \end{tabular}
+}
 \caption{Results of identifying folds in some well-known projects}
-\label{tabular:project-results}
+\label{tabular:fold-detection-results}
 \end{center}
 \end{table}
 
-We also tested our tool on the test cases included in the hlint source code, and
-we identified the same folds. However, in arbitrary code (See Table
-\ref{tabular:project-results}), our tool detects more possible folds than hlint.
-This suggests that we detect a strict superset of possible folds, even for
-lists. The fact that the number of possible folds in these projects found by
-hlint is so low indicates that the authors of the respective packages might have
-used hlint during development.
-
-%-------------------------------------------------------------------------------
 \subsection{Identifying builds}
 
-%-------------------------------------------------------------------------------
-\subsection{Optimization results}
+We also evaluated the detection of builds. However, as far as we know no work
+has been done in this area -- hence, we cannot compare these results to anything
+meaningful. The results are shown in Table
+\ref{tabular:build-detection-results}.  We conclude that they are within the
+same order of magnitude as the number of folds we found.
 
-\tom{We need to specifically address what happens to functions that are both
-     a fold and a build like |map| and |filter|.}
+\begin{table}
+\begin{center}
+{\renewcommand{\arraystretch}{1.20} % Slightly more spacing
+\begin{tabular}{lrrr}
+                          & Total & List & ADT \\
+\textbf{Cabal}            & 101   & 81   & 20  \\
+\textbf{containers}       & 25    & 2    & 23  \\
+\textbf{cpphs}            & 6     & 5    & 1   \\
+\textbf{darcs}            & 354   & 354  & 0   \\
+\textbf{ghc}              & 480   & 178  & 302 \\
+\textbf{hakyll}           & 22    & 18   & 4   \\
+\textbf{haskell-src-exts} & 140   & 74   & 66  \\
+\textbf{hlint}            & 69    & 62   & 7   \\
+\textbf{hscolour}         & 33    & 33   & 0   \\
+\textbf{HTTP}             & 11    & 11   & 0   \\
+\textbf{pandoc}           & 97    & 97   & 0   \\
+\textbf{parsec}           & 10    & 10   & 0   \\
+\textbf{snap-core}        & 4     & 4    & 0   \\
+\end{tabular}
+}
+\caption{Results of identifying builds in some well-known projects}
+\label{tabular:build-detection-results}
+\end{center}
+\end{table}
 
-\tom{We need to benchmark foldr/build examples from the literature.}
+\subsection{Foldr/build-fusion}
 
-%===============================================================================
-\section{Limitations}
+Unfortunately it remains a hard problem to count how many times
+foldr/build-fusion can be applied in a Haskell package. The concrete
+difficulties we currently face are:
 
-Our approach is currently limited to directly recursive functions that recurse
-over basic regular datatypes. Below we describe a number of cases that are not handled.
+\begin{itemize}
 
-%-------------------------------------------------------------------------------
-\paragraph{Mutually Recursive Functions}
-Our approach currently does not deal with mutually recursive functions like:
+\item Manual intervention is not required to do the detection of folds or
+builds, but in order to actually perform the transformation some manual changes
+are required: more precisely: adding imports and language pragmas, and using
+Template Haskell to derive the necessary folds.
+
+\item Code which is crucial to the performance of a package is often manually
+optimised. Hence, we usually find no opportunities to remove intermediate
+datastructures there.
+
+\item A lot of code is partially written using higher-order functions (e.g. from
+the |Data.List| library) and partially using explicit recursion. Due to
+practical problems, we currently cannot perform any fusion there, although we
+are working to lift this limitation.
+
+\end{itemize}
+
+\subsection{Benchmarks}
+
+We researched the speedups caused by foldr/build-fusion. In order to do this, we
+constructed small pipeline-like programs who have the inherent property of being
+fusable. Consider the functions:
+
 \begin{code}
-concat []      = []
-concat (x:xs)  = concat' x xs
+sumt :: Tree Int -> Int
+sumt (Leaf x)      = x
+sumt (Branch l r)  = sumt l + sumt r
 
-concat' []     xs  = concat xs
-concat' (y:ys) xs   = y : concat' ys
+mapt :: (a -> b) -> Tree a -> Tree b
+mapt f (Leaf x)      = Leaf (f x)
+mapt f (Branch l r)  = Branch (mapt f l) (mapt f r)
+
+uptot :: Int -> Int -> Tree Int
+uptot lo hi
+    | lo >= hi   = Leaf lo
+    | otherwise  =
+        Branch (uptot lo mid) (uptot (mid + 1) hi)
+  where
+    mid = (lo + hi) `div` 2
 \end{code}
-which can be rewritten as:
+
+These auxiliary functions allow us to write functions which must allocate
+intermediate datastructures, as the result of |uptot| and |mapt|. Hence, we can
+benchmark the functions:
+
 \begin{code}
-concat l = build (g l)
-
-concat' x xs = build (g' x xs)
-
-g l c n = foldr (\x xs -> foldr c xs x) n l
-
-g' l xs c n = foldr c (g xs c n) l
+t1, t2, t3, t4, t5 :: Int -> Int
+t1 n = sumt (1 `uptot` n)
+t2 n = sumt (mapt (+ 1) (1 `uptot` n))
+t3 n = sumt (mapt (+ 1) (mapt (+ 1) (1 `uptot` n)))
+t4 n = elapsed
+t5 n = elapsed
 \end{code}
-An important special case of the above situation is that where one function is
-a local definition of the other.
-\tom{This happens in practice with our tool.}
 
-%-------------------------------------------------------------------------------
-\paragraph{Mutually Recursive Datatypes}
+The results can be found in Figure \ref{figure:benchmarks}. We can see that the
+speedups are very significant, even when fusion can only be applied once (i.e.,
+in |t1|). We also see that the more we can apply foldr/build-fusion, the more
+significant our speedup becomes.
 
-Mutually recursive functions arise naturally for mutually recursive datatypes like
-rose trees. For instance,
-\begin{code}
-data Rose   = Node Int Forest
-data Forest = Nil | Cons Rose Forest
+\begin{figure}[h]
+\includegraphics[width=\columnwidth]{plots/tree-en.pdf}
+\caption{Benchmarking the specified functions with and without fusion}
+\label{figure:benchmarks}
+\end{figure}
 
-sizeR (Node _ f)  = 1 + sizeF f
-
-sizeF Nil         = 0
-sizeF (Cons r f)  = sizeR r + sizeF f
-\end{code}
-can be written as
-\begin{code}
-data Rose   = Node Int Forest
-data Forest = Nil | Cons Rose Forest
-
-sizeR = foldR (\x f -> 1 + f) 0 (\r f -> r + f) 
-sizeF = foldF (\x f -> 1 + f) 0 (\r f -> r + f)
-\end{code}
-where the two mutually recursive datatypes have the following signatures for their
-fold functions:
-\begin{code}
-foldR  :: (Int -> f -> r) -> f -> (r -> f -> f) -> Rose    -> r 
-foldF  :: (Int -> f -> r) -> f -> (r -> f -> f) -> Forest  -> f
-\end{code}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Related Work}
 
-%-------------------------------------------------------------------------------
 \subsection{Applications of Folds and Fusion}
 
 There is a long line of work on writing recursive functions in terms of
@@ -585,57 +621,60 @@ Gibbons~\cite{Gibbons2003:Origami} promotes explicit programming in terms of
 folds and unfolds, which he calls \emph{origami} programming. Unfolds are the dual
 of folds, and capture a special case of builds.
 
-Gill et al.~\cite{gill1993} present the foldr/build fusion rule and discuss
+Gill et al.~\cite{gill1993} present the foldr/build-fusion rule and discuss
 its benefits. They mention that it would be desirable, yet highly challenging,
 for the compiler to notice whether functions can be expressed in terms of |foldr|
 and |build|. That would allow programmers to write programs in whatever style they like.
 
-Stream fusion~\cite{coutts2007} is an alternative to foldr/build fusion. It
+Stream fusion~\cite{coutts2007} is an alternative to foldr/build-fusion. It
 has the benefits of easily being able to fuse zips and left folds. However, at
 the time of writing, there is no known reliable method of optimising uses of
 |concatMap|. |concatMap| is important because it represents the entire class of
 nested list computations, including list comprehensions~\cite{coutts2010}.
 
-%-------------------------------------------------------------------------------
 \subsection{Automatic Discovery}
-The \emph{hlint}~\cite{hlint} tool is designed to recognize various code
+
+The \emph{HLint}~\cite{hlint} tool is designed to recognize various code
 patterns and offer suggestions for improving them. In particular, it recognizes
 various forms of explicit recursion and suggests the use of appropriate
 higher-order functions like |map|, |filter| and |foldr| that capture these
-recursion patterns.  As we already showed in Section
+recursion patterns. As we already showed in Section
 \ref{subsection:identifying-folds}, we are able to detect more instances of
-folds for Haskell lists than hlint. Moreover, hlint makes no effort to detect
+folds for Haskell lists than HLint. Moreover, HLint makes no effort to detect
 folds for other algebraic datatypes.
 
 Sittampalam and de Moor~\cite{mag} present a semi-automatic approach to |foldr|
 fusion based on the MAG system. In their approach, the programmer specifies the
-initial program, a specficiation of the target program and suitable rewrite
-rules. The latter includes a rule for |foldr| fusion: 
-%{
-%format . = "."
-\begin{spec}
-f (foldr c n l) = foldr c' n' l
-   if  f n = n'
-       forall x y. f (c x y) = c' x (f y) 
-\end{spec}
-%}
-Then the MAG system will attempt to derive the target implementation by
-applying the rewrite rules. Finally, the programmer needs to check whether MAG
-has only applied the fusion rule to strict functions |f|, a side condition of
-the fusion rule that cannot be specified in MAG.
-
-\begin{itemize}
-\item fold applications
-\item supercompilation
-\item datatypes a la carte
-\item attribute grammars
-\end{itemize}
+initial program, a specification of the target program and suitable rewrite
+rules. Then the MAG system will attempt to derive the target implementation by
+applying the rewrite rules.
 
 
-%===============================================================================
-\section{Conclusion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusions}
 
-\tom{mention mutually recursive ADTs as important future work}
+Programmers prefer high-level programming languages in order to be able to write
+elegant, maintainable code. However, performance remains important, i.e.  the
+code needs to be able to be translated to efficient assembly. The conflict
+between those two goals can be solved fairly well by using advanced compilers
+and smart optimisations.
+
+We added such a smart optimisation. It allows the programmer to write small,
+composable functions, either explicitly recursive or using a higher-order fold.
+More complex functions van be expressed as a combination of these small building
+blocks. When compiled naively, this would impose penalties on the performance,
+because of the overhead of allocating, building and destroying intermediate
+datastructures. By using foldr/build-fusion, we can avoid this overhead.
+
+Our thesis has lifted the limitation that functions have to be written in a
+certain style in order to benefit from foldr/build-fusion, and extends it to
+work on any directly inductive datastructure instead of just lists.
+
+\paragraph{Future work} A number of routes are still open for exploration. In
+particular, we mention mutually recursive functions, mutually recursive
+datatypes and GADTs \cite{cheney2003}. Folds and builds exists for these types
+\cite{yakushev2009, johann2008}, but our detection rules are incapable of
+finding these.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % \appendix

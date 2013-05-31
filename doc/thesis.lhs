@@ -141,9 +141,6 @@ elapsed = undefined
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\title{\futura\Huge Automatische detectie van recursiepatronen}
-\author{Jasper Van der Jeugt}
-
 \begin{document}
 
 
@@ -160,13 +157,39 @@ elapsed = undefined
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter*{Toelating tot bruikleen}
+
+De auteur(s) geeft(geven) de toelating deze masterproef voor consultatie
+beschikbaar te stellen en delen van de masterproef te kopiëren voor persoonlijk
+gebruik. Elk ander gebruik valt onder de beperkingen van het auteursrecht, in
+het bijzonder met betrekking tot de 2verplichting de bron uitdrukkelijk te
+vermelden bij het aanhalen van resultaten uit deze masterproef.
+
+\vspace{0.50cm}
+
+\noindent \textit{The author(s) gives (give) permission to make this master
+dissertation available for consultation and to copy parts of this master
+dissertation for personal use.  In the case of any other use, the limitations of
+the copyright have to be respected, in particular with regard to the obligation
+to state expressly the source when quoting results from this master
+dissertation.}
+
+\vspace{5.00cm}
+
+\noindent Jasper Van der Jeugt \\
+mei 2013
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter*{Dankwoord}
 
 Het schrijven van een thesis is een uitputtende en tijdrovende zaak. Een groot
 aantal mensen hebben mij echter bijgestaan en ervoor gezorgd dat ik zelfs in
 moeilijke perioden steeds mijn motivatie en interesse bleef behouden.
 
-Dank gaat uit naar mijn promotor, prof. dr. ir. Tom Schrijvers en mijn
+\vspace{0.50cm}
+
+\noindent Dank gaat uit naar mijn promotor, prof. dr. ir. Tom Schrijvers en mijn
 begeleider Steven Keuchel. Voor vele correcties in de thesistekst wil ik graag
 Andy Georges, Tom Naessens en Toon Willems  bedanken. Ten laatste wil ik mijn
 ouders bedanken, en natuurlijk ook mijn vrienden, voor de schitterende
@@ -179,22 +202,47 @@ mei 2013
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter*{Toelating tot bruikleen}
+% "Overzicht"
+\newpage
 
-De auteur geeft de toelating deze masterproef voor consultatie beschikbaar te
-stellen en delen van de masterproef te kopiëren voor persoonlijk gebruik.  Elk
-ander gebruik valt onder de beperkingen van het auteursrecht, in het bijzonder
-met betrekking tot de verplichting de bron uitdrukkelijk te vermelden bij het
-aanhalen van resultaten uit deze masterproef.
+\mbox{~}
 
-\vspace{5.00cm}
+\vspace{4.00cm}
+
+\begin{center}
+\futura\huge{Automatische detectie \\
+van recursiepatronen}
+\normalfont
+\end{center}
+
+\vspace{1.00cm}
 
 \noindent Jasper Van der Jeugt \\
-mei 2013
+Promotor: prof dr. ir. Tom Schrijvers \\
+Begeleider: Steven Keuchel \\
+
+\vspace{1.00cm}
+
+\noindent In functionele programmeertalen brengt het herschrijven van expliciet
+recursieve functies naar functies in termen van hogere-orde functies zoals
+|fold| en |map| veel voordelen zoals beknoptheid en leesbaarheid. Bovendien
+maakt het bepaalde optimalisaties mogelijk. Helaas is het voor een programmeur
+niet altijd eenvoudig om functies in deze stijl te schrijven. Wij stellen een
+aanpak voor die deze hogere-orde functies automatisch kan detecteren en de code
+transformeren, zodat de programmeur de voordelen van deze optimalisaties krijgt,
+ongeacht in welke stijl hij of zij code schrijft.
+
+\vspace{1.00cm}
+
+\noindent \textbf{Trefwoorden}: catamorfismes, foldr/build-fusion,
+code-analysis, transformaties, functionele programmeertalen
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\maketitle
+\includepdf[pages=-]{abstract.pdf}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \tableofcontents
 
 \setlength{\parindent}{0.00cm}
@@ -341,7 +389,7 @@ expliciete recursie.
 
 \item Tevens leggen we ook uit hoe we functies die geschreven kunnen worden als
 een toepassing van build kunnen detecteren en vertalen naar een versie die
-effectief gebruikt maakt van build. Dit wordt bespoken in hoofdstuk
+effectief gebruikt maakt van build. Dit wordt besproken in hoofdstuk
 \ref{chapter:build-detection}. Merk op dat build op zich geen hogere-orde
 functie is, maar dat we zowel fold als build nodig hebben om
 \emph{foldr/build-fusion} toe te passen, een bekende optimalisatie.
@@ -364,7 +412,7 @@ grote versnellingen. De resultaten hiervan zijn terug te vinden in hoofdstuk
 \end{enumerate}
 
 Dit heeft veel praktische toepassingen en om ons werk dan ook zo toegankelijk
-mogelijk te maken, werken we ook aan een engelstalig artikel over hetzelfde
+mogelijk te maken, werken we ook aan een Engelstalig artikel over hetzelfde
 onderwerp, ``Bringing Functions into the Fold''. Dit artikel zullen we indienen
 voor de ACM SIGPLAN Haskell Symposium 2013 conferentie.
 
@@ -644,7 +692,7 @@ type String = [Char]
 
 Omdat een lijst een recursief datatype is, is het zeer gebruikelijk om
 recursieve functies over lijsten te schrijven. Met behulp van de
-standaard-functie |toUpper :: Char -> Char| kan men bijvoorbeeld een functie
+standaardfunctie |toUpper :: Char -> Char| kan men bijvoorbeeld een functie
 schrijven die een volledige |String| omzet naar drukletters:
 
 \begin{code}
@@ -1087,7 +1135,7 @@ probleem op. De programmeur is verplicht een |g| mee te geven die werkt voor
 worden. Bijgevolg kan hij dus ook geen concrete constructoren gebruiken.
 
 Nu we vastgesteld hebben dat enkel de abstracte versies van de constructoren
-gebruikt worden, laat dit idee ons toe om de productie en consumatie van een
+gebruikt worden, laat dit idee ons toe om de productie en consummatie van een
 lijst te fuseren, zodanig dat er geen tijdelijke lijst moet worden aangemaakt.
 We werken dit nu formeel uit.
 
@@ -1166,7 +1214,7 @@ krijgen we:
 
 Ter illustratie tonen we nu hoe met deze enkele fusion-regel onze elegantere
 versie van |sumOfSquaredOdds'| automatisch door GHC kan worden omgezet naar een
-performante versie.
+effici\"ente versie.
 
 \begin{spec}
     sumOfSquaredOdds'
@@ -1374,7 +1422,7 @@ buildList g = g (:) []
 \subsection{Foldr/foldr-fusion}
 
 Een alternatieve vorm van fusie die eveneens van toepassing is op onze thesis is
-\emph{foldr/foldr-fusion}. We kunnen dit best uileggen door middel van een
+\emph{foldr/foldr-fusion}. We kunnen dit best uitleggen door middel van een
 voorbeeld. Beschouw de volgende functie:
 
 \begin{code}
@@ -1770,7 +1818,7 @@ dient de regel \textsc{F-Rec}. De nieuwe waarden van de veranderlijke argumenten
 worden aangegeven door |many e|.  Met behulp van de context |E| kunnen we deze
 dan invullen in de de anonieme functie, waar geen expliciete recursie voorkomt.
 De recursieve oproep, van de vorm $|E|[|many e|;|vs|]$, wordt herschreven naar
-|ws (many e)|. Op die manier worden de verandelijke argumenten meegegeven aan
+|ws (many e)|. Op die manier worden de veranderlijke argumenten meegegeven aan
 het resultaat van de (impliciete) recursieve oproep, |ws|.
 
 Als we opnieuw |suml| als voorbeeld nemen, krijgen we nu:
@@ -1832,7 +1880,7 @@ volstaan.
 Een bijkomend argument is dat de herschreven versie, in termen van |foldr|, ook
 moeilijker is om te begrijpen is dan de oorspronkelijke versie. Programmeurs
 bekend met de |foldr| functie een verwachten hier namelijk een vorm van recursie
-(die er hiet niet is).
+(die er hier niet is).
 
 Gelukkig kunnen we eenvoudig bepalen of een functie al dan niet een
 gedegenereerde fold is. Als we regel \textsc{F-Rec} minstens \'e\'enmaal
@@ -1974,7 +2022,7 @@ specifiek voor lijsten, teneinde de uitleg te vereenvoudigen.
 
 De relatie $|b| \rightarrowtail |b'; bg|$ staat centraal. Deze legt het verband
 tussen de binding |b| en de bindings |b'; bg|. De binding |b| maakt expliciet
-gebruik van de concrete consructoren, en |b'| is een herschreven variant die
+gebruik van de concrete constructoren, en |b'| is een herschreven variant die
 gebruik maakt van de functie |build|. Bijkomend krijgen we |bg|, een binding die
 gebruikt wordt als de generatorfuctie (meestal |g| genoemd). Deze wordt gegeven
 als argument van |build|.
@@ -2000,7 +2048,7 @@ g    = \f -> \l -> \c -> \n ->
 \end{spec}
 
 Hierbij hebben we |many x = [f, l]|. We ook zien dat |f| een statisch argument
-is en |l| een verandelijk argument. In tegenstelling tot de herkenning van folds
+is en |l| een veranderlijk argument. In tegenstelling tot de herkenning van folds
 (zie sectie \ref{section:fold-detection-rules}) moeten we nu geen onderscheid
 maken tussen beide.
 
@@ -2355,7 +2403,7 @@ Om aan dit probleem tegemoet te komen werd een nieuw pluginsysteem
 ge\"introduceerd \cite{ghc-plugins} in GHC 7.2.1, dat de praktische kant van een
 dergelijke manipulatie behoorlijk vereenvoudigt.
 
-Meer bepaald is het nu mogelijk om Core-naar-Core tranformaties te implementeren
+Meer bepaald is het nu mogelijk om Core-naar-Core transformaties te implementeren
 in aparte modules, en deze vervolgens mee te geven aan GHC via commmand-line
 argumenten.
 
@@ -2507,7 +2555,7 @@ ghc --make -package my-plugin -fplugin MyPlugin test.hs
 
 Waarbij |MyPlugin| de module is die |plugin :: Plugin| bevat. \texttt{my-plugin}
 is de naam van het ge\"installeerde cabal-package. Dit toont aan dat het
-relatiev eenvoudig is om GHC uit te breiden of aan te passen met behulp van het
+relatief eenvoudig is om GHC uit te breiden of aan te passen met behulp van het
 plugin framework. Bovendien hoeven we geen GHC code aan te passen, zolang de
 vereiste transformaties op de abstracte syntaxbomen kunnen uitgevoerd worden.
 
@@ -2564,7 +2612,7 @@ van |foldr|, kan dit ook voor andere algebra\'isch datatypes, zoals |Tree|.
 
 Om folds te detecteren, is het nuttig om elke |Bind| in het programma te
 bestuderen. Dit laat ons toe om mogelijke folds te vinden zowel in
-\emph{top-level} binds alsook in lokale |let|- of |where|-binds. In ons vorbeeld
+\emph{top-level} binds alsook in lokale |let|- of |where|-binds. In ons voorbeeld
 kunnen we de |go| uit de |let|-bind omvormen tot een fold.
 
 We volgen de volgende stappen om de recursieve |go| om te vormen tot een
@@ -2664,7 +2712,7 @@ foldlTree' = \f z0 tree ->
 waarden construeren met concrete constructoren, om te zetten naar functies die
 gebruik maken van de build voor het corresponderende datatype.
 
-We gebruiken ook hier ook meer determintisch algoritme dan de voorgestelde
+We gebruiken ook hier ook meer deterministisch algoritme dan de voorgestelde
 niet-deterministische regels voorgesteld in hoofdstuk
 \ref{chapter:build-detection}. Als voorbeeld gebruiken we de functie
 |infiniteTree|:
@@ -2676,7 +2724,7 @@ infiniteTree =
     in go 1
 \end{code}
 
-We zoeken overal naar functies die we kunnen omzoeken, dus zowel in top-level
+We zoeken overal naar functies die we kunnen omzetten, dus zowel in top-level
 definities (|infiniteTree|) als lokale definities (|go|). In dit geval kan |go|
 geschreven worden in termen van |buildTree|. Het algoritme verloopt als volgt:
 
@@ -3151,7 +3199,7 @@ die HLint kan geven is het gebruik van |map|, |foldl| of |foldr| in plaats van
 expliciete recursie.
 
 We toonden eerder al aan dat zowel |map| en |foldl| in termen van |foldr|
-uitgredrukt kunnen. Als we dus de som nemen van het aantal functies die
+uitgedrukt kunnen. Als we dus de som nemen van het aantal functies die
 herschreven kunnen worden als |map|, |foldl| of |foldr| volgens HLint, krijgen
 we dus het aantal folds over lijsten gedetecteerd door HLint.
 
@@ -3202,7 +3250,7 @@ packages.}
 
 Naast de detectie van folds kunnen we ook de detectie van builds evalueren. Hier
 bestaat er naar ons weten echter geen vergelijkbare tool die dit soort detectie
-uitvoerd. Dit betekent dat we niets hebben om onze resultaten mee te
+uitvoert. Dit betekent dat we niets hebben om onze resultaten mee te
 vergelijken.
 
 De resultaten kunnen worden teruggevonden in Tabel
@@ -3439,7 +3487,7 @@ type:
 map :: (a -> b) -> [a] -> [b]
 map f = unstream . maps . stream
   where
-    maps (Steam next s0) = Stream next' s0
+    maps (Stream next s0) = Stream next' s0
       where
         next' s = case next s of
             Done        -> Done
@@ -3447,14 +3495,14 @@ map f = unstream . maps . stream
             Yield x s'  -> Yield (f x) s'
 \end{spec}
 
-De hogere-orde functies zijn dus van de vorm |unsteam . fs . stream|. Als we
+De hogere-orde functies zijn dus van de vorm |unstream . fs . stream|. Als we
 hiervan een pijplijn maken krijgen we iets als bijvoorbeeld:
 
 \begin{spec}
 unstream . filters . stream . unstream . maps . stream
 \end{spec}
 
-Deze pijlijn kan geoptimaliseerd worden door stream fusion (het bewijs hiervan
+Deze pijplijn kan geoptimaliseerd worden door stream fusion (het bewijs hiervan
 laten we achterwege):
 
 \newtheorem{theorem:stream-fusion}{Stelling}[section]
@@ -3511,12 +3559,12 @@ uitbreidingen}
 Programmeurs verkiezen vaak om programmeertalen met een hoog abstractieniveau te
 gebruiken omwille van elegante, goed onderhoudbare code te kunnen schrijven.
 Toch blijft de prestatie van de uitgevoerde code van groot belang, m.a.w., de
-code moet vertaald kunnen woden naar effici\"ente machinecode. De conflicten
+code moet vertaald kunnen worden naar effici\"ente machinecode. De conflicten
 tussen beide doelstellingen kunnen heden ten dage vrij goed worden opgelost door
 het gebruik van geavanceerde compilers en slimme optimalisaties.
 
 In deze thesis hebben we een dergelijke slimme optimalisatie beschreven en
-geimplementeerd. Ons wek laat de programmeur toe zijn code op te bouwen met
+geïmplementeerd. Ons werk laat de programmeur toe zijn code op te bouwen met
 kleine, duidelijk begrijpbare en makkelijk testbare functies. Meer complexe
 operaties worden dan op een natuurlijke manier uitgedrukt als een combinatie van
 deze bouwstenen. Conceptueel maken deze combinaties tijdelijke structuren die
@@ -3566,7 +3614,7 @@ van een lijst is, en |f| een consument.
 Er zijn hiervoor verschillende oplossingen. Een eerste is om de |Data.List|
 module te herschrijven in termen van onze functies, maar dit is niet echt
 praktisch. Een betere oplossing zou zijn om een aantal \verb|{-# RULES #-}|
-pragma's toe te voegen, \'e\'en voor elke functie uit |Data.List|, zodang dat
+pragma's toe te voegen, \'e\'en voor elke functie uit |Data.List|, zodanig dat
 deze ook gefused kunnen worden met onze folds en builds.
 
 \subsection{GADTs}
@@ -3712,7 +3760,7 @@ buildRose' g = g Rose
 Als we de twee aanpakken vergelijken hebben beide voordelen en nadelen. Een
 voordeel van de aanpak via |fmap| is dat we de lijst kunnen consumeren op eender
 welke manier -- we zijn niet beperkt tot een |foldr|. Dit is echter een mes dat
-aan twee kanten snijdt: langs de andere kant betekent dit dat de consumatie van
+aan twee kanten snijdt: langs de andere kant betekent dit dat de consummatie van
 de lijst ook niet kan genieten van foldr/build-fusion.
 
 Ook is niet elke indirect recursieve subterm een |Functor|: beschouw
