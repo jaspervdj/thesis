@@ -110,56 +110,122 @@ catamorphisms, fold-build fusion, analysis, transformation
 Higher-order functions are immensely popular in Haskell, whose Prelude alone
 offers a wide range of them (e.g., |map|, |filter|, |any|, \ldots). This is not
 surprising, because they the key \emph{abstraction} mechanism of functional
-programming languages. They enable capturing and reusing common patterns among,
-often recursive, function definitions to a much larger extent than first-order
-functions. In addition to the obvious code reuse and increased programmer
-productivity, uses of higher-order functions have many other potential
-advantages over conventional first-order definitions.
-\begin{itemize}
-\item Uses of higher-order functions can be more quickly understood because
-      they reduce the that is already known pattern to a single name and thus draw
-      the attention immediately to what is new (i.e., the function parameters).
+programming languages. They enable capturing and reusing common frequent
+patterns in function definitions. 
 
-\item Because the code is more compact and the number of bugs is proportional
-      to code size~\cite{gaffney1984}, higher-order functions should lead to
-      fewer bugs.
-
-\item Properties can be established for the higher-order function indepently
-      from its particular uses. This makes (e.g., equational) reasoning more productive.
-
-\item Since properties and occurrences are more readily available, they make good targets
-      for automatic optimization in compilers.
-\end{itemize}
-
-A particularly ubiquitous pattern is that of folds or \emph{catamorphisms}. In
-the case of lists, this pattern has been captured in the well-known |foldr|
-function.
-\begin{code}
+\emph{Recursion schemes} are a particularly important class of patterns
+captured by higher-order functions. They capture forms of recursion found in
+explicitly recursive functions and encapsulate them in reusable abstractions.
+In Haskell, the |foldr| function is probably the best known example of a recursion
+scheme. It captures structural recursion over a list.
+\begin{spec}
 foldr :: (a -> b -> b) -> b -> [a] -> b
-foldr _ z []        = z
-foldr f z (x : xs)  = f x (foldr f z xs)
-\end{code}
-Indeed, the research literature is full of applications,
-properties and optimizations based on folds. \tom{add many citations}
+foldr f z []      = z
+foldr f z (x:xs)  = f x (foldr f z xs)
+\end{spec}
+By means of a recursion scheme like |foldr|, the programmer can avoid the use
+of explicit recrusion in his functions, like
+\begin{spec}
+sum :: [Int] -> Int
+sum []      = 0
+sum (x:xs)  = x + sum xs
+\end{spec}
+in favor of implicit recursion in terms of the recursion scheme:
+\begin{spec}
+sum :: [Int] -> Int
+sum xs = foldr (+) 0 xs
+\end{spec}
 
-Hence, given all these advantages of folds, one would expect every programmer
-to diligently avoid explicit recursion where folds can do the job.
-Unfortunately, that is far from true in practice. For many reasons, programmers
-do not write their code in terms of explicit folds. This class comprises a
-large set of advanced functional programmers \tom{evidence of our case study}.
-This is compounded by the fact that programmers often do not bother to define
-the equivalent of |foldr| for other inductive algebraic datatypes.
+Gibbons~\cite{gibbons2003} has likened the transition from the former style to the
+latter with the transition from imperative programming with \texttt{goto}s to
+structured programming. Indeed the use of recursion schemes has many of the
+same benefits for program construction and program understanding.
 
-Yet, sadly, these first-order recursive functions are treated as second-class
-by compilers. They do not benefit from the same performance gains like loop
-fusion and deforestations. In fact, the leading Haskell compiler GHC won't even
-inline recursive functions. We disagree with this injustice and argue that it
-is quite unnecessary to penalize programmers for using first-class recursion.
-In fact, we show that with a little effort, catamorphisms can be detected
-automatically by the compiler and automatically transformed into explicit
-invocations of folds for the purpose of automation.
+Program optimization is another benefit of recursion schemes that has received
+much attention in the Haskell community. Various equational laws have been
+devised to \emph{fuse} the composition of two recursion schemes into a single
+recursive function. 
 
-In particular, our specific contribuations are:
+\tom{TODO: paragraaf over} fold/build fusion -- deforestation
+
+A significant weakness of the current approach is that programmers have to
+explicitly write their programs in terms of the recursion schemes in order to
+benefit from fusion. This is an easy requirement when programmers only reuse library
+functions written in the appropriate stlye. However, when it comes to writing
+their own functions, programmers usually resort to explicit recursion.  This
+not just true of novices, but applies just as well to experienced Haskell
+programmers, including, as we will show, the authors of some of the most
+popular Haskell packages.
+
+Hence, already in their '93 work on fold/build fusion, Gill et
+al.~\cite{gill1993} have put forward an important challenge for the compiler:
+to automatically detect recursion schemes in explicitly recursive functions.
+This allows programmers to have their cake and eat it too: they can write
+functions in their preferred style and still benefit from fusion.
+
+% The latter style emphasizes the non-recursive parts of the 
+% 
+% The latter style is often more concise, which recent studies~\cite{} have shown
+% to be an important factor in program understanding. 
+% 
+% Probably the best-known example of recursion schemes are folds, and the |foldr|
+% function in particular.
+% 
+%  A particularly important use of higher-order
+% functions is to express \emph{recursion schemes}.
+% 
+%  among,
+% often recursive, function definitions to a much larger extent than first-order
+% functions. In addition to the obvious code reuse and increased programmer
+% productivity, uses of higher-order functions have many other potential
+% advantages over conventional first-order definitions.
+% \begin{itemize}
+% \item Uses of higher-order functions can be more quickly understood because
+%       they reduce the that is already known pattern to a single name and thus draw
+%       the attention immediately to what is new (i.e., the function parameters).
+% 
+% \item Because the code is more compact and the number of bugs is proportional
+%       to code size~\cite{gaffney1984}, higher-order functions should lead to
+%       fewer bugs.
+% 
+% \item Properties can be established for the higher-order function indepently
+%       from its particular uses. This makes (e.g., equational) reasoning more productive.
+% 
+% \item Since properties and occurrences are more readily available, they make good targets
+%       for automatic optimization in compilers.
+% \end{itemize}
+% 
+% A particularly ubiquitous pattern is that of folds or \emph{catamorphisms}. In
+% the case of lists, this pattern has been captured in the well-known |foldr|
+% function.
+% \begin{code}
+% foldr :: (a -> b -> b) -> b -> [a] -> b
+% foldr _ z []        = z
+% foldr f z (x : xs)  = f x (foldr f z xs)
+% \end{code}
+% Indeed, the research literature is full of applications,
+% properties and optimizations based on folds. \tom{add many citations}
+% 
+% Hence, given all these advantages of folds, one would expect every programmer
+% to diligently avoid explicit recursion where folds can do the job.
+% Unfortunately, that is far from true in practice. For many reasons, programmers
+% do not write their code in terms of explicit folds. This class comprises a
+% large set of advanced functional programmers \tom{evidence of our case study}.
+% This is compounded by the fact that programmers often do not bother to define
+% the equivalent of |foldr| for other inductive algebraic datatypes.
+% 
+% Yet, sadly, these first-order recursive functions are treated as second-class
+% by compilers. They do not benefit from the same performance gains like loop
+% fusion and deforestations. In fact, the leading Haskell compiler GHC won't even
+% inline recursive functions. We disagree with this injustice and argue that it
+% is quite unnecessary to penalize programmers for using first-class recursion.
+% In fact, we show that with a little effort, catamorphisms can be detected
+% automatically by the compiler and automatically transformed into explicit
+% invocations of folds for the purpose of automation.
+
+As far as we know, this work is the first to pick up that challenge and automatically
+detect recursion schemes in a Haskell compiler.
+Our specific contributions are in particular:
 \begin{enumerate}
 \item We show how to automatically identify \emph{catamorphisms} and transform
       them into explicit calls to |fold|. 
@@ -167,14 +233,15 @@ In particular, our specific contribuations are:
       fold-build fusion, we also show how to automatically detect and transform
       functions that can be expressed as a call to |build|.
 \item We provide a GHC compiler plugin that performs these detections and
-      transformations on GHC Core.
-      It covers not only catamorphisms over Haskell lists, but catamorphisms
-      over all inductively defined directly recursive datatypes.
-\item We have performed a case study of our detection and transformation
-      plugin on a range of well-known Haskell packages and applications
-      to take stock of the number of explicitly recursive catamorphisms
-      and currently missed opportunities for fold-build fusion.
-      \tom{The results are astounding.}
+      transformations on GHC Core. Our plugin not
+      only covers folds and builds over lists, but over all inductively defined
+      directly-recursive datatypes. 
+
+\item A case study shows that our plugin is effective on a range of
+      well-known Haskell packages. It identifies a substantial number of
+      explicitly recursive functions that fit either the fold or build pattern, 
+      reveals that our approach works well with GHC's existing list fusion 
+      infrastructure.
 \end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1425,12 +1492,12 @@ and |build|. That would allow programmers to write programs in whatever style th
 \subsection{Automation}
 
 Higher-order matching is a general technique for matching expressions in
-functional programs against expression templates.
-
-Sittampalam and de Moor~\cite{mag} present a semi-automatic approach to |foldr|
-fusion based on the MAG system. In their approach, the programmer specifies the
-initial program, a specficiation of the target program and suitable rewrite
-rules. The latter includes a rule for |foldr| fusion: 
+functional programs against expression templates. In the context of Haskell,
+Sittampalam and de Moor~\cite{mag} have applied higher-order matching in their
+rewriting system, called MAG. They have used MAG for fusion in the following
+way. the programmer specifies the initial program, a specficiation of the
+target program and suitable rewrite rules. The latter includes a rule for
+|foldr| fusion: 
 %{
 %format . = "."
 \begin{spec}
@@ -1450,10 +1517,34 @@ forms and the compiler applies these whenever it finds an opportunity.  The one
 part that is not automated is that programmers still have to write their code
 in terms of the higher-order recursion schemes. GHC has set up various of its
 base libraries in this way to benefit from fold/build fusion among others.
+
 Building on GHC rewrite rules, Coutts et al.~\cite{coutts2007} have proposed
-stream fusion as a convenient alternative to foldr/build fusion. Stream
-fusion is able to fuse zips and left folds, but, on the downside, it is
-less obvious for the programmer to write his functions in the required style.
+stream fusion as a convenient alternative to foldr/build fusion. Stream fusion
+is able to fuse zips and left folds, but, on the downside, it is less obvious
+for the programmer to write his functions in the required style.  Hinze et
+al.~\cite{hinze} provide clues for how to generalize stream fusion: by expressing
+functions in terms of an unfold, followed by a natural transformation and a
+fold.
+
+%  filter p l
+%     = build (\c n -> foldr (\x r -> if p x then c x r else r) n l)
+
+% foldr f z $ filter () $ build g
+%
+%    g (\ x xs -> if p x then f x xs else xs) z
+
+% zip []     l  = []
+% zip (x:xs) l  =
+%   case l of 
+%     []      -> []
+%     (y:ys)  -> (x,y) : zip xs ys
+
+% zip l1 l2 = foldr (\x xs l2 -> case l2 of { [] -> [] ; (y:ys) -> (x,y) : xs ys}) (\l2 -> []) l1 l2
+
+
+%% It would be interesting future work to automatically identify such
+%% patterns.
+
 % However, at
 % the time of writing, there is no known reliable method of optimising uses of
 % |concatMap|. |concatMap| is important because it represents the entire class of
