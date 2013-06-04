@@ -327,13 +327,32 @@ cat []      ys  = ys
 cat (x:xs)  ys  = x : cat xs ys
 \end{spec}
 The |ys| parameter is a constant parameter because it does not change in the
-recursive calls. Hence, the definition is transformed readily enough into a
-fold:
+recursive calls. We can get rid of this constant parameter by hoisting it out of
+the loop. 
 \begin{spec}
-cat xs ys  = foldr (:) ys xs
+cat :: [a] -> [a] -> [a]
+cat l ys = loop l
+  where
+    loop :: [a] -> [a]
+    loop []      = ys
+    loop (x:xs)  = x : loop xs
 \end{spec}
+Now, the local function can be rewritten in terms of a |foldr| without having
+to bother with passing the constant parameter.
+\begin{spec}
+cat xs ys  = loop l
+  where
+    loop l = foldr (:) ys l
+\end{spec}
+Finally, we can inline the local function entirely.
+\begin{spec}
+cat xs ys  = foldr (:) ys l
+\end{spec}
+To cut a long story short, we can directly rewrite functions with constant
+parameters in terms of |foldr| without taking special precautions for constant
+parameters.
 
-Accumulating parameters are trickier to deal with was they may vary in
+Accumulating parameters are trickier to deal with as they may vary in
 recursive calls. An example is the accumulator-based sum function:
 \begin{code}
 sumAcc :: [Int] -> Int -> Int
@@ -350,15 +369,39 @@ foldl f z (x:xs)  = foldl f (f z x) xs
 
 sumAcc l acc  = foldl (+) acc l
 \end{code}
-However, these functions too can be expressed in terms of |foldr|:
+However, these functions too can be expressed in terms of |foldr|.
+The trick is to see such a function not as \emph{having} an extra parameter
+but as \emph{returning} a function that takes a parameter. For instance,
+|sumAcc| should not be considered as a function that takes a list and an integer
+to an integer, but a function that takes a list to a function
+that takes an integer to an integer. This becomes more apparent when we make
+the precedence of the function arrow in the type signature explicit, as well as
+the binders for the extra parameter.
 \begin{code}
-sumAcc l acc  = foldr (\x xs acc -> xs (x+acc)) 
+sumAcc :: [Int] -> (Int -> Int)
+sumAcc []      = \acc -> acc
+sumAcc (x:xs)  = \acc -> sumAcc xs (x + acc)
+\end{code}
+Now we have an obvious catamorphism without extra parameter
+that can be turned trivially into a fold.
+\begin{code}
+sumAcc l = foldr  (\x xs acc -> xs (x+acc)) 
+                  (\acc -> acc) l
+\end{code}
+As a last step we may want to $\eta$-expand the above definition.
+\begin{code}
+sumAcc l acc = foldr  (\x xs acc -> xs (x+acc)) 
                       (\acc -> acc) l acc
 \end{code}
-More generally, |foldl| can be expressed in terms of |foldr|:
+
+Finally, |foldl| is an example of a function with both
+a constant parameter |f| and an accumulating parameter
+|z|. It is expressed as a |foldr| thus:
 \begin{code}
 foldl f z l  = foldr (\x xs z -> xs (f x z)) (\z -> z) l z
 \end{code}
+Note that as a minor complication both extra parameters precede
+the list parameter.
 
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 \paragraph{Other Datatypes}
@@ -654,20 +697,20 @@ functions in explicitly recursive style and performs fold/build fusion for any
 directly inductive datatype.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Discovering Folds}
+\section{Finding Folds}
 \label{subsection:identifying-folds}
 
-This section explains our approach to turning explicitly recrusive
-functions into invocations of |fold|.
+This section explains our approach to turning explicitly recrusive functions
+into invocations of |fold|.
 
 %-------------------------------------------------------------------------------
 \subsection{Syntax and Notation}
 \label{section:core-expressions}
 
 To simplify the presentation, we do not explain our approach in terms of
-Haskell source syntax or even GHC's core syntax (based on System F). Instead, we use
-the untyped lambda-calculus extended with constructors and pattern matching,
-and (possibly recursive) bindings.  
+Haskell source syntax or even GHC's core syntax (based on System F). Instead,
+we use the untyped lambda-calculus extended with constructors and pattern
+matching, and (possibly recursive) bindings.  
 %{
 %format (many (x)) = "\overline{" x "}"
 \begin{center}
@@ -695,8 +738,8 @@ We will also need an advanced form of \emph{(expression) context}:
 A context |E| denotes a function applied to a number of arguments. The function
 itself and some of its arguments are given (as variables), while there are holes for the other
 arguments. In fact, there are two kinds of holes: boxes |box| and triangles
-|triangle|. The former is used for a sequence of unimportant arguments, while
-the latter marks an argument of significance. The function
+|triangle|. The former is used for a sequence of extra parameters, while
+the latter marks the main argument on which structural recursion is performed. The function
 $|E|[|many e|;e]$ turns a context |E| into an expression by filling in the holes
 with the given expressions.
 \[\begin{array}{lcl}
@@ -709,7 +752,7 @@ Note that this function is partial; it is undefined if the number
 of expressions |many e| does not match the number of box holes.
 
 %-------------------------------------------------------------------------------
-\subsection{Discovering Folds}
+\subsection{Finding Folds}
 \label{subsection:identifying-folds}
 
 \begin{figure*}[t]
@@ -824,15 +867,15 @@ a proper catamorphism.
 \item If |vs| appears in |e'2| as part of $|f vs|$, the latter
       has not been properly replaced by |ws|. If |vs| appears in any other capacity,
       then the function is not a catamorphism, but a \emph{paramorphism}. An example of such a
-      function, is the function |suff|.
+      function, is the function |suffixes|.
 \begin{spec}
-suff = \y -> case y of
-              []      -> []
-              (v:vs)  -> vs : suff vs
+suffixes = \y -> case y of
+                  []      -> []
+                  (v:vs)  -> vs : suffixes vs
 \end{spec}
 This function can be written as 
 \begin{spec}
-suff = para (\v vs ws -> vs : ws) []
+suffixes = para (\v vs ws -> vs : ws) []
 \end{spec}
 where the higher-order pattern of paramorphisms is
 \begin{spec}
@@ -855,45 +898,48 @@ case to eliminate |x| in |e'1|. The latter case reveals an improper
 catamorphism, where |ys| appears outside of a recursive call (issue 2 above);
 hence, rule \textsc{(F-Bind')} does not allow it.
 
-\paragraph{Multi-Argument Functions}
+\paragraph{Folds with Parameters}
 Rule \textsc{(F-Bind)} generalizes rule \textsc{(F-Bind')} by supporting
-additional arguments |many x| and |many z| before and after the scrutinee
-argument |y|. We distinguish two kinds of additional arguments.
-The first kind are arguments that are \emph{invariant} in the recursion. An
-example of that is the |f| parameter in the |map| function.
-\begin{spec}
-map = \f y -> case y of
-                []      -> []
-                (v:vs)  -> (:) (f v) (map f vs)
-\end{spec}
-Rule \textsc{(F-Bind)} does not explicitly name these invariant arguments, but
-captures them instead in the recursive call context |E|. For instance, for |map|
-the context has the form |map f triangle|.
+additional parameters |many x| and |many z| before and after the scrutinee
+argument |y|. The algorithm supports both constant and accumulating parameters.
+% kinds of additional arguments.
+% The first kind are arguments that are \emph{invariant} in the recursion. An
+% example of that is the |f| parameter in the |map| function.
+% \begin{spec}
+% map = \f y -> case y of
+%                 []      -> []
+%                 (v:vs)  -> (:) (f v) (map f vs)
+% \end{spec}
+Rule \textsc{(F-Bind)} does not explicitly name the constant parameters, but
+captures them instead in the recursive call context |E|. For instance, for |cat|
+the context has the form |cat triangle ys|.
 
-The second kind of additional arguments are \emph{variant} in the recursion.
-Catamorphisms with an accumulating parameter are typical examples of these. E.g.,
-\begin{spec}
-sum' = \y acc -> case y of
-                   []      -> acc
-                   (v:vs)  -> sum' vs (v + acc)
-\end{spec}
-Rule \textsc({F-Bind)} names these variant arguments |many u| and leaves |box|
-holes in the context |E| for them. For instance, the context of |sum'| is |sum'
+% The second kind of additional arguments are \emph{variant} in the recursion.
+% Catamorphisms with an accumulating parameter are typical examples of these. E.g.,
+% \begin{spec}
+% sum' = \y acc -> case y of
+%                    []      -> acc
+%                    (v:vs)  -> sum' vs (v + acc)
+% \end{spec}
+Rule \textsc({F-Bind)} names the accumulating parameters |many u| and leaves |box|
+holes in the context |E| for them. For instance, the context of |sumAcc| is |sumAcc
 triangle box|.  Because the |many u| arguments vary throughout the iteration,
 their current and new values need to be bound, respectively supplied, at every
 step. The binding of the current values is taken care of by the binders |\many
 u ->| in the two first parameters of |foldr|. Also the initial values for |many
 u| are supplied as extra parameters to |foldr|.
 
-Rule \textsc{(F-Rec)} captures the new values |many e| for the variant
-arguments with the help of the context |E|; a recursive call takes the form
+Rule \textsc{(F-Rec)} captures the new values |many e| for the accumulating
+parameters with the help of the context |E|; a recursive call takes the form
 $|E|[|many e|;|vs|]$. The rule passes these variant arguments explicitly to the
-recursive result |ws|. For instance, after rewriting |sum'| we get
-\begin{spec}
-sum' = \y acc -> foldr  (\v ws acc -> ws (v + acc)) 
-                        (\acc -> acc) y acc
-\end{spec}
-Note that rule \textsc{(F-Rec)} recursively rewrites the variant arguments
+recursive result |ws|. 
+% For instance, after rewriting |sumAcc| we get
+% \begin{spec}
+% sum' = \y acc -> foldr  (\v ws acc -> ws (v + acc)) 
+%                         (\acc -> acc) y acc
+% \end{spec}
+
+Note that rule \textsc{(F-Rec)} recursively rewrites the accumulating parameters 
 |many e| because they may harbor further recursive calls. For instance,
 \begin{spec}
 f = \y acc -> case y of
@@ -920,16 +966,21 @@ head = \l -> case l of
 \end{code}
 into
 \begin{code}
-head' :: [a] -> a
-head' = \l -> foldr (\z zs -> z) (error "empty list") l
+head :: [a] -> a
+head = \l -> foldr (\z zs -> z) (error "empty list") l
 \end{code}
 These \emph{degenerate} folds are of no interest to us, since non-recursive functions
-are much more easily understood as they are than as a fold. Moreover, they can
+are much more easily understood in their conventional form than as a fold. Moreover, they can
 easily be optimized without 
 fold/build fusion: by simple inlining and specialization. 
 Fortunately we can easily avoid introducing degenerate folds by only rewriting
 recursive functions. In other words, the algorithm must use 
 the rule \textsc{(F-Rec)} at least once.
+
+%-------------------------------------------------------------------------------
+\subsection{Other Datatypes}
+\tom{TODO}
+
  
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Discovering Builds}
