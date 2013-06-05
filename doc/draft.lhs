@@ -87,6 +87,7 @@ import Prelude       hiding (head, foldr, map, sum, replicate)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{abstract}
+\tom{To revise:}
 Rewriting explicitly recursive functions in terms of higher-order functions such
 as |fold| and |map| brings many advantages such as conciseness, improved
 readability, and it facilitates some optimisations. However, it is not always
@@ -816,7 +817,7 @@ of expressions |many e| does not match the number of box holes.
 Figure~\ref{fig:foldspec} shows our non-deterministic algorithm for rewriting 
 function bindings in terms of folds. To keep the exposition simple, the algorithm
 is specialized to folds over lists; we discuss the generalization to other
-algebraic datatypes later on.\tom{Where?}
+algebraic datatypes later on.
 
 \paragraph{Single-Argument Functions}
 The top-level judgement is of the form $|b| \leadsto |b'|$, which denotes the
@@ -979,11 +980,31 @@ the rule \textsc{(F-Rec)} at least once.
 
 %-------------------------------------------------------------------------------
 \subsection{Other Datatypes}
-\tom{TODO}
 
- 
+The algorithm generalizes straightforwardly to other datatypes than lists.  The
+main issues are to cater for the datatype's constructors rather than those of
+lists, and to use the datatype's fold function rather than |foldr|.
+
+A significant generalization from lists is that datatype constructors may have
+multiple recursive subterms. For instance, the |Branch| constructor of our
+leaf trees has two recursive subterms, for the left and right subtrees. This
+means that the \textsc(F-Rec) rule has to allow for recursive calls over
+either. Also note that in the case of multiple recursive subterms, the
+recursive rewriting of accumulating parameters in rule \textsc{F-Rec} is more
+likely to occur. Consider for instance the following function
+\begin{spec}
+flatten :: Tree a -> [a] -> [a]
+flatten = \t acc -> case t of
+                      Leaf x      -> (x:acc)
+                      Branch l r  -> flatten l (flatten r acc)
+\end{spec}
+which is turned into
+\begin{spec}
+flatten = \t acc -> foldT  (\x acc -> (x:acc))
+                           (\l r acc -> l (r acc)) t acc
+\end{spec}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Discovering Builds}
+\section{Finding Builds}
 
 \begin{figure}[t]
 \begin{center}
@@ -1030,13 +1051,13 @@ the rule \textsc{(F-Rec)} at least once.
 \end{figure}
 
 Figure~\ref{fig:buildspec} lists our non-deterministic algorithm for
-discoverings list builds. The toplevel judgement is $b \rightarrowtail b';
+finding list builds. The toplevel judgement is $b \rightarrowtail b';
 b_g$.  It rewrites a binding |b| into |b'| that uses |build| and also returns
 an auxiliary binding $b_g$ for the generator function used in the |build|.
 There is one rule defining this judgement, (\textsc{B-Bind}), that rewrites
 the body |e| of a binding into a |build| and produces the generator function binding.
 Note that the rule allows for an arbitrary number of lambda abstractions |\many
-x ->| to preceed the invocation of |build|. This enables auxiliary parameters to
+x ->| to precede the invocation of |build|. This allows auxiliary parameters to
 the generator function, e.g., to support an inductive definition. For instance, the
 |map| function can be written as a |build| with two auxiliary parameters.
 \begin{spec}
@@ -1062,16 +1083,17 @@ The first four rules distinguish four ways in which the function body can yield 
 \item Rule (\textsc{B-Rec}) replaces recursive calls to the original function |f| by recursive
       calls to the generator function |g|.
 \item Rule (\textsc{B-Build}) deals with the case where a list is produced by a call
-      to |build|. It could have dynamically introduced the abstract |c| and |n| list constructors 
-      by means of |foldr c n (build e)|. However, this expression can be statically fused to |e c n|.
+      to |build|. In this situation the abstract |c| and |n| list constructors
+      can be introduced dynamically as |foldr c n (build e)|. However, this
+      expression can of course be statically fused to |e c n|.
 \end{enumerate}
-In the |map| example, all rules but (\textsc{B-Build}) of the rules are used.
+In the |map| example, all rules but (\textsc{B-Build}) are used.
 Here is an example that does use rule (\textsc{B-Build}).
 \begin{spec}
 toFront :: Eq a => a -> [a] -> [a]
 toFront x xs = x : filter (/= x) xs
 \end{spec}
-After inlining |filter|, this function becomes.
+After inlining |filter|, which itself is expressed as a build, this function becomes.
 \begin{spec}
 toFront = \x -> \xs -> x : build (g (/= x) xs)
 \end{spec}
@@ -1081,10 +1103,10 @@ toFront = \x -> \xs -> build (g' x xs)
 g'  = \x -> \xs -> \c -> \n ->  c x (g' (/= x) xs c n)
 \end{spec}
 %-------------------------------------------------------------------------------
-\subsection{Degenerate Builds}
+\paragraph{Degenerate Builds}
 
-Just like we called non-recursive catamorphisms, degenerate |folds|,
-we can also call non-recursive builds degenerate.
+Just like non-recursive catamorphisms we can also call non-recursive builds
+degenerate.
 For instance,
 \begin{spec}
 f = 1 : 2 : 3 : []
@@ -1097,8 +1119,8 @@ g  = \c -> \n -> c 1 (c 2 (c 3 n))
 These functions can be easily identified by the absence of a recursive call. 
 In other words, the rule (\textsc{B-Rec}) is never used in the rewriting process.
 
-Strictly speaking, such non-recursive functions do not require |foldr|/|build|
-fusion to be optimized. They can also be optimized by inlining the 
+Strictly speaking, such non-recursive functions do not require |fold|/|build|
+fusion to be optimized. They can also be optimized by inlining their 
 definition and then unfolding the catamorphism sufficiently to consume the
 whole list.
 \begin{spec}
@@ -1111,8 +1133,15 @@ whole list.
      1 + (2 + (3 + 0))
 \end{spec}
 However, in practice, GHC does not peform such aggressive inlining by default.
-Hence, |foldr|/|build| fusion is still a good way of getting rid of the
+Hence, |fold|/|build| fusion is still a good way of getting rid of the
 intermediate datastructure.
+
+%-------------------------------------------------------------------------------
+\paragraph{Other Datatypes}
+
+The adaptation of the build algorithm to other datatypes is essentially similar to
+the adaptations we had to make for the fold algorithm: cater for a different set 
+of constructors with other recursive positions and use the datatype's build function.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
