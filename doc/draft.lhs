@@ -497,9 +497,9 @@ this is the build function for leaf trees:
 %{
 %format . = "."
 \begin{code}
-buildTree  ::  (forall b. (a -> b) -> (b -> b -> b) -> b)
-           ->  Tree a
-buildTree g = g Leaf Branch
+buildT  ::  (forall b. (a -> b) -> (b -> b -> b) -> b)
+        ->  Tree a
+buildT g = g Leaf Branch
 \end{code}
 %}
 
@@ -514,7 +514,7 @@ range l u
 as a build:
 \begin{code}
 range l u  = 
-  buildTree (\leaf branch -> 
+  buildT (\leaf branch -> 
     let g l u
           | u > l      =  let m = l + (u - l) `div` 2
                           in  branch (g l m) (g (m+1) u)
@@ -616,7 +616,7 @@ right.
 \paragraph{Other Datatypes}
 Any datatype that provides both a fold and build function, has a corresponding
 fusion law. For leaf trees, this law is:
-\[ |foldT leaf branch (buildTree g)| ~~ |==| ~~ |g leaf branch| \]
+\[ |foldT leaf branch (buildT g)| ~~ |==| ~~ |g leaf branch| \]
 
 It is key to fusing two loops into one:
 \begin{spec}
@@ -628,7 +628,7 @@ It is key to fusing two loops into one:
 
 == {- inline |range| -}
 
-    foldT id (+) (buildTree $ \leaf branch ->
+    foldT id (+) (buildT $ \leaf branch ->
         let g l u
 		| u > l      =  let m = l + (u - l) `div` 2
 		                in  branch (g l m) (g (m+1) u)
@@ -1146,151 +1146,218 @@ of constructors with other recursive positions and use the datatype's build func
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
 
-In fact, the fold function for an inductive
-datatype can be derived automatically from its definition. We have implemented
-a Template Haskell~\cite{sheard2002} routine, |deriveFold|, to do so. For example, 
-%{
-%format Tree = "`Tree"
-\begin{spec}
-$(deriveFold Tree "foldT")
-\end{spec}
-%}
-
-generates the fold function, named |foldT|, for the type |Tree|.
-
-Just like for folds, we have automated the writing
-of build functions with Template Haskell:
-
-%{
-%format Tree = "`Tree"
-\begin{spec}
-$(deriveBuild Tree "buildTree")
-\end{spec}
-%}
-yields the build function, named |buildTree|, for the type |Tree|.
-
+Rather than to implement our algorithms as a source-level program
+transformation, we have implemented our algorithms as compiler passes in a
+plugin~\cite{ghc-plugins} for GHC. This has three important advantages:
 \begin{itemize}
-\item mutually recursive functions
-\item types
-\end{itemize}
+\item Firstly, the compiler passes work with GHC's core representation, which is
+      much simpler than Haskell source syntax. For instance, the type
+      that represents Haskell source expressions in the popular \texttt{haskell-src-exts} 
+      package features 46 different constructors, while the corresponding GHC core
+      type has only 10.
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{The GHC Core language}
-\label{subsection:ghc-core}
-
-We already gave a brief, high-level explanation of the Core language in section
-\ref{section:core-expressions}. In the next few sections, we explain how we
-obtain and manipulate this language in practice.
-
-GHC \cite{ghc} is the de-facto compiler for Haskell, altough some alternatives
-exist. We selected GHC as target for our implementation because of this reason.
-
-By choosing GHC, we have two convenient representations of Haskell code at our
-disposal for analsis.
-
-The most straightforward representation is the Haskell source code itself.
-There are numerous parsing libraries to make this task easier
-\cite{haskell-src-exts}.
-
-However, during compilation, the Haskell code is transformed to the GHC Core
-\cite{tolmach2009} language in a number of passes.
-
-The latter is particulary interesting for our purposes. It offers the following
-advantages over regular Haskell source code:
-
-\begin{itemize}
-
-\item First, GHC Core is a much less complicated language than Haskell, because
-all syntactic features have been stripped away. As an illustration, the |Expr|
-type used by \emph{haskell-src-exts} has 46 different constructors, while the
-|Expr| type used by GHC Core only has 10!
-
-\item Second, the GHC Core goes through multiple passes. Many of the passes
-simplify the expressions in the source code, which in turns facilitates our
-analysis. Consider the following example.
+\item Secondly, GHC optimizer performs various beneficial transformation passes on a program's
+      core representation before running our algorithms. Many of these passes
+      help our algorithms by simplifying the source code.
+      Consider the following example of two mutually recursive functions.
 
 \begin{code}
-jibble :: [Int] -> Int
-jibble []        = 1
-jibble (x : xs)  = wiggle x xs
+f :: [Int] -> Int
+f []        = 1
+f (x : xs)  = g x xs
 
-wiggle :: Int -> [Int] -> Int
-wiggle x xs = x * jibble xs + 1
+g :: Int -> [Int] -> Int
+g x xs = x * f xs + 1
 \end{code}
+      Our fold finding algorithm does not identify |f| as a catamorphism, because it
+      does not see the recursive call, which is hidden in |g|.  However, GHC's
+      inlining pass is likely to inline |g| in the body of |f| and thus expose the
+      recursive call. 
+   
+      In other words, we can keep our algorithms relatively simple, because other GHC
+      passes already do part of the work for us.
 
-Here, it is quite infeasible to recognise a foldr pattern prior to the inlining
-of wiggle. However, once wiggle is inlined, it becomes quite clear that this is
-a perfect match for our detector.
-
-\item Finally, GHC Core is fully typed. This means we have access to type
-information everywhere, which we can use in the analysis. While this is not
-essential to our detector, it allows greater performance. Consider the simple
-function add:
-
+\item Finally, GHC core is fully typed. While type information is not essential,
+      our algorithms can make good use of it to improve their peroformance. Consider this simple function:
 \begin{code}
 add :: Int -> Int -> Int
 add x y = x + y
 \end{code}
-
-Since no fold function will be associated to the |Int| datatype, we can
-immediately skip analysing this function.
+The type signature reveals that none of the parameters is an inductively
+defined datatype, nor is the result type. As a consequence, without looking a
+the function body, our algorithms can conclude that the function cannot be
+expressed as a fold or a build.
 
 \end{itemize}
 
-However, we must note that there is a major drawback to analyzing GHC Core
-instead of Haskell code: it becomes much harder to use the results for
-refactoring: in order to do refactoring, we would need an \emph{annotated}
-expression type so the Core expressions can be traced back to the original
-Haskell code. When we rewrite the Core expressions, the Haskell code must be
-updated accordingly. This falls outside of the scope of this work.
+%-------------------------------------------------------------------------------
+\subsection{Algorithm Implementation}
 
+We have implemented the two algorithms as separate passes in our plugin. The
+implementations deviate from the non-deterministic algorithms of Sections
+\ref{} and \ref{} on two accounts:
+\begin{itemize}
+\item They deal with the core language, which is slightly larger than the
+      language used earlier. As already indicated, core carries type information, 
+      which our implementation must adjust when performing the transformation.
+      Core also involves local binders in addition to toplevel binders. We
+      analyze these too for occurrences of folds and builds.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{The GHC Plugins system}
-\label{subsection:ghc-plugins}
+\item Our implementation is of course deterministic rather than
+      non-deterministic, and, as described above, based on the available type
+      information, it tries to fail fast.
+\end{itemize}
 
-In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
-\cite{ghc-plugins}. After careful consideration, we adopted this approach
-because it turned out to be much more accessible compared to directly using the
-GHC API.
+Below are two more important points with respect to the quality of obtained
+fusions.
 
-To be more precise, most Haskell libraries and applications today use the Cabal
-build system \cite{cabal}. If we want to examine such a package for folds, it is
-simply a matter of patching the Cabal file to include our plugin.
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\paragraph{Local Generator Binders}
 
-Using this mechanism, our plugin can manipulate expressions, in the form of an
-algebraic datatype, directly. We show a simplified expresssion type here:
+An important point for the |build| finding algorithm is that the new abstract
+generator function is actually introduced as a local binding, rather than a new
+toplevel binding. The reason is that we want GHC to specialize the generator function
+at the use site after fusion.
 
-\ignore{
-\begin{code}
-data Id = Id
-data Literal = Literal
-data AltCon = AltCon
-\end{code}
-}
+For instance, after the inlining and fusion of |sum (replicate n)|, we get |g
+(+) 0| where |g| is the abstract generator function. If |g| is defined with a
+toplevel binder, GHC will not inline it because it is recursive. Hence, while
+the intermediate datastructure has been eliminated, we still pay the price of
+the generator's abstraction.
 
-\begin{code}
-data Expr
-    = Var Id
-    | Lit Literal
-    | App Expr Expr
-    | Lam Id Expr
-    | Let Bind Expr
-    | Case Expr Id [Alt]
+However, if |g| is actually defined locally in |replicate|, as shown in
+Section~\ref{}, GHC can easily specialize the recursive definition of the
+generator and eliminate the abstraction. The result is a tight first-order
+loop.
 
-data Bind
-    = NonRec Id Expr
-    | Rec [(Id, Expr)]
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\paragraph{Relative Pass Scheduling}
+As we have already argued in Section~\ref{}, it is crucial for the fusion
+of pipelines that transformation functions are expressed as a build of a fold.
+In order to obtain this required form, our build finding pass must be scheduled
+before the fold finding pass. Only in this order do we obtain, e.g., the definition
+\begin{spec}
+map f l = build (\c n -> foldr (\x xs -> c (f x) xs) n l)
+\end{spec}
+If we first find the fold, we get stuck at the following intermediate form
+\begin{spec}
+map f l = foldr (\x xs -> f x : xs) [] l
+\end{spec}
+because our build finder is not equipped to deal with folds.
 
-type Alt = (AltCon, [Id], Expr)
-\end{code}
+%-------------------------------------------------------------------------------
+\subsection{Fusion}
 
-|Id| is the type used for different kinds of identifiers. |Lit| is any kind of
-literal. |App| and |Lam| are well-known from the $\lambda$-calculus and
-represent function application and lambda abstraction respectively. |Let| is
-used to introduce new recursive or non-recursive binds, and |Case| is used for
-pattern matching -- the only kind of branching possible in GHC Core.
+\tom{Explain how we do fusion.}
+
+%-------------------------------------------------------------------------------
+\subsection{Datatype Support}
+
+In order to introduce calls to fold and build functions for a datatype, these 
+functions have to be available for that datatype. At present, GHC only provides
+such functions for lists.
+
+In order to support additional datatypes, we allow the programmer to register
+fold and build functions for his own datatypes by means of
+annotations~\cite{ghc-annotations}. For instance, the following annotation
+does so for the type of leaf trees.
+\begin{Verbatim}
+{-# ANN type Tree 
+     (RegisterFoldBuild "foldT" "buildT") 
+  #-}
+\end{Verbatim}
+ 
+Moreover, we also provide complimentary 
+Template Haskell~\cite{sheard2002} routines to derive the implemenations of the two functions.
+%{
+%format Tree = "`Tree"
+\begin{spec}
+$(deriveFold Tree "foldT")
+$(deriveBuild Tree "buildT")
+\end{spec}
+%}
+
+If desired, the responsability for registering types and generating the
+higher-order schemes can easily be moved to the compiler. At this time, and for
+the purpose of evaluation, it suits us to have a bit more control.
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \subsection{The GHC Core language}
+% \label{subsection:ghc-core}
+% 
+% We already gave a brief, high-level explanation of the Core language in section
+% \ref{section:core-expressions}. In the next few sections, we explain how we
+% obtain and manipulate this language in practice.
+% 
+% GHC \cite{ghc} is the de-facto compiler for Haskell, altough some alternatives
+% exist. We selected GHC as target for our implementation because of this reason.
+% 
+% By choosing GHC, we have two convenient representations of Haskell code at our
+% disposal for analsis.
+% 
+% The most straightforward representation is the Haskell source code itself.
+% There are numerous parsing libraries to make this task easier
+% \cite{haskell-src-exts}.
+% 
+% However, during compilation, the Haskell code is transformed to the GHC Core
+% \cite{tolmach2009} language in a number of passes.
+% 
+% The latter is particulary interesting for our purposes. It offers the following
+% advantages over regular Haskell source code:
+% 
+% However, we must note that there is a major drawback to analyzing GHC Core
+% instead of Haskell code: it becomes much harder to use the results for
+% refactoring: in order to do refactoring, we would need an \emph{annotated}
+% expression type so the Core expressions can be traced back to the original
+% Haskell code. When we rewrite the Core expressions, the Haskell code must be
+% updated accordingly. This falls outside of the scope of this work.
+% 
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \subsection{The GHC Plugins system}
+% \label{subsection:ghc-plugins}
+% 
+% In GHC 7.2.1, a new mechanism to manipulate and inspect GHC Core was introduced
+% \cite{ghc-plugins}. After careful consideration, we adopted this approach
+% because it turned out to be much more accessible compared to directly using the
+% GHC API.
+% 
+% To be more precise, most Haskell libraries and applications today use the Cabal
+% build system \cite{cabal}. If we want to examine such a package for folds, it is
+% simply a matter of patching the Cabal file to include our plugin.
+% 
+% Using this mechanism, our plugin can manipulate expressions, in the form of an
+% algebraic datatype, directly. We show a simplified expresssion type here:
+% 
+% \ignore{
+% \begin{code}
+% data Id = Id
+% data Literal = Literal
+% data AltCon = AltCon
+% \end{code}
+% }
+% 
+% \begin{code}
+% data Expr
+%     = Var Id
+%     | Lit Literal
+%     | App Expr Expr
+%     | Lam Id Expr
+%     | Let Bind Expr
+%     | Case Expr Id [Alt]
+% 
+% data Bind
+%     = NonRec Id Expr
+%     | Rec [(Id, Expr)]
+% 
+% type Alt = (AltCon, [Id], Expr)
+% \end{code}
+% 
+% |Id| is the type used for different kinds of identifiers. |Lit| is any kind of
+% literal. |App| and |Lam| are well-known from the $\lambda$-calculus and
+% represent function application and lambda abstraction respectively. |Let| is
+% used to introduce new recursive or non-recursive binds, and |Case| is used for
+% pattern matching -- the only kind of branching possible in GHC Core.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation}
