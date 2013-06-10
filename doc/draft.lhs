@@ -108,7 +108,7 @@ catamorphisms, fold-build fusion, analysis, transformation
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Introduction}
+\section{Introduction}\label{s:intro}
 
 Higher-order functions are immensely popular in Haskell, whose Prelude alone
 offers a wide range of them (e.g., |map|, |filter|, |any|, \ldots). This is not
@@ -258,7 +258,7 @@ Our contributions are in particular:
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
-\section{Overview}
+\section{Overview}\label{s:overview}
 
 % In the early days of computing, assembly code was used for writing programs. In
 % assembly, the control flow of a program is controlled using \emph{jumps}. This
@@ -293,7 +293,7 @@ Our contributions are in particular:
 % programming languages. Consider the simple functions:
 
 %-------------------------------------------------------------------------------
-\subsection{Folds}
+\subsection{Folds}\label{s:overview:fold}
 
 \emph{Catamorphisms} are functions that \emph{consume} an inductively defined datastructure
 by means of structural recursion.  Here are two examples of catamorphisms over
@@ -459,7 +459,7 @@ depths t d  =
 
 
 %-------------------------------------------------------------------------------
-\subsection{Builds}
+\subsection{Builds}\label{s:overview:build}
 
 Builds are the opposite of folds: they \emph{produce} datastructures.
 For lists, this production pattern is captured in the function |build|.
@@ -523,7 +523,7 @@ range l u  =
 \end{code}
 
 %-------------------------------------------------------------------------------
-\subsection{Fold/Build Fusion}
+\subsection{Fold/Build Fusion}\label{s:overview:fusion}
 
 The foldr/build fusion rule expresses that a consumer and producer can be fused:
 \[ |foldr cons nil (build g)| ~~ |==| ~~ |g cons nil| \]
@@ -698,7 +698,7 @@ functions in explicitly recursive style and performs fold/build fusion for any
 directly inductive datatype.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Finding Folds}
+\section{Finding Folds}\label{s:fold}
 \label{subsection:identifying-folds}
 
 This section explains our approach to turning explicitly recrusive functions
@@ -1004,7 +1004,7 @@ flatten = \t acc -> foldT  (\x acc -> (x:acc))
                            (\l r acc -> l (r acc)) t acc
 \end{spec}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Finding Builds}
+\section{Finding Builds}\label{s:build}
 
 \begin{figure}[t]
 \begin{center}
@@ -1144,7 +1144,7 @@ the adaptations we had to make for the fold algorithm: cater for a different set
 of constructors with other recursive positions and use the datatype's build function.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Implementation}
+\section{Implementation}\label{s:implementation}
 
 Rather than to implement our algorithms as a source-level program
 transformation, we have implemented our algorithms as compiler passes in a
@@ -1195,7 +1195,7 @@ expressed as a fold or a build.
 
 We have implemented the two algorithms as separate passes in our plugin. The
 implementations deviate from the non-deterministic algorithms of Sections
-\ref{} and \ref{} on two accounts:
+\ref{s:fold} and \ref{s:build} on two accounts:
 \begin{itemize}
 \item They deal with the core language, which is slightly larger than the
       language used earlier. As already indicated, core carries type information, 
@@ -1226,13 +1226,13 @@ the intermediate datastructure has been eliminated, we still pay the price of
 the generator's abstraction.
 
 However, if |g| is actually defined locally in |replicate|, as shown in
-Section~\ref{}, GHC can easily specialize the recursive definition of the
+Section~\ref{s:overview:build}, GHC can easily specialize the recursive definition of the
 generator and eliminate the abstraction. The result is a tight first-order
 loop.
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 \paragraph{Relative Pass Scheduling}
-As we have already argued in Section~\ref{}, it is crucial for the fusion
+As we have already argued in Section~\ref{s:overview:fusion}, it is crucial for the fusion
 of pipelines that transformation functions are expressed as a build of a fold.
 In order to obtain this required form, our build finding pass must be scheduled
 before the fold finding pass. Only in this order do we obtain, e.g., the definition
@@ -1248,7 +1248,17 @@ because our build finder is not equipped to deal with folds.
 %-------------------------------------------------------------------------------
 \subsection{Fusion}
 
-\tom{Explain how we do fusion.}
+The passes for finding folds and builds are inherently compatible with GHC's
+approach to list fusion. Whenever a list producer or consumer is rewritten into
+a |foldr| or |build|, it becomes a possible subject of the GHC rewrite rules
+that target these higher-order schemes.
+
+Moreover, for fusion to happen it is not necessary for our passes to find a
+fold and a build together. Fusion can also happen when the programmer combines,
+e.g., his own explicitly recursive catamorphism with a library function that is
+already expressed as a build. 
+
+\tom{an example?}
 
 %-------------------------------------------------------------------------------
 \subsection{Datatype Support}
@@ -1280,6 +1290,8 @@ $(deriveBuild Tree "buildT")
 If desired, the responsability for registering types and generating the
 higher-order schemes can easily be moved to the compiler. At this time, and for
 the purpose of evaluation, it suits us to have a bit more control.
+
+\tom{What about fusion rules?}
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % \subsection{The GHC Core language}
@@ -1360,31 +1372,32 @@ the purpose of evaluation, it suits us to have a bit more control.
 % pattern matching -- the only kind of branching possible in GHC Core.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Evaluation}
+\section{Evaluation}\label{s:evaluation}
 
 %-------------------------------------------------------------------------------
 \subsection{Identifying Folds}
 \label{subsection:identifying-folds}
 
-In order to test the quality of our fold discovery algorithm, we have applied
-it to 13 popular Haskell packages. This experiment also provides us with an
-estimate (a lower bound) of the number of explicitly recursive catamorphisms
-that experienced Haskell programmers write in practice.
+In order to test the quality of our fold finding algorithm, we have applied it
+to 13 popular Haskell packages. We have not enabled any of GHC's optimization
+flags and disabled the actual rewriting in our pass. In this way, we get an
+accurate estimate (a lower bound) of the number of explicitly recursive
+catamorphisms that experienced Haskell programmers write in practice.
 
 Table \ref{tabular:project-results} lists the results of the fold analysis on the left. The
 first column lists the names of the packages and the second column (Total)
 reports the total number of discovered catamorphisms. The third and fourth
 column split up this total number in catamorphisms over lists (List) and
-catamorphisms over other algebraic datatypes (Other). The fifth column (V.
-arg.) shows the number of catamorphisms with auxiliary variable arguments
-(e.g., left folds). The sixth column (N. rec.) counts the number of variable argument
+catamorphisms over other algebraic datatypes (Other). The fifth column (Acc.) shows the number of catamorphisms with 
+accumulating parameters
+(e.g., left folds). The sixth column (N. rec.) counts the number of accumulating parameter
 catamorphisms with nested recursive calls such as the |f vs (f vs (v + acc))| example
-from Section~\ref{}.
+from Section~\ref{s:overview:fold}.
 
 Finally, the last column provides the analysis results of
 \emph{hlint}~\cite{hlint} for comparison. This tool provides hints on
 how to refactor Haskell source code. The listed results reflect the number of
-suggestions on the use of |map|, |filter| and |foldr| rather than explicit
+suggestions on the use of |map|, |filter|, |foldl| and |foldr| rather than explicit
 recursion.
 
 We see that across all packages our analysis finds more list catamorphisms than
@@ -1411,7 +1424,7 @@ packages do have a significant number of those.
                  & \multicolumn{6}{c}{\textbf{folds}} &
                  & \multicolumn{4}{c}{\textbf{builds}} \\
 \cmidrule{2-7} \cmidrule{9-12}
-\textbf{Package} & \textbf{Total} & List & Other & V. arg. & N. rec. & \textbf{HLint} &
+\textbf{Package} & \textbf{Total} & List & Other & Acc. & N. rec. & \textbf{HLint} &
                  & \textbf{Total} & List & Other & Rec. \\
 \midrule
 Cabal-1.16.0.3          & 20  & 11  & 9   & 6   & 0   & 9  & & 101 & 81  & 20  & 5  \\
@@ -1429,7 +1442,7 @@ parsec-3.1.3            & 3   & 3   & 0   & 1   & 0   & 0  & & 10  & 10  & 0   &
 snap-core-0.9.3.1       & 4   & 3   & 1   & 1   & 0   & 0  & & 4   & 4   & 0   & 0  \\
 \bottomrule
 \end{tabular}
-\caption{Results of identifying folds and builds in well-known Haskell packages}
+\caption{Folds and builds found in well-known Haskell packages}
 \label{tabular:project-results}
 \end{center}
 \end{table*}
@@ -1457,15 +1470,133 @@ Unlike for folds, we are not aware of any other tool that detects builds and wou
 provide a basis for comparison.
 
 %-------------------------------------------------------------------------------
-\subsection{Optimization results}
+\subsection{Fusion}
 
 \tom{We need to specifically address what happens to functions that are both
      a fold and a build like |map| and |filter|.}
 
 \tom{We need to benchmark foldr/build examples from the literature.}
 
+\begin{figure*}
+\begin{tabular}{l||l}
+\begin{minipage}{0.5\textwidth}
+\begin{code}
+suml :: [Int] -> Int
+suml []        = 0
+suml (x : xs)  = x + suml xs
+
+mapl :: (a -> b) -> [a] -> [b]
+mapl f = go
+  where
+    go []        = []
+    go (x : xs)  = f x : go xs
+
+uptol :: Int -> Int -> [Int]
+uptol lo up = go lo
+  where
+    go i
+        | i > up     = []
+        | otherwise  = i : uptol (i + 1) up
+\end{code}
+\end{minipage}
+&
+\begin{minipage}{0.5\textwidth}
+\begin{code}
+sumt :: Tree Int -> Int
+sumt (Leaf x)      = x
+sumt (Branch l r)  = sumt l + sumt r
+
+mapt :: (a -> b) -> Tree a -> Tree b
+mapt f = go
+  where
+    go (Leaf x)      = Leaf (f x)
+    go (Branch l r)  = Branch (go l) (go r)
+
+uptot :: Int -> Int -> Tree Int
+uptot lo hi
+    | lo >= hi   = Leaf lo
+    | otherwise  =
+        let mid = (lo + hi) `div` 2
+        in Branch (uptot lo mid) (uptot (mid + 1) hi)
+\end{code}
+\end{minipage}
+\end{tabular}
+\caption{Pipeline components for lists (left) and trees (right)}
+\end{figure*}
+
+We kunnen deze hulpfuncties ook defini\"eren voor ons |Tree|-type, opnieuw op
+expliciet recursieve wijze:
+
+Met deze hulpfuncties ter beschikking kunnen we een aantal pijplijnfuncties
+maken voor zowel lijsten als bomen, van vari\"erende lengte:
+
+%format l1
+%format l2
+%format l3
+%format l4
+%format l5
+%format t1
+%format t2
+%format t3
+%format t4
+%format t5
+%format elapsed = "\ldots"
+
+\begin{code}
+l1, l2, l3, l4, l5 :: Int -> Int
+l1 n = suml (1 `uptol` n)
+l2 n = suml (mapl (+ 1) (1 `uptol` n))
+l3 n = suml (mapl (+ 1) (mapl (+ 1) (1 `uptol` n)))
+l4 n = elapsed
+l5 n = elapsed
+\end{code}
+
+\begin{code}
+t1, t2, t3, t4, t5 :: Int -> Int
+t1 n = sumt (1 `uptot` n)
+t2 n = sumt (mapt (+ 1) (1 `uptot` n))
+t3 n = sumt (mapt (+ 1) (mapt (+ 1) (1 `uptot` n)))
+t4 n = elapsed
+t5 n = elapsed
+\end{code}
+
+Deze functies zijn eenvoudig te benchmarken met behulp van de Criterion
+bibliotheek \cite{criterion}. We gebruiken inputgrootte $n = 100\,000$ en voeren
+de benchmarks tweemaal uit: enerzijds met enkel de \texttt{-O2} compilatievlag,
+en anderzijds met de compilatievlaggen \texttt{-O2 -package what-morphism
+-fplugin WhatMorphism}.
+
+De resultaten zijn te zien in Figuur \ref{figure:list-tree} en Figuur
+\ref{figure:list-tree-speedups}. We zijn telkens ge\"interesseerd in de
+versnelling, die we kunnen berekenen als:
+
+\begin{equation*}
+versnelling = \frac{t_2 - t_1}{t_2}
+\end{equation*}
+
+Met $t_2$ de tijdsmeting als we compileerden met \emph{what-morphism} en $t_1$
+de tijdsmeting met enkel de \texttt{-O2} vlag.
+
+We zien dat we direct grote speedups krijgen bij |l0| en |t0|. Dit toont aan dat
+foldr/build-fusion ook voor heel kleine pipelines de moeite loont. Eveneens
+kunnen we uit de grafiek me relatieve resultaten afleiden dat de versnelling
+steeds dichter bij 100\% zal komen naarmate de pijplijn langer wordt.
+
+\begin{figure}[h]
+% \includegraphics[width=0.50\textwidth]{plots/list.pdf}
+% \includegraphics[width=0.50\textwidth]{plots/tree.pdf}
+\caption{De absolute resultaten van de tijdsmetingen voor lijsten (links) en
+bomen (rechts).}
+\label{figure:list-tree}
+
+% \includegraphics[width=0.50\textwidth]{plots/list-speedups.pdf}
+% \includegraphics[width=0.50\textwidth]{plots/tree-speedups.pdf}
+\caption{De relatieve resultaten van de tijdsmetingen voor lijsten (links) en
+bomen (rechts).}
+\label{figure:list-tree-speedups}
+\end{figure}
 %===============================================================================
-\section{Limitations}
+\section{Limitations}\label{s:limitations}
 
 Our approach is currently limited to directly recursive functions that recurse
 over basic regular datatypes. Below we describe a number of cases that are not handled.
@@ -1593,7 +1724,15 @@ buildExp g = g Lit Add Eq
 %}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Related Work}
+\section{Related Work}\label{s:related}
+
+Various authors have investigated variants of short-cut fusion where
+datastructures are produced and consumed in the context of some computational
+effect.  Andres et al.~\cite{} consider the case where the effect modeled by an
+applicative functor, and both Ghani \& Johan~\cite{ghani} and Manzino \&
+Pardo~\cite{manzino} tackle monadic effects. It would be interesting
+to extend our approach to finding uses of their effectful recursion schemes.
+
 
 %-------------------------------------------------------------------------------
 \subsection{Applications of Folds and Fusion}
@@ -1703,7 +1842,7 @@ be used in practice.
 \end{itemize}
 
 %===============================================================================
-\section{Conclusion}
+\section{Conclusion}\label{s:conclusion}
 
 \tom{mention mutually recursive ADTs as important future work}
 
