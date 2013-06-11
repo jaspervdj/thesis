@@ -87,24 +87,37 @@ import Prelude       hiding (head, foldr, map, sum, replicate)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{abstract}
-\tom{To revise:}
-Rewriting explicitly recursive functions in terms of higher-order functions such
-as |fold| and |map| brings many advantages such as conciseness, improved
-readability, and it facilitates some optimisations. However, it is not always
-straightforward for a programmer to write functions in this style. We present an
-approach to automatically detect these higher-order functions, so the programmer
-can have his cake and eat it, too.
+Programs written in terms of higher-order recursion schemes like |foldr| and
+|build| can benefit from program optimization like short-cut fusion.
+Unfortunately, programmers often avoid these schemes in favor of explicitly
+recursive functions.
+
+This paper shows how programmers can continue to write programs in their
+preferred explicitly recursive style and still benefit from fusion. It presents
+syntactic algorithms to automatically find and expose instances of |foldr| and
+|build|. The algorithms have been implemented as GHC compiler passes and deal
+with all regular algebraic datatypes, not just lists. A case study demonstrates
+that these passes are effective at finding many instances in popular Haskell
+packages.
+
+
+% Rewriting explicitly recursive functions in terms of higher-order functions such
+% as |fold| and |map| brings many advantages such as conciseness, improved
+% readability, and it facilitates some optimisations. However, it is not always
+% straightforward for a programmer to write functions in this style. We present an
+% approach to automatically detect these higher-order functions, so the programmer
+% can have his cake and eat it, too.
 \end{abstract}
 
 % TODO: Explicit results, evaluation
 
-\category{CR-number}{subcategory}{third-level}
+% \category{CR-number}{subcategory}{third-level}
 
-\terms
-term1, term2
+% \terms
+% Language
 
 \keywords
-catamorphisms, fold-build fusion, analysis, transformation 
+catamorphisms, fold/build fusion, analysis, transformation 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -244,7 +257,7 @@ Our contributions are in particular:
 \item In order to support a particular well-known optimization,
       fold-build fusion, we also show how to automatically detect and transform
       functions that can be expressed as a call to |build|.
-\item We provide a GHC compiler plugin that performs these detections and
+\item We provide a GHC compiler plugin\footnote{\url{http://github.ugent.be/jaspervdj/what-morphism/}} that performs these detections and
       transformations on GHC Core. Our plugin not
       only covers folds and builds over lists, but over all inductively defined
       directly-recursive datatypes. 
@@ -1376,7 +1389,66 @@ the purpose of evaluation, it suits us to have a bit more control.
 
 %-------------------------------------------------------------------------------
 \subsection{Identifying Folds}
+
+\begin{table}[t!]
+\begin{center}
+\ra{1.3}
+\begin{tabular}{@@{\hspace{2mm}}l@@{\hspace{0mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}}
+\toprule
+\textbf{Package} & \textbf{Total} & List & Other & Acc. & N. rec. & \textbf{HLint} \\
+\midrule
+Cabal-1.16.0.3          & 20  & 11  & 9   & 6   & 0   & 9  \\
+containers-0.5.2.1      & 100 & 11  & 89  & 41  & 11  & 1  \\
+cpphs-1.16              & 5   & 2   & 3   & 3   & 0   & 1  \\
+darcs-2.8.4             & 66  & 65  & 8   & 1   & 0   & 6  \\
+ghc-7.6.3               & 327 & 216 & 111 & 127 & 9   & 26 \\
+hakyll-4.2.2.0          & 5   & 1   & 4   & 3   & 0   & 0  \\
+haskell-src-exts-1.13.5 & 37  & 11  & 26  & 15  & 0   & 2  \\
+hlint-1.8.44            & 6   & 3   & 3   & 1   & 0   & 0  \\
+hscolour-1.20.3         & 4   & 4   & 0   & 0   & 0   & 2  \\
+HTTP-4000.2.8           & 6   & 6   & 0   & 2   & 0   & 3  \\
+pandoc-1.11.1           & 15  & 15  & 0   & 1   & 0   & 2  \\
+parsec-3.1.3            & 3   & 3   & 0   & 1   & 0   & 0  \\
+snap-core-0.9.3.1       & 4   & 3   & 1   & 1   & 0   & 0  \\
+\bottomrule
+\end{tabular}
+\caption{Folds found in well-known Haskell packages}
+\label{tabular:project-results}
+\end{center}
+\end{table}
 \label{subsection:identifying-folds}
+
+% \begin{table*}[t!]
+% \begin{center}
+% \ra{1.3}
+% \begin{tabular}{@@{}lrrrrrrrrrrr@@{}}
+% \toprule
+%                  & \multicolumn{6}{c}{\textbf{folds}} &
+%                  & \multicolumn{4}{c}{\textbf{builds}} \\
+% \cmidrule{2-7} \cmidrule{9-12}
+% \textbf{Package} & \textbf{Total} & List & Other & Acc. & N. rec. & \textbf{HLint} &
+%                  & \textbf{Total} & List & Other & Rec. \\
+% \midrule
+% Cabal-1.16.0.3          & 20  & 11  & 9   & 6   & 0   & 9  & & 101 & 81  & 20  & 5  \\
+% containers-0.5.2.1      & 100 & 11  & 89  & 41  & 11  & 1  & & 25  & 2   & 23  & 12 \\
+% cpphs-1.16              & 5   & 2   & 3   & 3   & 0   & 1  & & 6   & 5   & 1   & 3  \\
+% darcs-2.8.4             & 66  & 65  & 8   & 1   & 0   & 6  & & 354 & 354 & 0   & 26 \\
+% ghc-7.6.3               & 327 & 216 & 111 & 127 & 9   & 26 & & 480 & 178 & 302 & 53 \\
+% hakyll-4.2.2.0          & 5   & 1   & 4   & 3   & 0   & 0  & & 22  & 18  & 4   & 2  \\
+% haskell-src-exts-1.13.5 & 37  & 11  & 26  & 15  & 0   & 2  & & 140 & 74  & 66  & 16 \\
+% hlint-1.8.44            & 6   & 3   & 3   & 1   & 0   & 0  & & 69  & 62  & 7   & 1  \\
+% hscolour-1.20.3         & 4   & 4   & 0   & 0   & 0   & 2  & & 33  & 33  & 0   & 2  \\
+% HTTP-4000.2.8           & 6   & 6   & 0   & 2   & 0   & 3  & & 11  & 11  & 0   & 5  \\
+% pandoc-1.11.1           & 15  & 15  & 0   & 1   & 0   & 2  & & 97  & 97  & 0   & 16 \\
+% parsec-3.1.3            & 3   & 3   & 0   & 1   & 0   & 0  & & 10  & 10  & 0   & 0  \\
+% snap-core-0.9.3.1       & 4   & 3   & 1   & 1   & 0   & 0  & & 4   & 4   & 0   & 0  \\
+% \bottomrule
+% \end{tabular}
+% \caption{Folds and builds found in well-known Haskell packages}
+% \label{tabular:project-results}
+% \end{center}
+% \end{table*}
+% \label{subsection:identifying-folds}
 
 In order to test the quality of our fold finding algorithm, we have applied it
 to 13 popular Haskell packages. We have not enabled any of GHC's optimization
@@ -1416,47 +1488,44 @@ fact that our analysis is more powerful than that of hlint.  Also, hlint does
 not look for catamorphisms over other datatypes than lists, while several
 packages do have a significant number of those.
 
-\begin{table*}
-\begin{center}
-\ra{1.3}
-\begin{tabular}{@@{}lrrrrrrrrrrr@@{}}
-\toprule
-                 & \multicolumn{6}{c}{\textbf{folds}} &
-                 & \multicolumn{4}{c}{\textbf{builds}} \\
-\cmidrule{2-7} \cmidrule{9-12}
-\textbf{Package} & \textbf{Total} & List & Other & Acc. & N. rec. & \textbf{HLint} &
-                 & \textbf{Total} & List & Other & Rec. \\
-\midrule
-Cabal-1.16.0.3          & 20  & 11  & 9   & 6   & 0   & 9  & & 101 & 81  & 20  & 5  \\
-containers-0.5.2.1      & 100 & 11  & 89  & 41  & 11  & 1  & & 25  & 2   & 23  & 12 \\
-cpphs-1.16              & 5   & 2   & 3   & 3   & 0   & 1  & & 6   & 5   & 1   & 3  \\
-darcs-2.8.4             & 66  & 65  & 8   & 1   & 0   & 6  & & 354 & 354 & 0   & 26 \\
-ghc-7.6.3               & 327 & 216 & 111 & 127 & 9   & 26 & & 480 & 178 & 302 & 53 \\
-hakyll-4.2.2.0          & 5   & 1   & 4   & 3   & 0   & 0  & & 22  & 18  & 4   & 2  \\
-haskell-src-exts-1.13.5 & 37  & 11  & 26  & 15  & 0   & 2  & & 140 & 74  & 66  & 16 \\
-hlint-1.8.44            & 6   & 3   & 3   & 1   & 0   & 0  & & 69  & 62  & 7   & 1  \\
-hscolour-1.20.3         & 4   & 4   & 0   & 0   & 0   & 2  & & 33  & 33  & 0   & 2  \\
-HTTP-4000.2.8           & 6   & 6   & 0   & 2   & 0   & 3  & & 11  & 11  & 0   & 5  \\
-pandoc-1.11.1           & 15  & 15  & 0   & 1   & 0   & 2  & & 97  & 97  & 0   & 16 \\
-parsec-3.1.3            & 3   & 3   & 0   & 1   & 0   & 0  & & 10  & 10  & 0   & 0  \\
-snap-core-0.9.3.1       & 4   & 3   & 1   & 1   & 0   & 0  & & 4   & 4   & 0   & 0  \\
-\bottomrule
-\end{tabular}
-\caption{Folds and builds found in well-known Haskell packages}
-\label{tabular:project-results}
-\end{center}
-\end{table*}
-
 Folds with a variant arguments (left folds) are found quite regularly in
 Haskell packages, but those with nested recursive calls are much rarer. We have
 only found them in the GHC and containers packages; they may be an indication
 of a rather advanced programming style.
 
-\tom{What can we say about \#folds/LoC ratio?}
-\tom{Perform same experiment on FLP project.}
+% \tom{What can we say about \#folds/LoC ratio?}
+% \tom{Perform same experiment on FLP project.}
 
 %-------------------------------------------------------------------------------
 \subsection{Identifying builds}
+
+\begin{table}[t!]
+\begin{center}
+\ra{1.3}
+\begin{tabular}{@@{}lrrrr@@{}}
+\toprule
+\textbf{Package} & \textbf{Total} & List & Other & Rec. \\
+\midrule
+Cabal-1.16.0.3          & 101 & 81  & 20  & 5  \\
+containers-0.5.2.1      & 25  & 2   & 23  & 12 \\
+cpphs-1.16              & 6   & 5   & 1   & 3  \\
+darcs-2.8.4             & 354 & 354 & 0   & 26 \\
+ghc-7.6.3               & 480 & 178 & 302 & 53 \\
+hakyll-4.2.2.0          & 22  & 18  & 4   & 2  \\
+haskell-src-exts-1.13.5 & 140 & 74  & 66  & 16 \\
+hlint-1.8.44            & 69  & 62  & 7   & 1  \\
+hscolour-1.20.3         & 33  & 33  & 0   & 2  \\
+HTTP-4000.2.8           & 11  & 11  & 0   & 5  \\
+pandoc-1.11.1           & 97  & 97  & 0   & 16 \\
+parsec-3.1.3            & 10  & 10  & 0   & 0  \\
+snap-core-0.9.3.1       & 4   & 4   & 0   & 0  \\
+\bottomrule
+\end{tabular}
+\caption{Builds found in well-known Haskell packages}
+\label{tabular:project-results}
+\end{center}
+\end{table}
+\label{subsection:identifying-folds}
 
 The right-hand side of Table~\ref{tabular:project-results} shows the result of
 the build analysis for the 13 packages. The Total column lists the total number
@@ -1472,63 +1541,16 @@ provide a basis for comparison.
 %-------------------------------------------------------------------------------
 \subsection{Fusion}
 
-\tom{We need to specifically address what happens to functions that are both
-     a fold and a build like |map| and |filter|.}
+We have not measured any significant performance improvements in the above 13
+packages. Likely, the critical paths in thse packages have already been
+optimized by their authors.
 
-\tom{We need to benchmark foldr/build examples from the literature.}
-
-\begin{figure*}
-\begin{tabular}{l||l}
-\begin{minipage}{0.5\textwidth}
-\begin{code}
-suml :: [Int] -> Int
-suml []        = 0
-suml (x : xs)  = x + suml xs
-
-mapl :: (a -> b) -> [a] -> [b]
-mapl f = go
-  where
-    go []        = []
-    go (x : xs)  = f x : go xs
-
-uptol :: Int -> Int -> [Int]
-uptol lo up = go lo
-  where
-    go i
-        | i > up     = []
-        | otherwise  = i : uptol (i + 1) up
-\end{code}
-\end{minipage}
-&
-\begin{minipage}{0.5\textwidth}
-\begin{code}
-sumt :: Tree Int -> Int
-sumt (Leaf x)      = x
-sumt (Branch l r)  = sumt l + sumt r
-
-mapt :: (a -> b) -> Tree a -> Tree b
-mapt f = go
-  where
-    go (Leaf x)      = Leaf (f x)
-    go (Branch l r)  = Branch (go l) (go r)
-
-uptot :: Int -> Int -> Tree Int
-uptot lo hi
-    | lo >= hi   = Leaf lo
-    | otherwise  =
-        let mid = (lo + hi) `div` 2
-        in Branch (uptot lo mid) (uptot (mid + 1) hi)
-\end{code}
-\end{minipage}
-\end{tabular}
-\caption{Pipeline components for lists (left) and trees (right)}
-\end{figure*}
-
-We kunnen deze hulpfuncties ook defini\"eren voor ons |Tree|-type, opnieuw op
-expliciet recursieve wijze:
-
-Met deze hulpfuncties ter beschikking kunnen we een aantal pijplijnfuncties
-maken voor zowel lijsten als bomen, van vari\"erende lengte:
+Hence, instead, we offer the following aritificial benchmarks, that demonstrate
+the potential impact of fusion on program runtime.  We have two similar sets of
+benchmarks, one for lists and one for leaf trees, that consist of pipelines
+of increasing length. The $i$the benchmark consists of a producer (|upto|), followed by
+|i-1| transformers (|map (+1)| and a final consumer (|sum|). Each of the components of 
+the pipeline is defined in an explicitly recursive style (see Fig.~\ref{f:pipeline:components}).
 
 %format l1
 %format l2
@@ -1542,61 +1564,165 @@ maken voor zowel lijsten als bomen, van vari\"erende lengte:
 %format t5
 %format elapsed = "\ldots"
 
-\begin{code}
-l1, l2, l3, l4, l5 :: Int -> Int
-l1 n = suml (1 `uptol` n)
-l2 n = suml (mapl (+ 1) (1 `uptol` n))
-l3 n = suml (mapl (+ 1) (mapl (+ 1) (1 `uptol` n)))
-l4 n = elapsed
-l5 n = elapsed
-\end{code}
 
-\begin{code}
-t1, t2, t3, t4, t5 :: Int -> Int
-t1 n = sumt (1 `uptot` n)
-t2 n = sumt (mapt (+ 1) (1 `uptot` n))
-t3 n = sumt (mapt (+ 1) (mapt (+ 1) (1 `uptot` n)))
-t4 n = elapsed
-t5 n = elapsed
-\end{code}
+We have timed the pipelines with Criterion~\cite{criterion}, using input $n =
+100\,000$.  Each of the benchmarks was compiled (and run) twice: once with the
+\texttt{-O2 -fenable-rewrite-rules} GHC flags, and once with those two flags
+and our compiler passes. 
+We have inspected the produced core code and observed that in the former case the
+pipeline is not fused at all, and in the latter case it is fully fused. For instance,
+the fully fused code obtained for |l5| is:
+\begin{spec}
+l5 = 
+  \l u -> case l > u of                                       
+            False  -> case l5 (l + 1) u of                    
+                         n -> ((((l + 1) + 1) + 1) + 1) + n   
+            True   -> 0                                   
+\end{spec}
 
-Deze functies zijn eenvoudig te benchmarken met behulp van de Criterion
-bibliotheek \cite{criterion}. We gebruiken inputgrootte $n = 100\,000$ en voeren
-de benchmarks tweemaal uit: enerzijds met enkel de \texttt{-O2} compilatievlag,
-en anderzijds met de compilatievlaggen \texttt{-O2 -package what-morphism
--fplugin WhatMorphism}.
+Figures~\ref{figure:list-speedups} and \ref{figure:tree-speedups}
+show the absolute runtimes and the speed-ups obtained by fusion for respectively the
+list and tree pipelines.
+The relative speed-ups are defined as $(t_u - t_f)/t_u$ where $t_u$ is the runtime
+of the unfused pipelines and $t_f$ the runtime of the fused pipelines.
 
-De resultaten zijn te zien in Figuur \ref{figure:list-tree} en Figuur
-\ref{figure:list-tree-speedups}. We zijn telkens ge\"interesseerd in de
-versnelling, die we kunnen berekenen als:
+We see in the unoptimized version that the shortest list pipeline |l1| has a
+base runtime of about 10ms; every additional transformation in the longer
+pipelines adds about 4ms. Our compiler passes cause big-speeds. Firstly, the
+base runtime is recuded by almost 80\%. Moreover, the cost of the additional
+transformations is completely eliminated: all pipelines have the same absolute runtime.
+This means that the relative speed-up gradually converges to 100\%.
+Similar observations can be made for the leaf tree pieplines.
 
-\begin{equation*}
-versnelling = \frac{t_2 - t_1}{t_2}
-\end{equation*}
+\begin{figure}[h!]
+\includegraphics[width=0.50\textwidth]{plots/list.pdf}
 
-Met $t_2$ de tijdsmeting als we compileerden met \emph{what-morphism} en $t_1$
-de tijdsmeting met enkel de \texttt{-O2} vlag.
-
-We zien dat we direct grote speedups krijgen bij |l0| en |t0|. Dit toont aan dat
-foldr/build-fusion ook voor heel kleine pipelines de moeite loont. Eveneens
-kunnen we uit de grafiek me relatieve resultaten afleiden dat de versnelling
-steeds dichter bij 100\% zal komen naarmate de pijplijn langer wordt.
-
-\begin{figure}[h]
-% \includegraphics[width=0.50\textwidth]{plots/list.pdf}
-% \includegraphics[width=0.50\textwidth]{plots/tree.pdf}
-\caption{De absolute resultaten van de tijdsmetingen voor lijsten (links) en
-bomen (rechts).}
-\label{figure:list-tree}
-
-% \includegraphics[width=0.50\textwidth]{plots/list-speedups.pdf}
-% \includegraphics[width=0.50\textwidth]{plots/tree-speedups.pdf}
-\caption{De relatieve resultaten van de tijdsmetingen voor lijsten (links) en
-bomen (rechts).}
-\label{figure:list-tree-speedups}
+\includegraphics[width=0.50\textwidth]{plots/list-speedups.pdf}
+\caption{Absolute runtimes (top) and relative speed-ups (bottom) for list pipelines.}
+\label{figure:list-speedups}
 \end{figure}
+
+\begin{figure}[h!]
+\includegraphics[width=0.50\textwidth]{plots/tree.pdf}
+\includegraphics[width=0.50\textwidth]{plots/tree-speedups.pdf}
+\caption{Absolute runtimes (top) and relative speed-ups (bottom) for leaf tree pipelines.}
+\label{figure:tree-speedups}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Related Work}\label{s:related}
+
+
+%-------------------------------------------------------------------------------
+\subsection{Folds and Fusion}
+
+There is a long line of work on writing recursive functions in terms of
+structured recursion schemes, as well as proving fusion properties of these and
+exploiting them for deriving efficient programs. Typically the derivation
+process is performed manually.
+
+Bird and Meertens~\cite{bird,meertens} have come up with several equational
+laws for recursion schemes to serve them in their work on program calculation.
+With their Squiggol calculus, Meijer et al.~\cite{meijer1991} promote the use
+of structured recursion by means of recursion operators. These operators are
+defined in a datatype generic way and are equipped with a number of algebraic
+laws that enable equivalence-preserving program transformations.
+
+Gibbons~\cite{Gibbons2003:Origami} promotes explicit programming in terms of
+folds and unfolds, which he calls \emph{origami} programming. Unfolds are the dual
+of folds, and capture a special case of builds.
+
+Gill et al.~\cite{gill1993} present the foldr/build fusion rule and discuss
+its benefits. They mention that it would be desirable, yet highly challenging,
+for the compiler to notice whether functions can be expressed in terms of |foldr|
+and |build|. That would allow programmers to write programs in whatever style they like.
+
+Various authors have investigated variants of short-cut fusion where
+datastructures are produced and consumed in the context of some computational
+effect.  Andres et al.~\cite{} consider the case where the effect modeled by an
+applicative functor, and both Ghani \& Johan~\cite{ghani} and Manzino \&
+Pardo~\cite{manzino} tackle monadic effects. It would be interesting
+to extend our approach to finding uses of their effectful recursion schemes.
+
+%-------------------------------------------------------------------------------
+\subsection{Automation}
+
+Higher-order matching is a general technique for matching expressions in
+functional programs against expression templates. In the context of Haskell,
+Sittampalam and de Moor~\cite{mag} have applied higher-order matching in their
+rewriting system, called MAG. They have used MAG for fusion in the following
+way. the programmer specifies the initial program, a specficiation of the
+target program and suitable rewrite rules. The latter includes a rule for
+|foldr| fusion: 
+%{
+%format . = "."
+\begin{spec}
+f (foldr c n l) = foldr c' n' l
+   if  f n = n'
+       forall x y. f (c x y) = c' x (f y) 
+\end{spec}
+%}
+Then the MAG system will attempt to derive the target implementation by
+applying the rewrite rules. Finally, the programmer needs to check whether MAG
+has only applied the fusion rule to strict functions |f|, a side condition of
+the fusion rule that cannot be specified in MAG.
+
+GHC rewrite rules~\cite{jones2001} are a lightweight way to (semi-)automate fusion. The
+programmer provides rewrite rules to rewrite program patterns into their fused
+forms and the compiler applies these whenever it finds an opportunity.  The one
+part that is not automated is that programmers still have to write their code
+in terms of the higher-order recursion schemes. GHC has set up various of its
+base libraries in this way to benefit from fold/build fusion among others.
+
+Building on GHC rewrite rules, Coutts et al.~\cite{coutts2007} have proposed
+stream fusion as a convenient alternative to foldr/build fusion. Stream fusion
+is able to fuse zips and left folds, but, on the downside, it is less obvious
+for the programmer to write his functions in the required style.  Hinze et
+al.~\cite{hinze} provide clues for how to generalize stream fusion: by expressing
+functions in terms of an unfold, followed by a natural transformation and a
+fold.
+
+%  filter p l
+%     = build (\c n -> foldr (\x r -> if p x then c x r else r) n l)
+
+% foldr f z $ filter () $ build g
+%
+%    g (\ x xs -> if p x then f x xs else xs) z
+
+% zip []     l  = []
+% zip (x:xs) l  =
+%   case l of 
+%     []      -> []
+%     (y:ys)  -> (x,y) : zip xs ys
+
+% zip l1 l2 = foldr (\x xs l2 -> case l2 of { [] -> [] ; (y:ys) -> (x,y) : xs ys}) (\l2 -> []) l1 l2
+
+
+%% It would be interesting future work to automatically identify such
+%% patterns.
+
+% However, at
+% the time of writing, there is no known reliable method of optimising uses of
+% |concatMap|. |concatMap| is important because it represents the entire class of
+% nested list computations, including list comprehensions~\cite{coutts2010}.
+
+The \emph{hlint}~\cite{hlint} tool is designed to recognize various code
+patterns and offer suggestions for improving them. In particular, it recognizes
+various forms of explicit recursion and suggests the use of appropriate
+higher-order functions like |map|, |filter| and |foldr| that capture these
+recursion patterns.  As we already showed in Section
+\ref{subsection:identifying-folds}, we are able to detect more instances of
+folds for Haskell lists than hlint. Moreover, hlint makes no effort to detect
+folds for other algebraic datatypes.
+
+Supercompilation~\cite{supercompilation} is a much more generic and brute-force
+technique for program specialization that is capable of fusing
+producer-consumer pipelines.  Unfortunately, the current state of the art of
+supercompilation for Haskell~\cite{UCAM-CL-TR-835} is still too unreliable to
+be used in practice.
+
 %===============================================================================
-\section{Limitations}\label{s:limitations}
+\section{Discussion}\label{s:discussion}
 
 Our approach is currently limited to directly recursive functions that recurse
 over basic regular datatypes. Below we describe a number of cases that are not handled.
@@ -1724,134 +1850,6 @@ buildExp g = g Lit Add Eq
 %}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Related Work}\label{s:related}
-
-Various authors have investigated variants of short-cut fusion where
-datastructures are produced and consumed in the context of some computational
-effect.  Andres et al.~\cite{} consider the case where the effect modeled by an
-applicative functor, and both Ghani \& Johan~\cite{ghani} and Manzino \&
-Pardo~\cite{manzino} tackle monadic effects. It would be interesting
-to extend our approach to finding uses of their effectful recursion schemes.
-
-
-%-------------------------------------------------------------------------------
-\subsection{Applications of Folds and Fusion}
-
-There is a long line of work on writing recursive functions in terms of
-structured recursion schemes, as well as proving fusion properties of these and
-exploiting them for deriving efficient programs. Typically the derivation
-process is performed manually.
-
-Bird and Meertens~\cite{bird,meertens} have come up with several equational
-laws for recursion schemes to serve them in their work on program calculation.
-With their Squiggol calculus, Meijer et al.~\cite{meijer1991} promote the use
-of structured recursion by means of recursion operators. These operators are
-defined in a datatype generic way and are equipped with a number of algebraic
-laws that enable equivalence-preserving program transformations.
-
-Gibbons~\cite{Gibbons2003:Origami} promotes explicit programming in terms of
-folds and unfolds, which he calls \emph{origami} programming. Unfolds are the dual
-of folds, and capture a special case of builds.
-
-Gill et al.~\cite{gill1993} present the foldr/build fusion rule and discuss
-its benefits. They mention that it would be desirable, yet highly challenging,
-for the compiler to notice whether functions can be expressed in terms of |foldr|
-and |build|. That would allow programmers to write programs in whatever style they like.
-
-%-------------------------------------------------------------------------------
-\subsection{Automation}
-
-Higher-order matching is a general technique for matching expressions in
-functional programs against expression templates. In the context of Haskell,
-Sittampalam and de Moor~\cite{mag} have applied higher-order matching in their
-rewriting system, called MAG. They have used MAG for fusion in the following
-way. the programmer specifies the initial program, a specficiation of the
-target program and suitable rewrite rules. The latter includes a rule for
-|foldr| fusion: 
-%{
-%format . = "."
-\begin{spec}
-f (foldr c n l) = foldr c' n' l
-   if  f n = n'
-       forall x y. f (c x y) = c' x (f y) 
-\end{spec}
-%}
-Then the MAG system will attempt to derive the target implementation by
-applying the rewrite rules. Finally, the programmer needs to check whether MAG
-has only applied the fusion rule to strict functions |f|, a side condition of
-the fusion rule that cannot be specified in MAG.
-
-GHC rewrite rules~\cite{jones2001} are a lightweight way to (semi-)automate fusion. The
-programmer provides rewrite rules to rewrite program patterns into their fused
-forms and the compiler applies these whenever it finds an opportunity.  The one
-part that is not automated is that programmers still have to write their code
-in terms of the higher-order recursion schemes. GHC has set up various of its
-base libraries in this way to benefit from fold/build fusion among others.
-
-Building on GHC rewrite rules, Coutts et al.~\cite{coutts2007} have proposed
-stream fusion as a convenient alternative to foldr/build fusion. Stream fusion
-is able to fuse zips and left folds, but, on the downside, it is less obvious
-for the programmer to write his functions in the required style.  Hinze et
-al.~\cite{hinze} provide clues for how to generalize stream fusion: by expressing
-functions in terms of an unfold, followed by a natural transformation and a
-fold.
-
-%  filter p l
-%     = build (\c n -> foldr (\x r -> if p x then c x r else r) n l)
-
-% foldr f z $ filter () $ build g
-%
-%    g (\ x xs -> if p x then f x xs else xs) z
-
-% zip []     l  = []
-% zip (x:xs) l  =
-%   case l of 
-%     []      -> []
-%     (y:ys)  -> (x,y) : zip xs ys
-
-% zip l1 l2 = foldr (\x xs l2 -> case l2 of { [] -> [] ; (y:ys) -> (x,y) : xs ys}) (\l2 -> []) l1 l2
-
-
-%% It would be interesting future work to automatically identify such
-%% patterns.
-
-% However, at
-% the time of writing, there is no known reliable method of optimising uses of
-% |concatMap|. |concatMap| is important because it represents the entire class of
-% nested list computations, including list comprehensions~\cite{coutts2010}.
-
-The \emph{hlint}~\cite{hlint} tool is designed to recognize various code
-patterns and offer suggestions for improving them. In particular, it recognizes
-various forms of explicit recursion and suggests the use of appropriate
-higher-order functions like |map|, |filter| and |foldr| that capture these
-recursion patterns.  As we already showed in Section
-\ref{subsection:identifying-folds}, we are able to detect more instances of
-folds for Haskell lists than hlint. Moreover, hlint makes no effort to detect
-folds for other algebraic datatypes.
-
-Supercompilation~\cite{supercompilation} is a much more generic and brute-force
-technique for program specialization that is capable of fusing
-producer-consumer pipelines.  Unfortunately, the current state of the art of
-supercompilation for Haskell~\cite{UCAM-CL-TR-835} is still too unreliable to
-be used in practice.
-
-\begin{itemize}
-\item fold applications
-\item datatypes a la carte
-\item attribute grammars
-\end{itemize}
-
-%===============================================================================
-\section{Conclusion}\label{s:conclusion}
-
-\tom{mention mutually recursive ADTs as important future work}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% \appendix
-% \section{Appendix Title}
-% 
-% This is the text of the appendix, if you need one.
-% 
 % \acks
 % 
 % Acknowledgments, if needed.
@@ -1859,5 +1857,69 @@ be used in practice.
 % References
 \bibliographystyle{abbrvnat}
 \bibliography{references}
+
+\appendix
+\section{Pipeline Benchmarks}
+
+\begin{figure*}
+\begin{tabular}{l||l}
+\begin{minipage}{0.5\textwidth}
+\begin{code}
+suml :: [Int] -> Int
+suml []        = 0
+suml (x : xs)  = x + suml xs
+
+mapl :: (a -> b) -> [a] -> [b]
+mapl f = go
+  where
+    go []        = []
+    go (x : xs)  = f x : go xs
+
+uptol :: Int -> Int -> [Int]
+uptol lo up = go lo
+  where
+    go i
+        | i > up     = []
+        | otherwise  = i : uptol (i + 1) up
+
+l1, l2, l3, l4, l5 :: Int -> Int
+l1 n = suml (1 `uptol` n)
+l2 n = suml (mapl (+ 1) (1 `uptol` n))
+l3 n = suml (mapl (+ 1) (mapl (+ 1) (1 `uptol` n)))
+l4 n = elapsed
+l5 n = elapsed
+\end{code}
+\end{minipage}
+&
+\begin{minipage}{0.5\textwidth}
+\begin{code}
+sumt :: Tree Int -> Int
+sumt (Leaf x)      = x
+sumt (Branch l r)  = sumt l + sumt r
+
+mapt :: (a -> b) -> Tree a -> Tree b
+mapt f = go
+  where
+    go (Leaf x)      = Leaf (f x)
+    go (Branch l r)  = Branch (go l) (go r)
+
+uptot :: Int -> Int -> Tree Int
+uptot lo hi
+    | lo >= hi   = Leaf lo
+    | otherwise  =
+        let mid = (lo + hi) `div` 2
+        in Branch (uptot lo mid) (uptot (mid + 1) hi)
+
+t1, t2, t3, t4, t5 :: Int -> Int
+t1 n = sumt (1 `uptot` n)
+t2 n = sumt (mapt (+ 1) (1 `uptot` n))
+t3 n = sumt (mapt (+ 1) (mapt (+ 1) (1 `uptot` n)))
+t4 n = elapsed
+t5 n = elapsed
+\end{code}
+\end{minipage}
+\end{tabular}
+\caption{Pipelines for lists (left) and trees (right)}\label{f:pipeline:components}
+\end{figure*}
 
 \end{document}

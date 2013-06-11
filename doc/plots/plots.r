@@ -12,7 +12,8 @@ pdf("tree-speedups.pdf")
 barplot(tree_speedups,
         xlab='Benchmark',
         ylab='Speedup (in %)',
-        names.arg=tree_names)
+        names.arg=tree_names,
+        ylim=c(0,100))
 dev.off()
 
 pdf("tree.pdf")
@@ -33,7 +34,7 @@ plotCI(seq(1, 5), tree_fused,
         add=T)
 axis(side=1, at=seq(1, 5), labels=tree_names, lwd=0)
 axis(side=2)
-legend("topleft", legend=c("Zonder fusion", "Met fusion"), pch=c(0, 1),
+legend("topleft", legend=c("Without fusion", "With fusion"), pch=c(0, 1),
        col=c('red', 'blue'))
 dev.off()
 
@@ -51,7 +52,8 @@ pdf("list-speedups.pdf")
 barplot(list_speedups,
         xlab='Benchmark',
         ylab='Speedup (in %)',
-        names.arg=list_names)
+        names.arg=list_names,
+        ylim=c(1,100))
 dev.off()
 
 pdf("list.pdf")
@@ -72,6 +74,6 @@ plotCI(seq(1, 5), list_fused,
         add=T)
 axis(side=1, at=seq(1, 5), labels=list_names, lwd=0)
 axis(side=2)
-legend("topleft", legend=c("Zonder fusion", "Met fusion"), pch=c(0, 1),
+legend("topleft", legend=c("Without fusion", "With fusion"), pch=c(0, 1),
        col=c('red', 'blue'))
 dev.off()
