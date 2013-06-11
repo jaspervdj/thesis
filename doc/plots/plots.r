@@ -53,7 +53,7 @@ barplot(list_speedups,
         xlab='Benchmark',
         ylab='Speedup (in %)',
         names.arg=list_names,
-        ylim=c(1,100))
+        ylim=c(0,100))
 dev.off()
 
 pdf("list.pdf")

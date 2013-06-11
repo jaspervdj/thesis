@@ -257,7 +257,7 @@ Our contributions are in particular:
 \item In order to support a particular well-known optimization,
       fold-build fusion, we also show how to automatically detect and transform
       functions that can be expressed as a call to |build|.
-\item We provide a GHC compiler plugin\footnote{\url{http://github.ugent.be/jaspervdj/what-morphism/}} that performs these detections and
+\item We provide a GHC compiler plugin\footnote{\url{http://github.ugent.be/javdrjeu/what-morphism}} that performs these detections and
       transformations on GHC Core. Our plugin not
       only covers folds and builds over lists, but over all inductively defined
       directly-recursive datatypes. 
