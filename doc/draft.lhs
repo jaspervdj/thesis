@@ -1298,13 +1298,27 @@ Template Haskell~\cite{sheard2002} routines to derive the implemenations of the 
 $(deriveFold Tree "foldT")
 $(deriveBuild Tree "buildT")
 \end{spec}
+
+Similarly, to support fusion for other datatypes, we follow GHC's rewriting
+rules approach for lists. However, instead of having to write the fusion rewrite
+rule explicitly, we provide a handy Tempate Haskell routine. For instance,
+\begin{spec}
+$(deriveFusion Tree "foldT" "buildT")
+\end{spec}
 %}
+generates
+\begin{Verbatim}
+{-# "foldT/buildT-fusion"
+   forall l b 
+    (g :: forall b. (a -> b) -> (b -> b -> b) -> b). 
+   foldT l n (buildT g) = g l b
+  #-}
+\end{Verbatim}
 
 If desired, the responsability for registering types and generating the
-higher-order schemes can easily be moved to the compiler. At this time, and for
-the purpose of evaluation, it suits us to have a bit more control.
-
-\tom{What about fusion rules?}
+higher-order schemes and rewrite rules can easily be moved to the compiler. At
+this time, and for the purpose of evaluation, it suits us to have a bit more
+control.
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % \subsection{The GHC Core language}
@@ -1393,7 +1407,7 @@ the purpose of evaluation, it suits us to have a bit more control.
 \begin{table}[t!]
 \begin{center}
 \ra{1.3}
-\begin{tabular}{@@{\hspace{2mm}}l@@{\hspace{0mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}}
+\begin{tabular}{@@{}l@@{\hspace{0mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}r@@{\hspace{2mm}}}
 \toprule
 \textbf{Package} & \textbf{Total} & List & Other & Acc. & N. rec. & \textbf{HLint} \\
 \midrule
@@ -1724,44 +1738,54 @@ be used in practice.
 %===============================================================================
 \section{Discussion}\label{s:discussion}
 
-Our approach is currently limited to directly recursive functions that recurse
-over basic regular datatypes. Below we describe a number of cases that are not handled.
+We have presented a syntactic approach to transforming explicilty recursive
+functions into invocations of higher-order recursion schemes (folds and builds
+in particular). Our experimental evaluation shows that this technique is
+effective at finding many such occurrences in popular Haskell packages written
+by experienced programmers.
+
+Our work currently targets the most common case: directly recursive functions
+over directly recursive regular datatypes. In future work it would be
+interesting to extend this class to encompass a wider range, although we expect
+diminishing returns.
 
 %-------------------------------------------------------------------------------
 \paragraph{Mutually Recursive Functions}
-Our approach currently does not deal with mutually recursive functions like:
+Our approach does not deal with mutually recursive functions like:
 \begin{code}
+concat :: [[a]] -> [a]
 concat []      = []
 concat (x:xs)  = concat' x xs
-
-concat' []     xs  = concat xs
-concat' (y:ys) xs   = y : concat' ys
+  where
+    concat' :: [a] -> [[a]] -> [a]
+    concat' []     xs  = concat xs
+    concat' (y:ys) xs   = y : concat' ys xs
 \end{code}
-which can be rewritten as:
+which is ideally rewritten to:
 \begin{code}
-concat l = build (g l)
-
-concat' x xs = build (g' x xs)
-
-g l c n = foldr (\x xs -> foldr c xs x) n l
-
-g' l xs c n = foldr c (g xs c n) l
+concat l = build (\c n -> foldr (\x xs -> foldr c xs x) n l)
 \end{code}
-An important special case of the above situation is that where one function is
-a local definition of the other.
-\tom{This happens in practice with our tool.}
+but the mutual recursion obscures the |build|, and instead we get:
+\begin{code}
+concat l = foldr (\x xs -> foldr (:) xs x) [] l
+\end{code}
+In order to solve this problem, the |build| finding algorithm should be
+extended to handle mutually recursive groups. 
 
 %-------------------------------------------------------------------------------
 \paragraph{Mutually Recursive Datatypes}
 
-Mutually recursive functions arise naturally for mutually recursive datatypes like
-rose trees. For instance,
+Mutually recursive functions arise naturally for mutually recursive datatypes,
+which are common representations for abstract syntax trees and document
+structures. A simple example are rose trees:
 \begin{code}
 data Rose   = Node Int Forest
 data Forest = Nil | Cons Rose Forest
 
+sizeR :: Rose -> Int
 sizeR (Node _ f)  = 1 + sizeF f
 
+sizeF :: Forest -> Int
 sizeF Nil         = 0
 sizeF (Cons r f)  = sizeR r + sizeF f
 \end{code}
@@ -1783,9 +1807,9 @@ foldF  :: (Int -> f -> r) -> f -> (r -> f -> f) -> Forest  -> f
 %-------------------------------------------------------------------------------
 \paragraph{GADTs}
 GADTs pose an additional challenge because they represented
-a family of types whose members are selected by means of a one or more type indices.
+a family of types whose members are selected by means of one or more type indices.
 For instance, the GADT |Expr a| represents a family of expression types
-by means of the type index |a|.
+by means of the type index~|a|.
 \begin{code}
 data Expr a where
   Lit :: Int -> Expr Int
@@ -1861,10 +1885,10 @@ buildExp g = g Lit Add Eq
 \appendix
 \section{Pipeline Benchmarks}
 
-\begin{figure*}
-\begin{tabular}{l||l}
-\begin{minipage}{0.5\textwidth}
 \begin{code}
+
+-- List Pipelines
+
 suml :: [Int] -> Int
 suml []        = 0
 suml (x : xs)  = x + suml xs
@@ -1889,9 +1913,9 @@ l3 n = suml (mapl (+ 1) (mapl (+ 1) (1 `uptol` n)))
 l4 n = elapsed
 l5 n = elapsed
 \end{code}
-\end{minipage}
-&
-\begin{minipage}{0.5\textwidth}
+
+\paragraph{Tree Pipelines}
+
 \begin{code}
 sumt :: Tree Int -> Int
 sumt (Leaf x)      = x
@@ -1917,9 +1941,5 @@ t3 n = sumt (mapt (+ 1) (mapt (+ 1) (1 `uptot` n)))
 t4 n = elapsed
 t5 n = elapsed
 \end{code}
-\end{minipage}
-\end{tabular}
-\caption{Pipelines for lists (left) and trees (right)}\label{f:pipeline:components}
-\end{figure*}
 
 \end{document}
