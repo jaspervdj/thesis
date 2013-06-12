@@ -1191,8 +1191,6 @@ g x xs = x * f xs + 1
       In other words, we can keep our algorithms relatively simple, because other GHC
       passes already do part of the work for us.
     
-      \tom{Discuss alternative: new fold-specific rule for the algorithm}
-
 \item Finally, GHC core is fully typed. While type information is not essential,
       our algorithms can make good use of it to improve their peroformance. Consider this simple function:
 \begin{code}
@@ -1261,6 +1259,21 @@ map f l = foldr (\x xs -> f x : xs) [] l
 \end{spec}
 because our build finder is not equipped to deal with folds.
 
+A more heavyweight solution would be to extend the build finding algorithm with a 
+rule for handling folds.
+%format e3
+%format e1'
+%format e2'
+\[
+\inferrule*[left=(\textsc{B-Fold})]
+        {  |e1| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e1'| \\
+           |e2| ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |e2'| }
+        { |foldr (\x xs -> e1) e2 e3| \\ ~{}_{|f|}\!\stackrel{|c|,|n|}{\rightarrowtail}_{|g|}~ |foldr (\x xs -> e1') e2' e3| }  \\
+\]
+Such a rule has the added benefit of handling handling folds introduced by
+the programmer. However, because it is not powerful enough to deal with accumulating parameters,
+it remains best to schedule build finding first.
+ 
 %-------------------------------------------------------------------------------
 \subsection{Fusion}
 
@@ -1655,7 +1668,7 @@ and |build|. That would allow programmers to write programs in whatever style th
 
 Various authors have investigated variants of short-cut fusion where
 datastructures are produced and consumed in the context of some computational
-effect.  Andres et al.~\cite{} consider the case where the effect modeled by an
+effect.  Delbianco et al.~\cite{delbianco} consider the case where the effect modeled by an
 applicative functor, and both Ghani \& Johan~\cite{ghani} and Manzino \&
 Pardo~\cite{manzino} tackle monadic effects. It would be interesting
 to extend our approach to finding uses of their effectful recursion schemes.
