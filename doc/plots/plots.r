@@ -17,18 +17,18 @@ barplot(tree_speedups,
 dev.off()
 
 pdf("tree.pdf")
-plotCI(seq(1, 5), tree_unfused,
-        enabled[1:5, 'StddevUB'] * 2,
-        enabled[1:5, 'StddevLB'] * 2,
+plotCI(seq(1, 5), 1000*tree_unfused,
+        enabled[1:5, 'StddevUB'] * 2000,
+        enabled[1:5, 'StddevLB'] * 2000,
         pch=0,
-        ylim=c(0, max(tree_unfused)),
+        ylim=c(0, max(1000*tree_unfused)),
         xlab="Benchmark",
-        ylab="Tijd (in s)",
+        ylab="Time (in ms)",
         col='red',
         axes=F)
-plotCI(seq(1, 5), tree_fused,
-        enabled[1:5, 'StddevUB'] * 2,
-        enabled[1:5, 'StddevLB'] * 2,
+plotCI(seq(1, 5), 1000*tree_fused,
+        enabled[1:5, 'StddevUB'] * 2000,
+        enabled[1:5, 'StddevLB'] * 2000,
         pch=1,
         col='blue',
         add=T)
@@ -57,18 +57,18 @@ barplot(list_speedups,
 dev.off()
 
 pdf("list.pdf")
-plotCI(seq(1, 5), list_unfused,
-        enabled[6:10, 'StddevUB'] * 2,
-        enabled[6:10, 'StddevLB'] * 2,
+plotCI(seq(1, 5), 1000 * list_unfused,
+        enabled[6:10, 'StddevUB'] * 2000,
+        enabled[6:10, 'StddevLB'] * 2000,
         pch=0,
-        ylim=c(0, max(list_unfused)),
+        ylim=c(0, max(1000 * list_unfused)),
         xlab="Benchmark",
-        ylab="Tijd (in s)",
+        ylab="Time (in ms)",
         col='red',
         axes=F)
-plotCI(seq(1, 5), list_fused,
-        enabled[6:10, 'StddevUB'] * 2,
-        enabled[6:10, 'StddevLB'] * 2,
+plotCI(seq(1, 5), 1000 * list_fused,
+        enabled[6:10, 'StddevUB'] * 2000,
+        enabled[6:10, 'StddevLB'] * 2000,
         pch=1,
         col='blue',
         add=T)

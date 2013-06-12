@@ -125,7 +125,7 @@ catamorphisms, fold/build fusion, analysis, transformation
 
 Higher-order functions are immensely popular in Haskell, whose Prelude alone
 offers a wide range of them (e.g., |map|, |filter|, |any|, \ldots). This is not
-surprising, because they the key \emph{abstraction} mechanism of functional
+surprising, because they are the key \emph{abstraction} mechanism of functional
 programming languages. They enable capturing and reusing common frequent
 patterns in function definitions. 
 
@@ -140,7 +140,7 @@ foldr f z []      = z
 foldr f z (x:xs)  = f x (foldr f z xs)
 \end{spec}
 By means of a recursion scheme like |foldr|, the programmer can avoid the use
-of explicit recrusion in his functions, like
+of explicit recursion in his functions, like
 \begin{spec}
 sum :: [Int] -> Int
 sum []      = 0
@@ -270,8 +270,11 @@ Our contributions are in particular:
 \end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\newpage
 \section{Overview}\label{s:overview}
+
+This section briefly reviews folds, builds and fusion to prepare for the next
+sections, that provide systematic algorithms for finding folds and builds in
+explicitly recursive functions.
 
 % In the early days of computing, assembly code was used for writing programs. In
 % assembly, the control flow of a program is controlled using \emph{jumps}. This
@@ -362,9 +365,8 @@ Finally, we can inline the local function entirely.
 \begin{spec}
 cat xs ys  = foldr (:) ys l
 \end{spec}
-To cut a long story short, we can directly rewrite functions with constant
-parameters in terms of |foldr| without taking special precautions for constant
-parameters.
+The intermediate steps can of course be skipped in practice and
+our algorithm in Section~\ref{s:fold} does so.
 
 Accumulating parameters are trickier to deal with as they may vary in
 recursive calls. An example is the accumulator-based sum function:
@@ -420,13 +422,12 @@ the list parameter.
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 \paragraph{Other Datatypes}
 
-While we have shown the above example on lists, the above ideas easily
-generalize to other inductively defined algebraic datatypes.
-We illustrate that on leaf trees.
+The above ideas for folds of lists easily generalize to other inductively
+defined algebraic datatypes.  We illustrate that on leaf trees.
 \begin{code}
 data Tree a
-    = Leaf a
-    | Branch (Tree a) (Tree a)
+    =  Leaf a
+    |  Branch (Tree a) (Tree a)
 \end{code}
 
 The |sumTree| function is an example of a directly recursive catamorphism
@@ -437,7 +438,7 @@ sumTree (Leaf x)      = x
 sumTree (Branch l r)  = sumTree l + sumTree r
 \end{code}
 This catamorphic recursion scheme can be captured in a fold function too.
-The generic idea is that a fold functions transforms the inductive datatype
+The generic idea is that a fold function transforms the inductive datatype
 into a value of a user-specified type |r| by replacing every construtor
 with a user-specified function.
 \begin{code}
@@ -450,7 +451,7 @@ foldT l b (Branch x y)  =
     b (foldT l b x) (foldT l b y)
 \end{code}
 
-The fold over leaf trees enables us to define |sumTree'| succinctly as
+The fold over leaf trees enables us to define |sumTree| succinctly as
 \begin{code}
 sumTree = foldT id (+)
 \end{code}
@@ -498,7 +499,7 @@ which can be expressed in terms of |build| as follows:
 \begin{code}
 replicate n x = build (\cons nil ->
   let g n x 
-        | n <= 0    = nil
+        | n <= 0     = nil
         | otherwise  = cons x (g (n - 1) x)
   in g n x)
 \end{code}
@@ -520,7 +521,7 @@ With this build function we can express a producer of leaf trees
 \begin{code}
 range :: Int -> Int -> Tree a
 range l u
-  | u > l      =  let m = l + (u - l) `div` 2
+  | u > l      =  let m = l + div (u - l) 2
                   in  Branch (range l m) (range (m+1) u)
   | otherwise  =  Leaf l
 \end{code}
@@ -529,7 +530,7 @@ as a build:
 range l u  = 
   buildT (\leaf branch -> 
     let g l u
-          | u > l      =  let m = l + (u - l) `div` 2
+          | u > l      =  let m = l + div (u - l) 2
                           in  branch (g l m) (g (m+1) u)
           | otherwise  =  leaf l
     in g l u)
@@ -587,17 +588,17 @@ Haskell best practices encourage building complicated functions by producing,
 repeatedly transforming and finally consuming an intermediate datastructure in a pipeline. An
 example of such a pipeline is the following sum-of-odd-squares function:
 \begin{code}
-sumOfSquaredOdds' :: Int -> Int
-sumOfSquaredOdds' = 
+sumOfSquaredOdds :: Int -> Int
+sumOfSquaredOdds = 
   sum . map (^ 2) . filter odd . enumFromTo 1
 \end{code}
 This code is quite compact and easy to compose from existing library functions.
 However, when compiled naively, it is also rather inefficient because it
-performs three loops and allocates two intermediate lists ( one as a result of
-|filter odd|, and another as result of |map (^ 2)|) that are immediately
+performs four loops and allocates three intermediate lists (the results of
+respectively |enumFromTo 1|, |filter odd| and |map (^ 2)|) that are immediately
 consumed again.
 
-With the help of |fold|/|build| fusion, whole pipelines like |sumOfSquareOdds| can be
+With the help of fusion, whole pipelines like |sumOfSquaredOdds| can be
 fused into one recursive function:
 \begin{code}
 sumOfSquaredOdds :: Int -> Int
@@ -643,7 +644,7 @@ It is key to fusing two loops into one:
 
     foldT id (+) (buildT $ \leaf branch ->
         let g l u
-		| u > l      =  let m = l + (u - l) `div` 2
+		| u > l      =  let m = l + div (u - l) 2
 		                in  branch (g l m) (g (m+1) u)
 		| otherwise  =  leaf l
         in g l u)
@@ -652,7 +653,7 @@ It is key to fusing two loops into one:
 
     (\leaf branch ->
         let g l u
-		| u > l      =  let m = l + (u - l) `div` 2
+		| u > l      =  let m = l + div (u - l) 2
 		                in  branch (g l m) (g (m+1) u)
 		| otherwise  =  leaf l
         in g l u) id (+)
@@ -660,7 +661,7 @@ It is key to fusing two loops into one:
 == {- $\beta$-reduction -}
 
     let g l u
-    	| u > l      =  let m = l + (u - l) `div` 2
+    	| u > l      =  let m = l + div (u - l) 2
     	                in  g l m + g (m+1) u
     	| otherwise  =  l
     in g l u
@@ -696,14 +697,14 @@ with his own uses of |foldr| and |build|, fusion may kick in.
 Unfortunately, GHC's infrastructure shows two main weaknesses:
 \begin{enumerate}
 \item 
-  GHC does not explicitly cater or other datatypes than lists.
+  GHC does not explicitly cater for other datatypes than lists.
   While the programmer can replicate the existing list infrastructure for his
   own datatypes, it requires a considerable effort and rarely happens in practice.
 \item
   Programmers or libraries need to explicitly define their functions
   in terms of |foldr| and |build|. If they don't, then fusion is not possible.
   This too turns out to be too much to ask as we see many uses of explicit
-  recursion in practice (see Section~\ref{}).
+  recursion in practice (see Section~\ref{s:evaluation}).
 \end{enumerate}
 
 This work addresses both limitations. It allows programmers to write their
@@ -839,8 +840,8 @@ single rule \textsc(F-Bind), but we first explain a specialized rule for single
 argument functions:
 \[
 \inferrule*[left=(\textsc{F-Bind'})]
-  { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e1|) \\ |ws|~\textit{fresh} \\\\ 
-    |e2| \stackrel{|f triangle|}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+  { |e'1| = [|y| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e1|) \\ |ws|~\textit{fresh} \\\\ 
+    |e2|~{}_{|vs|}\!\!\stackrel{|f triangle|}{\leadsto}_{|ws|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
   }
   {
 |f = \y -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
@@ -912,7 +913,7 @@ case to eliminate |x| in |e'1|. The latter case reveals an improper
 catamorphism, where |ys| appears outside of a recursive call (issue 2 above);
 hence, rule \textsc{(F-Bind')} does not allow it.
 
-\paragraph{Folds with Parameters}
+\paragraph{Folds with Parameters}\tom{Explain better the accumulating parameters.}
 Rule \textsc{(F-Bind)} generalizes rule \textsc{(F-Bind')} by supporting
 additional parameters |many x| and |many z| before and after the scrutinee
 argument |y|. The algorithm supports both constant and accumulating parameters.
@@ -1189,6 +1190,8 @@ g x xs = x * f xs + 1
    
       In other words, we can keep our algorithms relatively simple, because other GHC
       passes already do part of the work for us.
+    
+      \tom{Discuss alternative: new fold-specific rule for the algorithm}
 
 \item Finally, GHC core is fully typed. While type information is not essential,
       our algorithms can make good use of it to improve their peroformance. Consider this simple function:
@@ -1470,7 +1473,7 @@ flags and disabled the actual rewriting in our pass. In this way, we get an
 accurate estimate (a lower bound) of the number of explicitly recursive
 catamorphisms that experienced Haskell programmers write in practice.
 
-Table \ref{tabular:project-results} lists the results of the fold analysis on the left. The
+Table \ref{tabular:project-results} lists the results of the fold analysis. The
 first column lists the names of the packages and the second column (Total)
 reports the total number of discovered catamorphisms. The third and fourth
 column split up this total number in catamorphisms over lists (List) and
@@ -1512,6 +1515,7 @@ of a rather advanced programming style.
 
 %-------------------------------------------------------------------------------
 \subsection{Identifying builds}
+\label{subsection:identifying-folds}
 
 \begin{table}[t!]
 \begin{center}
@@ -1536,16 +1540,14 @@ snap-core-0.9.3.1       & 4   & 4   & 0   & 0  \\
 \bottomrule
 \end{tabular}
 \caption{Builds found in well-known Haskell packages}
-\label{tabular:project-results}
+\label{tabular:build-results}
 \end{center}
 \end{table}
-\label{subsection:identifying-folds}
 
-The right-hand side of Table~\ref{tabular:project-results} shows the result of
-the build analysis for the 13 packages. The Total column lists the total number
-of builds per package, while the List and Other columns split up this number
-into list builds and builds of other datatypes. Column Rec show the number of
-recursive builds.
+Table~\ref{tabular:build-results} shows the results of the build analysis for
+the 13 packages. The Total column lists the total number of builds per package,
+while the List and Other columns split up this number into list builds and
+builds of other datatypes. Column Rec show the number of recursive builds.
 
 Our main
 observation is that the numbers are roughly proportional to those of the folds.
@@ -1815,61 +1817,47 @@ data Expr a where
   Lit :: Int -> Expr Int
   Add :: Exp Int -> Exp Int -> Exp Int
   Eq  :: Exp Int -> Exp Int -> Exp Bool
+\end{code}
 
+This type indexing is carried over to the type signatures of its fold and build
+definitions~\cite{Johann:2008:FSP:1328438.1328475},
+where |Expr :: * -> *| is abstracted to |r :: * -> *|.
+%{
+%format . = "."
+\begin{spec}
+foldE  ::  (Int -> r Int) 
+       ->  (r Int -> r Int -> r Int) 
+       ->  (r Bool -> r Bool -> r Bool) 
+       ->  Exp a -> r a
+
+buildExp :: (forall r  .   (Int -> r Int) 
+                       ->  (r Int -> r Int -> r Int) 
+                       ->  (r Int -> r Int -> r Bool) 
+                       ->  r a) -> Exp a
+\end{spec}
+%}
+
+This means that when we rewrite a catamorphism like
+\begin{code}
 eval :: Expr a -> a
 eval (Lit n)    = n
 eval (Add x y)  = eval x + eval y
 eval (Eq x y)   = eval x == eval y
 \end{code}
-
-This type indexing is reflected in both the fold and build definitions.
+into an invocation of |foldE|, we must come up with
+an appropriate indexed type to instantiate |r|. In particular,
+when the catamorphism does not feature such an indexed type, we
+may have to introduce a new one:
 %{
 %format . = "."
 \begin{code}
-foldE  ::  (Int -> r Int) 
-       ->  (r Int -> r Int -> r Int) 
-       ->  (r Bool -> r Bool -> r Bool) 
-       ->  Exp a -> r a
-foldE lit add eq e = go e
-  where 
-   go (Lit n)    = lit n
-   go (Add x y)  = add (go x) (go y)
-   go (Eq x y)   = eq (go x) (go y)
+newtype R a = R { runR :: a }
 
-buildExp :: (forall r  .   (Int -> r Int) 
-                       ->  (r Int -> r Int -> r Int) 
-                       ->  (r Int -> r Int -> r Bool) 
-                       ->  r a) -> Exp a
-buildExp g = g Lit Add Eq
-\end{code}
-%}
-
-%{
-%format . = "."
-\begin{code}
 eval e = 
   runR $ foldE  (\n -> R n) 
                 (\x y -> R (runR x + runID y)) 
                 (\x y -> R (runR x == runR y) 
                 e
-
-newtype R a = R { runR :: a }
-
-foldE  ::  (Int -> r Int) 
-       ->  (r Int -> r Int -> r Int) 
-       ->  (r Bool -> r Bool -> r Bool) 
-       ->  Exp a -> r a
-foldE lit add eq e = go e
-  where 
-   go (Lit n)    = lit n
-   go (Add x y)  = add (go x) (go y)
-   go (Eq x y)   = eq (go x) (go y)
-
-buildExp :: (forall r  .   (Int -> r Int) 
-                       ->  (r Int -> r Int -> r Int) 
-                       ->  (r Int -> r Int -> r Bool) 
-                       ->  r a) -> Exp a
-buildExp g = g Lit Add Eq
 \end{code}
 %}
 
@@ -1912,11 +1900,9 @@ l2 n = suml (mapl (+ 1) (1 `uptol` n))
 l3 n = suml (mapl (+ 1) (mapl (+ 1) (1 `uptol` n)))
 l4 n = elapsed
 l5 n = elapsed
-\end{code}
 
-\paragraph{Tree Pipelines}
+-- Tree Pipelines
 
-\begin{code}
 sumt :: Tree Int -> Int
 sumt (Leaf x)      = x
 sumt (Branch l r)  = sumt l + sumt r
@@ -1931,7 +1917,7 @@ uptot :: Int -> Int -> Tree Int
 uptot lo hi
     | lo >= hi   = Leaf lo
     | otherwise  =
-        let mid = (lo + hi) `div` 2
+        let mid = div (lo + hi) 2
         in Branch (uptot lo mid) (uptot (mid + 1) hi)
 
 t1, t2, t3, t4, t5 :: Int -> Int
