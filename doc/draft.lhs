@@ -88,7 +88,7 @@ import Prelude       hiding (head, foldr, map, sum, replicate)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{abstract}
 Programs written in terms of higher-order recursion schemes like |foldr| and
-|build| can benefit from program optimization like short-cut fusion.
+|build| can benefit from program optimizations like short-cut fusion.
 Unfortunately, programmers often avoid these schemes in favor of explicitly
 recursive functions.
 
@@ -169,14 +169,14 @@ foldr/build fusion~\cite{gill1993}.
 \end{spec}
 %}
 This law fuses a list producer, expressed in terms of |build|, with a list
-consumer, experessed in terms of |foldr| in order to avoid the construction
+consumer, expressed in terms of |foldr| in order to avoid the construction
 of the allocation of the intermediate list; the latter is called
 \emph{deforestation}~\cite{wadler1990}.
 
 A significant weakness of foldr/build fusion and other fusion approaches is
 that programmers have to explicitly write their programs in terms of the
 appropriate recursion schemes. This is an easy requirement when programmers
-only reuse library functions written in the appropriate stlye.  However, when
+only reuse library functions written in the appropriate style.  However, when
 it comes to writing their own functions, programmers usually resort to explicit
 recursion. This not just true of novices, but applies just as well to
 experienced Haskell programmers, including, as we will show, the authors of
@@ -439,7 +439,7 @@ sumTree (Branch l r)  = sumTree l + sumTree r
 \end{code}
 This catamorphic recursion scheme can be captured in a fold function too.
 The generic idea is that a fold function transforms the inductive datatype
-into a value of a user-specified type |r| by replacing every construtor
+into a value of a user-specified type |r| by replacing every constructor
 with a user-specified function.
 \begin{code}
 foldT     ::  (a -> r)
@@ -691,7 +691,7 @@ as a rewrite rule in the GHC.Base module
 which is applied whenever the optimizer encounters the pattern on the left. In
 addition, various library functions have been written\footnote{or come with
 rewrite rules that rewrite them into those forms} in terms of |foldr| and
-|build|. Whenver the programmer uses these functions and combines them
+|build|. Whenever the programmer uses these functions and combines them
 with his own uses of |foldr| and |build|, fusion may kick in.
 
 Unfortunately, GHC's infrastructure shows two main weaknesses:
@@ -715,7 +715,7 @@ directly inductive datatype.
 \section{Finding Folds}\label{s:fold}
 \label{subsection:identifying-folds}
 
-This section explains our approach to turning explicitly recrusive functions
+This section explains our approach to turning explicitly recursive functions
 into invocations of |fold|.
 
 %-------------------------------------------------------------------------------
@@ -778,9 +778,9 @@ of expressions |many e| does not match the number of box holes.
 \myruleform{\inferrule{}{b \leadsto b'}} \hspace{2cm}
 
 \inferrule*[left=(\textsc{F-Bind})]
-  { |e'1| = [|x| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
+  { |e'1| = [|y| \mapsto |[]|]|e1| \\ |f| \not\in \mathit{fv}(|e'1|) \\\\ 
     |E|[|many u|;|y|] = |f (many x) y (many z)| \\ |ws|~\textit{fresh} \\\\ 
-    |e2| \stackrel{E}{\leadsto}_{|ws|}^{|vs|} |e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
+    |e2|~{}_{vs}\!\!\stackrel{E}{\leadsto}_{|ws|}~|e'2| \\ \{ f, x, vs \} \cap \mathit{fv}(|e'2|) = \emptyset
   }
   {
 |f = \(many x) y (many z) -> case y of { [] -> e1 ; (v:vs) -> e2 }| \\\\
@@ -1146,7 +1146,7 @@ whole list.
 == {- unfold |sum| three more times -}
      1 + (2 + (3 + 0))
 \end{spec}
-However, in practice, GHC does not peform such aggressive inlining by default.
+However, in practice, GHC does not perform such aggressive inlining by default.
 Hence, |fold|/|build| fusion is still a good way of getting rid of the
 intermediate datastructure.
 
@@ -1192,7 +1192,7 @@ g x xs = x * f xs + 1
       passes already do part of the work for us.
     
 \item Finally, GHC core is fully typed. While type information is not essential,
-      our algorithms can make good use of it to improve their peroformance. Consider this simple function:
+      our algorithms can make good use of it to improve their performance. Consider this simple function:
 \begin{code}
 add :: Int -> Int -> Int
 add x y = x + y
@@ -1307,7 +1307,7 @@ does so for the type of leaf trees.
 \end{Verbatim}
  
 Moreover, we also provide complimentary 
-Template Haskell~\cite{sheard2002} routines to derive the implemenations of the two functions.
+Template Haskell~\cite{sheard2002} routines to derive the implementations of the two functions.
 %{
 %format Tree = "`Tree"
 \begin{spec}
@@ -1317,7 +1317,7 @@ $(deriveBuild Tree "buildT")
 
 Similarly, to support fusion for other datatypes, we follow GHC's rewriting
 rules approach for lists. However, instead of having to write the fusion rewrite
-rule explicitly, we provide a handy Tempate Haskell routine. For instance,
+rule explicitly, we provide a handy Template Haskell routine. For instance,
 \begin{spec}
 $(deriveFusion Tree "foldT" "buildT")
 \end{spec}
@@ -1331,7 +1331,7 @@ generates
   #-}
 \end{Verbatim}
 
-If desired, the responsability for registering types and generating the
+If desired, the responsibility for registering types and generating the
 higher-order schemes and rewrite rules can easily be moved to the compiler. At
 this time, and for the purpose of evaluation, it suits us to have a bit more
 control.
@@ -1571,10 +1571,10 @@ provide a basis for comparison.
 \subsection{Fusion}
 
 We have not measured any significant performance improvements in the above 13
-packages. Likely, the critical paths in thse packages have already been
+packages. Likely, the critical paths in these packages have already been
 optimized by their authors.
 
-Hence, instead, we offer the following aritificial benchmarks, that demonstrate
+Hence, instead, we offer the following artificial benchmarks, that demonstrate
 the potential impact of fusion on program runtime.  We have two similar sets of
 benchmarks, one for lists and one for leaf trees, that consist of pipelines
 of increasing length. The $i$the benchmark consists of a producer (|upto|), followed by
@@ -1618,7 +1618,7 @@ of the unfused pipelines and $t_f$ the runtime of the fused pipelines.
 We see in the unoptimized version that the shortest list pipeline |l1| has a
 base runtime of about 10ms; every additional transformation in the longer
 pipelines adds about 4ms. Our compiler passes cause big-speeds. Firstly, the
-base runtime is recuded by almost 80\%. Moreover, the cost of the additional
+base runtime is reduced by almost 80\%. Moreover, the cost of the additional
 transformations is completely eliminated: all pipelines have the same absolute runtime.
 This means that the relative speed-up gradually converges to 100\%.
 
@@ -1682,7 +1682,7 @@ Higher-order matching is a general technique for matching expressions in
 functional programs against expression templates. In the context of Haskell,
 Sittampalam and de Moor~\cite{mag} have applied higher-order matching in their
 rewriting system, called MAG. They have used MAG for fusion in the following
-way. the programmer specifies the initial program, a specficiation of the
+way. the programmer specifies the initial program, a specification of the
 target program and suitable rewrite rules. The latter includes a rule for
 |foldr| fusion: 
 %{
@@ -1755,7 +1755,7 @@ be used in practice.
 %===============================================================================
 \section{Discussion}\label{s:discussion}
 
-We have presented a syntactic approach to transforming explicilty recursive
+We have presented a syntactic approach to transforming explicitly recursive
 functions into invocations of higher-order recursion schemes (folds and builds
 in particular). Our experimental evaluation shows that this technique is
 effective at finding many such occurrences in popular Haskell packages written
