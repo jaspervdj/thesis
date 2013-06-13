@@ -152,7 +152,7 @@ sum :: [Int] -> Int
 sum xs = foldr (+) 0 xs
 \end{spec}
 
-Gibbons~\cite{gibbons2003} has likened the transition from the former style to the
+Gibbons~\cite{Gibbons2003:Origami} has likened the transition from the former style to the
 latter with the transition from imperative programming with \texttt{goto}s to
 structured programming. Indeed the use of recursion schemes has many of the
 same benefits for program construction and program understanding.
@@ -1579,7 +1579,7 @@ the potential impact of fusion on program runtime.  We have two similar sets of
 benchmarks, one for lists and one for leaf trees, that consist of pipelines
 of increasing length. The $i$the benchmark consists of a producer (|upto|), followed by
 |i-1| transformers (|map (+1)| and a final consumer (|sum|). Each of the components of 
-the pipeline is defined in an explicitly recursive style (see Fig.~\ref{f:pipeline:components}).
+the pipeline is defined in an explicitly recursive style (see Appendix.~\ref{s:benchmarks}).
 
 %format l1
 %format l2
@@ -1609,9 +1609,9 @@ l5 =
             True   -> 0                                   
 \end{spec}
 
-Figures~\ref{figure:list-speedups} and \ref{figure:tree-speedups}
-show the absolute runtimes and the speed-ups obtained by fusion for respectively the
-list and tree pipelines.
+Figure~\ref{figure:list-speedups} 
+shows the absolute runtimes and the speed-ups obtained by fusion for the
+list pipelines.
 The relative speed-ups are defined as $(t_u - t_f)/t_u$ where $t_u$ is the runtime
 of the unfused pipelines and $t_f$ the runtime of the fused pipelines.
 
@@ -1621,7 +1621,9 @@ pipelines adds about 4ms. Our compiler passes cause big-speeds. Firstly, the
 base runtime is recuded by almost 80\%. Moreover, the cost of the additional
 transformations is completely eliminated: all pipelines have the same absolute runtime.
 This means that the relative speed-up gradually converges to 100\%.
-Similar observations can be made for the leaf tree pieplines.
+
+Figure~\ref{figure:tree-speedups} Similar observations can be made for the leaf
+tree pipelines.
 
 \begin{figure}[h!]
 \includegraphics[width=0.50\textwidth]{plots/list.pdf}
@@ -1884,7 +1886,7 @@ eval e =
 \bibliography{references}
 
 \appendix
-\section{Pipeline Benchmarks}
+\section{Pipeline Benchmarks}\label{s:benchmarks}
 
 \begin{code}
 
