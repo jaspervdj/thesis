@@ -913,9 +913,9 @@ case to eliminate |x| in |e'1|. The latter case reveals an improper
 catamorphism, where |ys| appears outside of a recursive call (issue 2 above);
 hence, rule \textsc{(F-Bind')} does not allow it.
 
-\paragraph{Folds with Parameters}\tom{Explain better the accumulating parameters.}
+\paragraph{Folds with Parameters}
 Rule \textsc{(F-Bind)} generalizes rule \textsc{(F-Bind')} by supporting
-additional parameters |many x| and |many z| before and after the scrutinee
+additional formal parameters |many x| and |many z| before and after the scrutinee
 argument |y|. The algorithm supports both constant and accumulating parameters.
 % kinds of additional arguments.
 % The first kind are arguments that are \emph{invariant} in the recursion. An
@@ -926,8 +926,8 @@ argument |y|. The algorithm supports both constant and accumulating parameters.
 %                 (v:vs)  -> (:) (f v) (map f vs)
 % \end{spec}
 Rule \textsc{(F-Bind)} does not explicitly name the constant parameters, but
-captures them instead in the recursive call context |E|. For instance, for |cat|
-the context has the form |cat triangle ys|.
+captures them instead in the context |E| for recursive calls. For instance, for |cat|
+the context has the form |cat triangle ys| where |ys| is the constant parameter.
 
 % The second kind of additional arguments are \emph{variant} in the recursion.
 % Catamorphisms with an accumulating parameter are typical examples of these. E.g.,
@@ -1287,7 +1287,7 @@ fold and a build together. Fusion can also happen when the programmer combines,
 e.g., his own explicitly recursive catamorphism with a library function that is
 already expressed as a build. 
 
-\tom{an example?}
+% \tom{an example?}
 
 %-------------------------------------------------------------------------------
 \subsection{Datatype Support}
