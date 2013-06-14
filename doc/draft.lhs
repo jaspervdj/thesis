@@ -1481,10 +1481,11 @@ snap-core-0.9.3.1       & 4   & 3   & 1   & 1   & 0   & 0  \\
 % \label{subsection:identifying-folds}
 
 In order to test the quality of our fold finding algorithm, we have applied it
-to 13 popular Haskell packages. We have not enabled any of GHC's optimization
-flags and disabled the actual rewriting in our pass. In this way, we get an
-accurate estimate (a lower bound) of the number of explicitly recursive
-catamorphisms that experienced Haskell programmers write in practice.
+to 13 popular Haskell packages during a compilation with GHC 7.6.3. We have not
+enabled any of the compiler's optimization flags and disabled the actual
+rewriting in our pass. In this way, we get an accurate estimate (a lower bound)
+of the number of explicitly recursive catamorphisms that experienced Haskell
+programmers write in practice.
 
 Table \ref{tabular:project-results} lists the results of the fold analysis. The
 first column lists the names of the packages and the second column (Total)
@@ -1595,12 +1596,12 @@ the pipeline is defined in an explicitly recursive style (see Appendix.~\ref{s:b
 
 
 We have timed the pipelines with Criterion~\cite{criterion}, using input $n =
-100\,000$.  Each of the benchmarks was compiled (and run) twice: once with the
-\texttt{-O2 -fenable-rewrite-rules} GHC flags, and once with those two flags
-and our compiler passes. 
-We have inspected the produced core code and observed that in the former case the
-pipeline is not fused at all, and in the latter case it is fully fused. For instance,
-the fully fused code obtained for |l5| is:
+100\,000$ on an Intel Core i3-2367M CPU @@ 1.40GHz. Each of the benchmarks was
+compiled twice: once with the \texttt{-O2 -fenable-rewrite-rules} GHC flags,
+and once with those two flags and our compiler passes.  We have inspected the
+produced core code and observed that in the former case the pipeline is not
+fused at all, and in the latter case it is fully fused. For instance, the fully
+fused code obtained for |l5| is:
 \begin{spec}
 l5 = 
   \l u -> case l > u of                                       
