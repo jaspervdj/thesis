@@ -68,7 +68,7 @@
 \title{Bringing Functions into the Fold}
 % \subtitle{Subtitle Text, if any}
 
-\authorinfo{Jasper Van der Jeugt \and Steven Keuchel \and Tom Schrijvers}{Ghent University, Belgium}{\{jasper.vanderjeugt,steven.keuchel,tom.schrijvers\}@@ugent.be}
+\authorinfo{Jasper Van der Jeugt \and Steven Keuchel \and Tom Schrijvers}{Department of Applied Mathematics, Computer Science and Statistics \\ Ghent University, Krijgslaan 281, 9000 Gent, Belgium}{\{jasper.vanderjeugt,steven.keuchel,tom.schrijvers\}@@ugent.be}
 
 \begin{document}
 
