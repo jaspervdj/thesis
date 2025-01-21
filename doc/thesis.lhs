@@ -92,7 +92,7 @@ elapsed = undefined
 % \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
 \setmainfont[SmallCapsFont={Latin Modern Roman Caps}, Ligatures=TeX]{DejaVu Serif}
 \setmonofont{Inconsolata}
-\newfontfamily{\futura}[Scale=1.30]{Futura Std}
+\newfontfamily{\futura}[Scale=1.30]{DejaVu Sans}
 
 \newcommand{\chapterstyle}{\futura\huge}
 \titleformat{\chapter}
